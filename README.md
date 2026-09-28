@@ -12,6 +12,7 @@
 - Design System موحد في `src/theme/` للألوان، الخطوط، المسافات، الزوايا والظلال.
 - مكونات UI قابلة لإعادة الاستخدام: `SurfaceCard`, `ActionButton`, `EmptyState`, `ScreenHeader`.
 - عقود Modular للخدمات: Storage، AI، Authentication.
+- متصفح WebView فعلي مع عنوان/بحث، Back، Forward، Refresh، Home، حالة تحميل، وقيود تكبير أساسية مع إبقاء الحقول قابلة للكتابة.
 - `.env.example` بدون أسرار.
 - إعداد Android أولي مع package id محلي: `com.murshid.s7`.
 
@@ -21,13 +22,14 @@
 - TypeScript check يمر بنجاح.
 - التنقل بين التبويبات.
 - الضغط على أدوات Home ينقل المستخدم إلى الوجهة المتاحة حاليًا.
+- فتح المواقع والبحث داخل WebView، مع تحديث العنوان عند التنقل.
 - واجهات الحالات الفارغة تعرض بوضوح ما هو مهيأ وما لم يُوصل بعد.
 
 ## Partially implemented / not implemented yet
 
 | المجال | الحالة | السبب والمرحلة التالية |
 |---|---|---|
-| Kiosk Browser | غير موصل بعد | يحتاج `react-native-webview` وقرار Expo Go مقابل Development Build، ثم اختبار back/forward/zoom/forms. |
+| Kiosk Browser | منفذ جزئيًا | WebView والعنوان والبحث والتنقل والـ injected zoom policy تعمل؛ يلزم Development Build واختبار أجهزة حقيقية قبل اعتماد قيود Kiosk الأوسع. |
 | Download Manager | عقد معماري فقط | سيُبنى حول ملفات `.tmp`، progress، retry، duplicate detection، ثم نقل الملف النهائي بعد التحقق. |
 | Gallery | واجهة حالة فارغة | سيُربط بـ metadata store وvirtualized grid وthumbnail/cache. |
 | Files | واجهة حالة فارغة | سيُربط بـ Expo FileSystem بعد تحديد سياسة التخزين والصلاحيات في Android الحديث. |
@@ -41,7 +43,7 @@
 App.tsx
   └── AppNavigator
       ├── HomeScreen
-      ├── BrowserScreen      (next: WebView + Kiosk controller)
+      ├── BrowserScreen      (WebView + address/search + Kiosk policy)
       ├── MediaScreen        (next: metadata-driven gallery)
       └── SettingsScreen
 
