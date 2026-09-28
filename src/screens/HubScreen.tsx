@@ -11,14 +11,15 @@ export function HubScreen() {
   const [proposals, setProposals] = useState<HubProposal[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const repository = createHubRepository();
-  const load = async () => { setRefreshing(true); try { setProposals(await repository.listRecentProposals()); } finally { setLoading(false); setRefreshing(false); } };
+  const load = async () => { setRefreshing(true); setError(null); try { setProposals(await repository.listRecentProposals()); } catch { setError('تعذر قراءة Firestore. تحقق من تفعيل Firestore وقواعد الأمان.'); } finally { setLoading(false); setRefreshing(false); } };
   useEffect(() => { void load(); }, []);
   return <ScrollView style={styles.screen} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.teal} />}>
     <View style={styles.header}><View><Text style={styles.eyebrow}>CONTROL HUB</Text><Text style={styles.title}>مركز التحسينات</Text><Text style={styles.detail}>إدارة المحتوى والإصدارات والمقترحات من مساحة واحدة.</Text></View><View style={styles.hubIcon}><Ionicons name="git-branch-outline" size={24} color={colors.tealDark} /></View></View>
     <SurfaceCard accent={firebaseConfigStatus.configured ? colors.teal : colors.amber}><View style={styles.statusRow}><View style={[styles.statusDot, { backgroundColor: firebaseConfigStatus.configured ? colors.teal : colors.amber }]} /><View style={styles.statusCopy}><Text style={styles.cardTitle}>{firebaseConfigStatus.configured ? 'Firebase متصل' : 'Firebase غير موصل بعد'}</Text><Text style={styles.cardDetail}>{firebaseConfigStatus.configured ? 'ستُقرأ المقترحات من Firestore بعد تطبيق قواعد الأمان.' : 'الواجهة والعقد جاهزان. أضف إعدادات Firebase العامة عبر .env، ولا تضع Admin SDK key داخل Expo.'}</Text></View></View></SurfaceCard>
     <Text style={styles.sectionTitle}>دورة التحسين</Text><View style={styles.metrics}><Metric icon="create-outline" label="مسودات" value="—" /><Metric icon="eye-outline" label="مراجعة" value="—" /><Metric icon="rocket-outline" label="منشور" value="—" /></View>
-    <Text style={styles.sectionTitle}>آخر المقترحات</Text>{loading ? <ActivityIndicator color={colors.teal} /> : proposals.length ? proposals.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal} />) : <EmptyState icon="layers-outline" title="لا توجد مقترحات بعد" body="لن نعرض بيانات تجريبية. عند ربط Firebase ستظهر هنا المقترحات الفعلية وحالتها." />}
+    <Text style={styles.sectionTitle}>آخر المقترحات</Text>{loading ? <ActivityIndicator color={colors.teal} /> : error ? <SurfaceCard><Text style={styles.cardTitle}>تعذر تحميل المقترحات</Text><Text style={styles.cardDetail}>{error}</Text></SurfaceCard> : proposals.length ? proposals.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal} />) : <EmptyState icon="layers-outline" title="لا توجد مقترحات بعد" body="لن نعرض بيانات تجريبية. عند ربط Firebase ستظهر هنا المقترحات الفعلية وحالتها." />}
     <SurfaceCard><Text style={styles.cardTitle}>تصنيف التحديثات</Text><Text style={styles.cardDetail}>Dynamic للمحتوى والإعدادات، OTA لكود JavaScript المتوافق، وNative لتغييرات Android التي تحتاج APK/AAB جديدًا.</Text></SurfaceCard>
   </ScrollView>;
 }
