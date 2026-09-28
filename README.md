@@ -112,7 +112,7 @@ Gallery UI
 - Android Studio/SDK للبناء المحلي، أو Expo Go للتجارب التي لا تحتاج Native Modules إضافية.
 
 ```bash
-git clone https://github.com/seiferfan077-cmyk/Murshid-S7.git
+git clone https://github.com/seiferfan077-cmyk/Morshed_s7.git
 cd Murshid-S7
 npm install
 npm start
