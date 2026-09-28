@@ -33,7 +33,7 @@ https://github.com/seiferfan077-cmyk/Morshed_s7.git
 | Backend | غير موجود كخدمة تشغيلية داخل هذا المستودع |
 | Database | Firestore adapter وقواعد مقترحة فقط؛ لا توجد بيانات/مهاجرات تشغيلية مثبتة |
 | File storage | `StorageProvider` contract فقط؛ لا يوجد Expo FileSystem أو S3 adapter عامل |
-| EAS | غير مهيأ كمشروع نشر؛ لا توجد APK/AAB أو OTA منشورة |
+| EAS | إعدادات محلية مضافة في `eas.json` و`expo-updates` مثبت؛ لا يوجد EAS project ID أو APK/AAB أو OTA منشورة |
 | التحقق الآلي | `npx tsc --noEmit` ناجح و`npx expo-doctor` ناجح: 21/21 |
 
 > وجود ملف أو واجهة لا يعني أن الميزة مكتملة. الحالات أدناه تفصل بين **Implemented** و**Partially implemented** و**Placeholder** و**Not implemented**.
@@ -69,6 +69,7 @@ Screens
 .
 ├── App.tsx                         # نقطة دخول التطبيق وStatusBar
 ├── app.json                        # Expo identity وAndroid package وassets
+├── eas.json                        # Profiles والقنوات المحلية لـEAS
 ├── package.json                    # dependencies وscripts
 ├── package-lock.json               # lockfile لـnpm
 ├── assets/                         # icon وfavicon وadaptive icon وsplash المحلية
@@ -150,9 +151,9 @@ Bottom tabs تعمل للصفحات: الرئيسية، المتصفح، الم�
 
 Hub يدير مقترحات وتصنيفًا، لكنه لا يقرأ schema آمنًا من Firebase ليعيد بناء صفحات أو مكونات كاملة. لا يوجد renderer ديناميكي ولا validation schema ولا preview/publish snapshot.
 
-### EAS OTA — Not implemented
+### EAS OTA — Prepared locally, not published
 
-`updatePolicy.ts` يصنف التغيير ويقترح قناة، لكنه لا ينشر تحديثًا. لا يوجد EAS project أو `expo-updates` config أو Backend يحمل `EXPO_TOKEN` أو قنوات Development/Preview/Production.
+`updatePolicy.ts` يصنف التغيير ويقترح قناة. أضيف `expo-updates` و`runtimeVersion` و`eas.json` محليًا، لكن لا يوجد EAS project ID أو `updates.url` أو نشر فعلي بعد.
 
 ### Monitoring/Rollback — Partially implemented
 
@@ -177,6 +178,7 @@ Hub يدير مقترحات وتصنيفًا، لكنه لا يقرأ schema آ�
 | `@react-native-async-storage/async-storage` | `2.2.0` | dependency prepared for persistence |
 | `react-native-safe-area-context` | `~5.7.0` | safe areas |
 | `react-native-screens` | `~4.26.0` | navigation native optimization |
+| `expo-updates` | SDK-compatible | OTA runtime and update client |
 
 النصوص التنفيذية المتاحة هي `npm start`, `npm run android`, `npm run ios`, و`npm run web`. فحص Expo الصحيح في هذا الإصدار هو `npx expo-doctor` وليس `npx expo doctor`.
 
@@ -185,6 +187,7 @@ Hub يدير مقترحات وتصنيفًا، لكنه لا يقرأ schema آ�
 - Display name: `مُرشد - S7`.
 - Expo slug: `murshid-s7`.
 - App version: `0.1.0`.
+- Runtime version: `appVersion` policy؛ Binary `0.1.0` يقبل تحديثات runtime `0.1.0` فقط.
 - Orientation: portrait.
 - Android package/application ID: `com.murshid.s7`.
 - Android predictive back: disabled via `predictiveBackGestureEnabled: false`.
@@ -254,6 +257,65 @@ npx eas build --platform android --profile production
 | AI provider | غير موصل | Backend ومزود يختاره المالك |
 | S3/Object storage | غير موصل | اختيار مزود وسياسة تكلفة |
 
+## OTA Architecture وRuntime Version
+
+الاستراتيجية المختارة هي `runtimeVersion.policy = appVersion`. لذلك يحمل كل Binary قيمة runtime مساوية لإصدار التطبيق في `app.json`، مثل `0.1.0`. أي تغيير Native أو dependency/configuration يؤثر على native runtime يجب أن يرفع `expo.version` إلى قيمة جديدة، ثم يبني APK/AAB جديدًا. لا نرسل OTA من runtime قديم إلى Binary غير متوافق.
+
+التغييرات التي يمكن نشرها OTA بعد وجود Binary مناسب هي React/TypeScript، الشاشات والمكونات، navigation/business logic، النصوص، إصلاحات JavaScript، وassets المضمنة في bundle. التغييرات التي تحتاج Build جديدًا هي package/native dependency جديدة، Android permissions، package ID، adaptive icon/splash، WebView native configuration، SDK/React Native/Expo upgrade، `app.json` native settings، أو أي تغيير في `runtimeVersion`.
+
+### إعداد EAS الحالي
+
+`eas.json` موجود ويحتوي على profiles للقنوات التالية:
+
+| Profile | Channel | الغرض |
+|---|---|---|
+| `development` | `development` | Development Build داخلي للاختبار |
+| `preview` | `preview` | APK داخلي لمجموعة الاختبار |
+| `production` | `production` | الإصدار العام |
+
+لم يتم تشغيل `eas init` أو `eas update:configure` لأن ذلك يحتاج حساب Expo وربط EAS project. لا يتم اختلاق `projectId` أو `updates.url`. بعد تسجيل الدخول وربط المشروع نفّذ مرة واحدة:
+
+```bash
+npx eas login
+npx eas init
+npx eas update:configure
+npx eas build --profile development --platform android
+```
+
+ثم، بعد وجود Binary مناسب واختبار Preview:
+
+```bash
+npx eas update --branch preview --message "preview: describe change"
+npx eas update --branch production --message "production: describe approved change"
+```
+
+تأكد من استخدام channel/branch mapping الذي يعرضه EAS عند الإعداد؛ لا تخلط بين branch وchannel يدويًا. لا تنشر Production مباشرة، ولا تستخدم OTA لتغيير Native.
+
+### GitHub → EAS workflow من Termux/Acode
+
+```bash
+cd ~/projects/Murshid-S7
+git pull --rebase origin main
+# عدّل الكود في Acode أو المحرر
+npm ci
+npx expo-doctor
+npx tsc --noEmit
+npx expo start --tunnel
+git add .
+git commit -m "fix: describe change"
+git push origin main
+# بعد موافقة الاختبار فقط:
+npx eas update --branch preview --message "preview: tested change"
+# وبعد قبول Preview:
+npx eas update --branch production --message "production: approved change"
+```
+
+هذا المسار لا يعتمد على Manus. GitHub هو مصدر الكود، وEAS هو نشر OTA بعد تسجيل حساب Expo. لا تضع `EXPO_TOKEN` في المشروع؛ استخدم `eas login` أو secret manager/CI.
+
+### Rollback وRecovery
+
+احتفظ برسائل Update واضحة وسجّل commit SHA في سجل الإصدار. عند اكتشاف خلل، أوقف التوزيع ولا ترسل Update جديدًا عشوائيًا؛ استخدم EAS rollback/republish وفق حالة القناة، أو انشر آخر commit مستقر إلى القناة بعد التحقق. إذا فشل تحديث أثناء التحميل يجب أن يبقى التطبيق على bundle السابق/المضمن. تحديث Native الخاطئ يحتاج إصلاحًا وبناءً جديدًا، ولا يمكن علاجه بادعاء OTA.
+
 ## Environment Variables وSecrets
 
 `.env.example` يحتوي أسماء المتغيرات فقط. يوجد `.env` محلي في بيئة التطوير، وهو ignored وغير متتبع. لا تعتمد نسخة جديدة على وجوده؛ انسخه يدويًا وأدخل القيم العامة من Firebase Console:
@@ -321,9 +383,10 @@ git push origin main
 - [`docs/architecture.md`](docs/architecture.md): قرارات المعمارية وتدفقات التنزيل والتخزين.
 - [`docs/firebase-hub.md`](docs/firebase-hub.md): طبقة Firebase وHub ونموذج البيانات وقواعد الأمان.
 - [`docs/release-management.md`](docs/release-management.md): تصنيف التحديثات، قنوات EAS، المراقبة والتراجع.
+- [`docs/ota-strategy.md`](docs/ota-strategy.md): تدقيق OTA، runtimeVersion، القنوات، workflow، والحدود.
 - [`ideas.md`](ideas.md): اتجاه التصميم وهوية مُرشد S7.
 - [`firebase/firestore.rules`](firebase/firestore.rules): القواعد الأولية المقترحة.
 
 ## آخر تدقيق مؤكد
 
-تم تنفيذ آخر تدقيق على المشروع الرسمي فقط في `/home/ubuntu/projects/Murshid-S7`، وتحقق من Git وremote والملفات والإصدارات و`npx tsc --noEmit` و`npx expo-doctor`. آخر حالة مؤكدة: الفرع `main` نظيف ومتزامن مع `origin/main`، وآخر Commit هو `70ced09`.
+تم تنفيذ آخر تدقيق على المشروع الرسمي فقط في `/home/ubuntu/projects/Murshid-S7`، وتحقق من Git وremote والملفات والإصدارات و`runtimeVersion` و`eas.json` و`expo-updates` و`npx tsc --noEmit` و`npx expo-doctor`. إعداد OTA أصبح موجودًا محليًا، لكن EAS project ID و`updates.url` وProduction Build/Update ما زالت غير مهيأة. سيُحدّث Commit hash بعد رفع هذه المرحلة.

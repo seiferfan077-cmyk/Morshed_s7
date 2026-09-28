@@ -3,6 +3,7 @@
     "name": "مُرشد - S7",
     "slug": "murshid-s7",
     "version": "0.1.0",
+    "runtimeVersion": { "policy": "appVersion" },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
