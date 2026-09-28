@@ -260,3 +260,7 @@ npx eas build --platform android --profile production # AAB حسب profile
 الملفات الأساسية هي `src/services/firebase/` و`src/screens/HubScreen.tsx` و`firebase/firestore.rules`. واجهة Hub تعرض حالة الاتصال، دورة `draft → review → approved → published`، وتصنيف `dynamic / ota / native`. تفاصيل نموذج البيانات، قواعد الأمان، والخطوات التي تحتاج حساب المالك موجودة في [`docs/firebase-hub.md`](docs/firebase-hub.md).
 
 القيم `EXPO_PUBLIC_FIREBASE_*` معرفات عامة وليست بديلًا عن قواعد الأمان. لا تضع Firebase Admin credentials أو EAS token داخل Expo أو GitHub. نشر EAS يجب أن يتم عبر Backend محمي مع admin claims وaudit log، وبعد الاختبار والموافقة.
+
+## Progress snapshot
+
+تم تنفيذ Hub قابل للتشغيل: إنشاء مسودة، اختيار تصنيف Dynamic/OTA/Native، قراءة المقترحات من Firestore، وانتقالات Draft/Review/Approved/Published مع audit log عند وجود صلاحية Admin. كما أضيفت `classifyUpdate()` و`evaluateReleaseHealth()` لتحديد قناة EAS أو الحاجة إلى Native Build وتوصية الاستمرار/الإيقاف/التراجع. ما يزال نشر EAS الفعلي وBackend الذي يحمل أسرار Admin/EXPO_TOKEN متطلبًا خارجيًا؛ لا يمكن تنفيذه بأمان من تطبيق الهاتف.

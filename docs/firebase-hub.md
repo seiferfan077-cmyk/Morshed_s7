@@ -28,6 +28,7 @@ Backend / Functions (next)
 | `src/services/firebase/firebaseConfig.ts` | قراءة public Firebase identifiers وإظهار حالة الإعداد دون أسرار. |
 | `src/services/firebase/firebaseClient.ts` | تهيئة Firebase App/Auth/Firestore بشكل lazy فقط عند اكتمال الإعداد. |
 | `src/services/firebase/hubRepository.ts` | عقد المقترحات وFirestore adapter ومحول حالة غير موصل. |
+| `src/services/firebase/firebaseAuthService.ts` | تسجيل دخول المدير والتحقق من `admin` custom claim قبل السماح بإدارة Hub. |
 | `src/screens/HubScreen.tsx` | واجهة Hub أولية تعرض حالة الربط، دورة التحسين، والتحديثات بلا بيانات وهمية. |
 | `firebase/firestore.rules` | قواعد بداية deny-by-default مع admin claim. |
 | `.env.example` | أسماء Firebase العامة فقط. |
@@ -79,4 +80,4 @@ EXPO_PUBLIC_FIREBASE_APP_ID=
 
 ## الحالة الحالية
 
-تم تنفيذ العقود والتهيئة والواجهة، مع نجاح TypeScript. لم يتم ادعاء اتصال Firebase أو نشر EAS، لأن بيانات المشروع والصلاحيات لم تُقدم بعد. عند إضافة القيم العامة فقط ستتحول الواجهة من `غير موصل بعد` إلى عميل Firebase قادر على القراءة، لكن الكتابة والنشر يجب أن تمر عبر قواعد وصلاحيات Backend.
+تم تنفيذ العقود والتهيئة وواجهة Hub التشغيلية، مع نجاح TypeScript. يمكن إنشاء المقترحات ونقلها بين الحالات عندما يكون Firebase مفعّلًا والمستخدم مسجلًا بصلاحية Admin. لم يتم ادعاء نشر EAS أو Backend، لأن هذه العمليات تحتاج أسرارًا وحسابات خارجية. عند إضافة القيم العامة فقط يصبح عميل Firebase قادرًا على الاتصال، لكن الكتابة والنشر يظلان محكومين بقواعد وصلاحيات Backend.
