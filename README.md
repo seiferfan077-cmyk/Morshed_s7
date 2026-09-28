@@ -1,266 +1,329 @@
 # مُرشد - S7
 
-تطبيق Android مبني على **React Native + Expo** بهدف توفير مساحة عملية هادئة للتصفح، الوسائط، الملفات، والمساعد الذكي. هذا المستودع هو مصدر الحقيقة للمشروع، ويمكن تطويره من Termux أو أي بيئة Node/Expo خارج Manus.
+تطبيق Android مبني على **React Native + Expo + TypeScript**. هذا المجلد هو المشروع الرسمي الوحيد:
 
-> **الحالة الحالية:** هذه هي مرحلة تأسيس المشروع. الأساس قابل للتشغيل ويحتوي على Design System، Navigation، Home، وعقود الخدمات. الميزات الأصلية الثقيلة مثل WebView والتنزيلات وFileSystem لم تُدّعَ مكتملة بعد، وستُضاف تدريجيًا مع اختبارها وتوثيق قيودها.
+```text
+/home/ubuntu/projects/Murshid-S7
+```
 
-## What was built
+ومستودع GitHub هو مصدر الحقيقة الوحيد للكود:
 
-- مشروع Expo TypeScript مستقل باسم `murshid-s7`.
-- تنقل سفلي عربي بين الرئيسية، المتصفح، المعرض، والإعدادات.
-- شاشة Home حديثة بهوية مُرشد، بطاقات وصول سريع وملخص تخزين.
-- Design System موحد في `src/theme/` للألوان، الخطوط، المسافات، الزوايا والظلال.
-- مكونات UI قابلة لإعادة الاستخدام: `SurfaceCard`, `ActionButton`, `EmptyState`, `ScreenHeader`.
-- عقود Modular للخدمات: Storage، AI، Authentication.
-- متصفح WebView فعلي مع عنوان/بحث، Back، Forward، Refresh، Home، حالة تحميل، وقيود تكبير أساسية مع إبقاء الحقول قابلة للكتابة.
-- `.env.example` بدون أسرار.
-- إعداد Android أولي مع package id محلي: `com.murshid.s7`.
+```text
+https://github.com/seiferfan077-cmyk/Morshed_s7.git
+```
 
-## What is working
+لا تستخدم نسخة `/home/ubuntu/murshids7` التابعة لـWeb Dev Mobile لهذا المشروع؛ هي Starter منفصل وليست جزءًا من مصدر الحقيقة.
 
-- تشغيل المشروع عبر Expo.
-- TypeScript check يمر بنجاح.
-- التنقل بين التبويبات.
-- الضغط على أدوات Home ينقل المستخدم إلى الوجهة المتاحة حاليًا.
-- فتح المواقع والبحث داخل WebView، مع تحديث العنوان عند التنقل.
-- واجهات الحالات الفارغة تعرض بوضوح ما هو مهيأ وما لم يُوصل بعد.
+## ملخص التدقيق الحالي
 
-## Partially implemented / not implemented yet
+| العنصر | الحالة الفعلية |
+|---|---|
+| Git branch | `main` |
+| Git status | نظيف ومتزامن مع `origin/main` وقت آخر تدقيق |
+| آخر Commit | `70ced09 feat: complete improvement hub and release policy foundation` |
+| ملفات Git المتتبعة | 45 ملفًا |
+| Expo | `~57.0.25` |
+| React Native | `0.86.3` |
+| React | `19.2.3` |
+| TypeScript | `~6.0.3` |
+| Android package | `com.murshid.s7` |
+| Expo slug | `murshid-s7` |
+| Firebase project config | معرفات عامة محليًا لمشروع `moreheads7`، غير مرفوعة داخل `.env` |
+| Firestore | غير مثبت كخدمة عاملة؛ آخر فحص أعاد `403 PERMISSION_DENIED` |
+| Backend | غير موجود كخدمة تشغيلية داخل هذا المستودع |
+| Database | Firestore adapter وقواعد مقترحة فقط؛ لا توجد بيانات/مهاجرات تشغيلية مثبتة |
+| File storage | `StorageProvider` contract فقط؛ لا يوجد Expo FileSystem أو S3 adapter عامل |
+| EAS | غير مهيأ كمشروع نشر؛ لا توجد APK/AAB أو OTA منشورة |
+| التحقق الآلي | `npx tsc --noEmit` ناجح و`npx expo-doctor` ناجح: 21/21 |
 
-| المجال | الحالة | السبب والمرحلة التالية |
-|---|---|---|
-| Kiosk Browser | منفذ جزئيًا | WebView والعنوان والبحث والتنقل والـ injected zoom policy تعمل؛ يلزم Development Build واختبار أجهزة حقيقية قبل اعتماد قيود Kiosk الأوسع. |
-| Download Manager | عقد معماري فقط | سيُبنى حول ملفات `.tmp`، progress، retry، duplicate detection، ثم نقل الملف النهائي بعد التحقق. |
-| Gallery | واجهة حالة فارغة | سيُربط بـ metadata store وvirtualized grid وthumbnail/cache. |
-| Files | واجهة حالة فارغة | سيُربط بـ Expo FileSystem بعد تحديد سياسة التخزين والصلاحيات في Android الحديث. |
-| AI | Provider contract فقط | يجب إنشاء Backend مستقل؛ لا توضع مفاتيح مزود AI داخل التطبيق. |
-| Authentication | Provider-neutral contract | يمكن إضافة Supabase أو Firebase adapter دون تغيير الشاشات. |
-| Backend / Database / S3 | غير مفعلة | لا توجد خدمة خارجية مفروضة أو اشتراكات منشأة دون موافقة المستخدم. |
+> وجود ملف أو واجهة لا يعني أن الميزة مكتملة. الحالات أدناه تفصل بين **Implemented** و**Partially implemented** و**Placeholder** و**Not implemented**.
 
-## Architecture
+## Architecture الحالية
 
 ```text
 App.tsx
   └── AppNavigator
-      ├── HomeScreen
-      ├── BrowserScreen      (WebView + address/search + Kiosk policy)
-      ├── MediaScreen        (next: metadata-driven gallery)
-      └── SettingsScreen
+      ├── الرئيسية → HomeScreen
+      ├── المتصفح → BrowserScreen → react-native-webview
+      ├── المعرض → MediaScreen
+      ├── Hub → HubScreen → HubRepository → Firebase/Firestore adapter
+      └── الإعدادات → SettingsScreen
 
-UI Components ──> Design System
-Screens       ──> Services contracts
-Modules       ──> Provider adapters
-Services      ──> External Backend / native APIs (future)
+Screens
+  ├── shared UI components
+  ├── Design System tokens
+  ├── domain types
+  └── provider-neutral services
+          ├── Firebase/Auth/Firestore
+          ├── AI provider contract
+          ├── Storage provider contract
+          ├── Release classification policy
+          └── Update health/rollback policy
 ```
 
-### Data flow المستهدف للتنزيل
+المبدأ الأساسي هو أن الشاشة تنسق العرض والتفاعل، بينما الخدمات والعقود تملك الوصول إلى Firebase أو التخزين أو Backend. لا ينبغي إضافة SDK خارجي مباشرة داخل شاشة جديدة.
 
-```text
-WebView
-  ↓
-Download Manager
-  ↓
-Temporary .tmp file
-  ↓
-Validation + duplicate check
-  ↓
-StorageProvider.saveFile()
-  ↓
-MediaMetadata
-  ↓
-State/event update
-  ↓
-Gallery UI
-```
-
-## Folder structure
+## Folder structure ومسؤولية كل مجلد
 
 ```text
 .
-├── App.tsx
-├── assets/                 # Local bundled icon/splash assets
+├── App.tsx                         # نقطة دخول التطبيق وStatusBar
+├── app.json                        # Expo identity وAndroid package وassets
+├── package.json                    # dependencies وscripts
+├── package-lock.json               # lockfile لـnpm
+├── assets/                         # icon وfavicon وadaptive icon وsplash المحلية
 ├── src/
-│   ├── components/         # Shared UI primitives
-│   ├── navigation/         # Navigation graph and route contracts
-│   ├── screens/            # Screen composition only
+│   ├── components/                 # SurfaceCard وActionButton وEmptyState وScreenHeader
+│   ├── navigation/                 # Bottom tabs وRootTabParamList
+│   ├── screens/                    # تركيب واجهات Home/Browser/Media/Hub/Settings/AI/Files
 │   ├── services/
-│   │   ├── ai/             # AIProvider and Backend adapter
-│   │   ├── auth/           # AuthProvider contract
-│   │   ├── storage/        # StorageProvider abstraction
-│   │   └── api/            # Future API client and error policy
-│   ├── modules/             # Feature-owned logic: browser/media/files/settings
-│   ├── theme/               # Design tokens
-│   └── types/               # Shared domain types
-├── docs/                    # Architecture notes and decision records
-├── .env.example             # Names only; no credentials
-├── app.json                 # Expo identity and Android configuration
-└── README.md
+│   │   ├── ai/                     # AIProvider contract؛ لا يوجد Backend AI عامل
+│   │   ├── auth/                   # AuthProvider contract العام
+│   │   ├── firebase/               # Firebase config/client/Auth/Hub Firestore adapter
+│   │   ├── monitoring/             # حساب صحة الإصدار ونسبة الفشل
+│   │   ├── releases/               # تصنيف Dynamic/OTA/Native وسياسة القنوات
+│   │   ├── storage/                # StorageProvider contract فقط
+│   │   └── api/                    # محجوز لعقد API؛ لا يوجد client عامل حاليًا
+│   ├── theme/                      # colors وspacing وradii وtypography وshadows
+│   └── types/                      # MediaMetadata وAppSettings وdomain types
+├── firebase/
+│   └── firestore.rules             # قواعد مقترحة deny-by-default مع admin claim
+├── docs/
+│   ├── architecture.md             # قرارات المعمارية وتدفقات البيانات
+│   ├── firebase-hub.md             # Firebase وHub ونموذج البيانات
+│   └── release-management.md       # EAS policy وmonitoring وrollback boundaries
+├── ideas.md                        # Design direction وهوية مُرشد
+├── .env.example                    # أسماء المتغيرات فقط
+├── .env                            # محلي، ignored، لا يُرفع إلى Git
+└── README.md                       # هذا الدليل والتقرير
 ```
 
-## لماذا هذه المعمارية؟
+## حالة الـFeatures الفعلية
 
-- **الشاشات لا تتعامل مباشرة مع FileSystem:** حتى نستطيع تبديل Expo FileSystem بـ S3 أو Provider آخر دون إعادة كتابة UI.
-- **AI خلف Backend:** لأن أي secret داخل APK قابل للاستخراج. التطبيق يرسل إلى endpoint يملكه المستخدم، والمفتاح يبقى على الخادم.
-- **Types مستقلة عن المزود:** `MediaMetadata`, `AppSettings`, `AuthSession` تمثل domain وليست استجابة Supabase أو Firebase.
-- **Modules مستقلة:** كل Feature جديدة تملك منطقها، وتستدعي العقود المشتركة فقط.
+### Home — Implemented
 
-## Local development
+الشاشة الرئيسية موجودة وتحتوي على الهوية، الوصول السريع، ملخص التخزين، وروابط للتبويبات. أزرار الوصول السريع تنقل إلى الوجهات الموجودة. لا تعرض إحصاءات Backend أو تخزين حقيقية؛ نسبة التخزين الحالية واجهة تأسيسية وليست قراءة نظام ملفات.
 
-متطلبات أساسية:
+### Navigation — Implemented
 
-- Node.js 20 أو أحدث.
-- npm أو pnpm.
-- Expo CLI عبر `npx expo`.
-- Android Studio/SDK للبناء المحلي، أو Expo Go للتجارب التي لا تحتاج Native Modules إضافية.
+Bottom tabs تعمل للصفحات: الرئيسية، المتصفح، المعرض، Hub، الإعدادات. شاشتا AI وFiles موجودتان في الشجرة لكنهما ليستا Tab مستقلين حاليًا.
+
+### Browser/Kiosk — Partially implemented
+
+`BrowserScreen` يستخدم `react-native-webview` فعليًا ويقدم عنوانًا/بحثًا، Home، Back، Forward، Refresh، loading state، وتحديث URL عند التنقل. يوجد injected viewport policy لمحاولة منع التكبير مع إبقاء input/textarea/select قابلة للكتابة.
+
+غير مكتمل: Download event interception، تنزيلات حقيقية، قوائم domains، external-link policy كاملة، history persistence، cookies/session policy، security hardening، واختبار جهاز Android حقيقي. القيود الحالية لا تثبت Kiosk lockdown كاملًا.
+
+### Hub — Partially implemented وقابل للتشغيل عند توفر Firebase/Admin
+
+`HubScreen` يقدم إنشاء مقترح كـDraft، اختيار Dynamic/OTA/Native، قراءة آخر المقترحات، وإمكانية الانتقال Draft → Review → Approved → Published. `hubAuditLogs` تضاف عند انتقال الحالة من خلال Firestore adapter.
+
+الواجهة لا تستطيع العمل فعليًا قبل تفعيل Firestore وتسجيل مستخدم Firebase بصلاحية `admin` claim. لا يوجد Backend ينفذ نشر EAS، ولا ينبغي أن تنفذه شاشة الهاتف.
+
+### Firebase — Partially implemented
+
+موجود: Firebase Web SDK، lazy initialization، public config loader، Auth service، Firestore repository، قواعد مقترحة، وحالة خطأ واضحة. غير موجود: تفعيل Firestore المؤكد، Authentication flow داخل شاشة Login، إنشاء Custom Claims من Backend، Cloud Functions، Remote Config فعلي، Storage فعلي، أو Admin SDK.
+
+آخر اختبار خارجي لواجهة Firestore على مشروع `moreheads7` أعاد `403 PERMISSION_DENIED`. هذا يثبت أن الوصول غير متاح حاليًا، ولا يثبت أن Firebase مفعّل أو أن المستخدم Admin.
+
+### Authentication — Partially implemented
+
+`firebaseAuthService.ts` يوفّر sign-in بالبريد وكلمة المرور، مراقبة المستخدم، sign-out، والتحقق من `admin` claim. لا توجد شاشة Login ولا Backend يعيّن claims ولا سياسة استرجاع كلمة المرور.
+
+### Gallery — Placeholder
+
+`MediaScreen` يعرض Empty State. توجد `MediaMetadata` types فقط. لا توجد قراءة صور من الجهاز، thumbnails، virtualization، viewer، share، delete، أو cache.
+
+### Files — Placeholder
+
+`FilesScreen` يعرض Empty State. `StorageProvider` contract موجود، لكن Expo FileSystem/MediaStore/S3 غير موصل. لا توجد صلاحيات أو تنزيلات أو مساحة حقيقية.
+
+### AI — Placeholder contract
+
+`AIProvider` يحدد عقد الإرسال، لكن لا يوجد Backend أو مزود AI أو Chat UI متصل. لا توجد مفاتيح AI داخل التطبيق، وهذا مقصود أمنيًا.
+
+### Download Manager — Not implemented
+
+لا توجد إدارة `.tmp` أو progress أو pause/cancel أو retry أو duplicate detection أو نقل نهائي إلى Storage. المسار موثق فقط.
+
+### Dynamic UI — Not implemented كـEngine
+
+Hub يدير مقترحات وتصنيفًا، لكنه لا يقرأ schema آمنًا من Firebase ليعيد بناء صفحات أو مكونات كاملة. لا يوجد renderer ديناميكي ولا validation schema ولا preview/publish snapshot.
+
+### EAS OTA — Not implemented
+
+`updatePolicy.ts` يصنف التغيير ويقترح قناة، لكنه لا ينشر تحديثًا. لا يوجد EAS project أو `expo-updates` config أو Backend يحمل `EXPO_TOKEN` أو قنوات Development/Preview/Production.
+
+### Monitoring/Rollback — Partially implemented
+
+`updateMonitor.ts` يحسب applied/failed/failureRate وruntime compatibility ويوصي Continue/Pause/Rollback. لا توجد telemetry حقيقية أو خدمة تستقبل الأحداث أو توقف EAS rollout فعليًا.
+
+## Dependencies والإصدارات
+
+الإصدارات الحالية من `package.json`:
+
+| الحزمة | الإصدار | الاستخدام |
+|---|---:|---|
+| `expo` | `~57.0.25` | runtime وMetro |
+| `react-native` | `0.86.3` | native UI |
+| `react` | `19.2.3` | rendering |
+| `typescript` | `~6.0.3` | static checking |
+| `react-native-webview` | `13.16.1` | Browser |
+| `@react-navigation/native` | `^7.4.1` | navigation core |
+| `@react-navigation/bottom-tabs` | `^7.19.2` | tabs |
+| `@expo/vector-icons` | `^15.0.2` | icons |
+| `expo-font` | `~57.0.4` | font peer dependency |
+| `firebase` | `^12.19.0` | Firebase Web SDK |
+| `@react-native-async-storage/async-storage` | `2.2.0` | dependency prepared for persistence |
+| `react-native-safe-area-context` | `~5.7.0` | safe areas |
+| `react-native-screens` | `~4.26.0` | navigation native optimization |
+
+النصوص التنفيذية المتاحة هي `npm start`, `npm run android`, `npm run ios`, و`npm run web`. فحص Expo الصحيح في هذا الإصدار هو `npx expo-doctor` وليس `npx expo doctor`.
+
+## Android وExpo configuration
+
+- Display name: `مُرشد - S7`.
+- Expo slug: `murshid-s7`.
+- App version: `0.1.0`.
+- Orientation: portrait.
+- Android package/application ID: `com.murshid.s7`.
+- Android predictive back: disabled via `predictiveBackGestureEnabled: false`.
+- Adaptive icon: local foreground/background/monochrome assets.
+- Web favicon: `assets/favicon.png`.
+- App icon: `assets/icon.png`.
+- Expo plugin: `expo-font`.
+- iOS tablet support is enabled in config، لكن هذا المشروع موجه أساسًا إلى Android.
+
+لا توجد مجلدات `android/` أو `ios/` متتبعة حاليًا؛ هي ignored. هذا يعني أن المشروع يستخدم Managed Expo configuration وليس Native projects committed.
+
+## هل يعمل خارج Manus؟
+
+نعم، من ناحية المصدر والتثبيت: المشروع Git repository عادي، و`package-lock.json` موجود، ولا يعتمد تشغيل Metro الأساسي على Manus. تم سابقًا استنساخه في مجلد اختبار وتشغيل `npm ci` و`npx tsc --noEmit` بنجاح.
+
+تشغيل قياسي:
 
 ```bash
 git clone https://github.com/seiferfan077-cmyk/Morshed_s7.git
-cd Murshid-S7
-npm install
-npm start
+cd Morshed_s7
+npm ci
+npx tsc --noEmit
+npx expo start
 ```
 
-أوامر مفيدة:
-
-```bash
-npm run android   # تشغيل Metro ومحاولة فتح Android
-npm run web       # معاينة الواجهات على الويب عند دعم الحزم
-npx tsc --noEmit  # فحص TypeScript
-npx expo doctor   # فحص توافق Expo
-```
-
-## Termux workflow
+لـTermux:
 
 ```bash
 pkg update
-pkg install nodejs git
-npm install -g eas-cli
-# داخل مجلد المشروع
-npm install
+pkg install nodejs-lts git
+termux-setup-storage
+git clone https://github.com/seiferfan077-cmyk/Morshed_s7.git
+cd Morshed_s7
+npm ci
 npx expo start --tunnel
-npx tsc --noEmit
 ```
 
-البناء المحلي الكامل لـ Android قد يتطلب Android SDK وJava، وهما أثقل من تشغيل Metro. عندما نضيف WebView أو Native download/background APIs، سنحدد في README إن كان Development Build مطلوبًا بدل Expo Go.
+يمكن فتح وتعديل المشروع من Acode أو أي محرر؛ يجب تعديل الملفات داخل نسخة Git المحلية ثم تشغيل الفحوصات من Termux. لا تضع `node_modules` في Git أو التخزين المشترك إذا سبب ذلك مشاكل أداء.
 
-## Environment variables and external services
+## Expo Go وDevelopment Build وAPK/AAB
 
-حاليًا لا توجد Credentials مطلوبة لتشغيل الأساس. انسخ المثال عند الحاجة:
+الواجهات الأساسية وWebView قد تعمل للتجربة عبر Expo Go بحسب دعم الإصدار والجهاز، لكن لا نعتبر ذلك اختبارًا native كاملًا. Development Build مطلوب عمليًا عندما نضيف أو نثبت Native modules/configuration غير المتاحة في Expo Go، وعند اختبار دورة Android الحقيقية والصلاحيات والتخزين والتنزيلات والخلفية.
+
+يمكن إخراج APK/AAB من حيث المسار التقني، لكن لم يتم إخراج artifact فعلي بعد لأن EAS project وcredentials غير مهيأة:
+
+```bash
+npx eas login
+npx eas build:configure
+npx eas build --platform android --profile preview
+npx eas build --platform android --profile production
+```
+
+لا تحفظ keystore أو `EXPO_TOKEN` داخل GitHub. تغييرات Native تحتاج Build جديدًا. تغييرات JS/TS المتوافقة يمكن أن تستخدم EAS Update بعد تهيئة `expo-updates`, `runtimeVersion`, المشروع والقنوات، لكن OTA غير مفعلة حاليًا.
+
+## الخدمات الخارجية والحالة
+
+| الخدمة | الحالة | ما يلزم |
+|---|---|---|
+| GitHub | متصل ويعمل | لا شيء حاليًا؛ `origin/main` هو المصدر الرسمي |
+| Firebase project `moreheads7` | public config محلي | تفعيل Firestore/Auth وقواعده وإنشاء Admin claim |
+| Firestore | adapter/rules فقط؛ آخر فحص 403 | Create database + تطبيق rules + Auth |
+| Firebase Auth | service جزئي | تفعيل Email/Password أو provider تختاره، وشاشة Login لاحقًا |
+| Firebase Storage | غير موصل | اختيار سياسة التخزين وتفعيل الخدمة إذا لزم |
+| Firebase Admin SDK | غير موجود | Backend آمن وsecret storage |
+| Backend/API | غير موجود تشغيليًا | خدمة مستقلة للنشر وAI وclaims وaudit policy |
+| EAS | غير مهيأ | Expo account/project/token/channels |
+| AI provider | غير موصل | Backend ومزود يختاره المالك |
+| S3/Object storage | غير موصل | اختيار مزود وسياسة تكلفة |
+
+## Environment Variables وSecrets
+
+`.env.example` يحتوي أسماء المتغيرات فقط. يوجد `.env` محلي في بيئة التطوير، وهو ignored وغير متتبع. لا تعتمد نسخة جديدة على وجوده؛ انسخه يدويًا وأدخل القيم العامة من Firebase Console:
 
 ```bash
 cp .env.example .env
 ```
 
-- `EXPO_PUBLIC_API_BASE_URL`: عنوان Backend عام فقط.
-- `AI_PROVIDER_API_KEY`: **للاستخدام الخادمي فقط**، ولا يوضع في Expo أو GitHub.
+متغيرات العميل العامة هي `EXPO_PUBLIC_FIREBASE_API_KEY`, `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`, `EXPO_PUBLIC_FIREBASE_PROJECT_ID`, `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET`, `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, و`EXPO_PUBLIC_FIREBASE_APP_ID`. هذه لا تحمي Firestore وحدها؛ الحماية من Rules/Auth.
 
-الخدمات المقترحة مستقبلًا، وليست مفعلة تلقائيًا:
+المتغيرات التي لا يجب وضعها في التطبيق أو GitHub هي Firebase Admin private key، Service Account JSON، `EXPO_TOKEN`، وAI provider secrets. مكانها Backend secret manager أو input آمن في منصة النشر.
 
-| الحاجة | خيارات مناسبة | التكلفة/الحدود |
-|---|---|---|
-| Auth + Database | Supabase أو Firebase | Free tiers محدودة؛ الأسعار تتغير حسب الاستخدام. |
-| AI Gateway | Backend خاص مع مزود يختاره المستخدم | تكلفة حسب المزود/التوكن؛ المفتاح يبقى على الخادم. |
-| Object storage | S3-compatible provider | Free tier أو تكلفة تخزين/نقل حسب المزود. |
+## Git workflow الرسمي
 
-لا يتم إنشاء اشتراك أو ربط خدمة مدفوعة دون موافقة صريحة.
-
-## GitHub workflow
-
-الفرع الرئيسي `main` هو مصدر الحقيقة. استخدم Commits صغيرة مفهومة:
+قبل أي تعديل، تحقق من المكان والربط:
 
 ```bash
-git checkout -b feat/webview-kiosk
-git add src/modules/browser src/screens/BrowserScreen.tsx
-git commit -m "feat: add kiosk browser foundation"
-git push -u origin feat/webview-kiosk
+cd /home/ubuntu/projects/Murshid-S7
+git remote -v
+git status --short --branch
 ```
 
-لا تضع `.env` أو مفاتيح AWS/AI أو Tokens في Git.
-
-## How to add a new feature
-
-مثال: إضافة QR Scanner:
-
-1. أنشئ `src/modules/qr-scanner/` للعقد والمنطق.
-2. أضف service adapter إذا احتاج Native API.
-3. أضف screen في `src/screens/`، ولا تضع business logic داخلها.
-4. أضف route في `src/navigation/AppNavigator.tsx`.
-5. أضف بطاقة Home وإعدادات فقط بعد تحديد السلوك الحقيقي.
-6. أضف types واختبار للحالات الفاشلة.
-7. حدّث هذا README و`docs/architecture.md`.
-8. نفّذ `npx tsc --noEmit` ثم Commit صغيرًا.
-
-## How to modify an existing feature
-
-لتعديل الصور: ابدأ من `src/modules/media/`، ثم راجع `src/services/storage/`، ثم metadata/state، ثم `MediaScreen`. لا تجعل الشاشة تنفذ عمليات الملفات بنفسها.
-
-## Security and Android notes
-
-- أقل صلاحيات ممكنة فقط، وبعد معرفة API Android المستهدف.
-- لا يوجد تصميم لتجاوز DRM أو paywalls أو authentication أو protected media.
-- Launcher icon وSplash محليان ولا يعتمدان على الإنترنت.
-- امتلاء التخزين، فقد الاتصال، أو فشل Backend يجب أن ينتج Error State وليس crash.
-- Background downloads وMediaStore وWebView restrictions قد تتطلب Development Build أو Native module؛ سنوثق ذلك قبل تفعيلها.
-
-## Build APK / AAB
-
-لم يتم تفعيل EAS أو إنشاء Credentials في هذه المرحلة. بعد اختيار سياسة التوقيع:
+بعد تعديل مهم:
 
 ```bash
-npx eas login
-npx eas build:configure
-npx eas build --platform android --profile preview   # APK حسب profile
-npx eas build --platform android --profile production # AAB حسب profile
+npx tsc --noEmit
+npx expo-doctor
+git status
+git add <files>
+git commit -m "feat: describe the change"
+git push origin main
 ```
 
-لا تحفظ keystore أو EAS token في المستودع. OTA Updates تحتاج اختيار `expo-updates` وسياسة release واضحة، ولا تصلح لتغييرات Native.
+لا تستخدم Repository آخر لهذا التطبيق، ولا تغيّر `origin`، ولا ترفع `.env`. استخدم Commit صغيرًا وواضحًا. قبل العمل المتزامن، نفّذ `git pull --rebase origin main` بدل force push.
 
-## Testing and release gates
+## كيف تضيف Feature مستقبلية
 
-قبل اعتبار أي Phase مكتملة:
+ابدأ من module مستقل في `src/modules/<feature>` للعقود والمنطق، أضف service adapter في `src/services` إذا احتجت API أو Native capability، ثم أنشئ الشاشة في `src/screens` واربطها في navigation. حدّث domain types، حالات الفشل، README والوثيقة المناسبة. نفّذ TypeScript وExpo Doctor واختبارًا مناسبًا قبل Commit.
 
-1. فحص TypeScript.
-2. فحص Expo Doctor عند تغييرات Native.
-3. اختبار حالات النجاح والفشل المرتبطة بالميزة.
-4. تحديث README بما يعمل فعليًا وما بقي جزئيًا.
-5. Commit واضح، ثم push إلى GitHub.
+لا تضع business logic أو FileSystem أو Firebase queries مباشرة في مكون UI. لا تضف secret إلى `EXPO_PUBLIC_*`. لا تعتبر Empty State تنفيذًا للميزة.
 
-## Roadmap
+## ما يحتاج إعدادًا شخصيًا من المالك
 
-1. WebView + address/search + navigation/back policy.
-2. Download manager resilient with temporary files and retry.
-3. Real local storage and metadata repository.
-4. Gallery virtualization, thumbnails, viewer/share/delete.
-5. Files module and Android MediaStore strategy.
-6. Backend adapter + authentication choice.
-7. AI chat backed by user-owned server.
-8. Performance, lifecycle, offline cache, automated tests.
-9. APK/AAB profiles and release documentation.
+1. تأكيد Firestore Database والمنطقة وBilling policy في مشروع `moreheads7`.
+2. تفعيل Firebase Authentication واختيار provider.
+3. إنشاء حساب المدير وإسناد `admin` Custom Claim من Backend آمن.
+4. مراجعة Firestore Rules قبل أي بيانات حقيقية.
+5. اختيار Backend hosting وAI provider وStorage policy، مع مراعاة التكلفة والحدود.
+6. إنشاء/ربط EAS project وتحديد signing policy وقنوات Development/Preview/Production.
+7. اختبار نسخة Development Build على جهاز Android حقيقي.
+8. مراجعة والموافقة على أول نشر Production.
 
-## Known issues / technical notes
+## بوابات قبول المراحل
 
-- الشاشات الحالية Foundation وليست بديلًا عن WebView أو Gallery أصلية.
-- `react-native-webview` والتنزيلات في الخلفية لم تُثبت عمدًا قبل اختيار Development Build المناسب.
-- Expo Go لا يمثل كل قدرات Android Native؛ لا نعد بعمل Native features قبل بناء Development Build واختبار جهاز فعلي.
-- تكلفة وخيارات Backend/AI/S3 متغيرة ويجب تأكيدها وقت الاختيار.
+لا تعتبر المرحلة مكتملة إلا إذا كانت الوظيفة تعمل فعليًا، وفحوصاتها ناجحة، وتوثيقها محدثًا، وCommitها مرفوعًا. الحالات الخارجية الحالية تمنع ادعاء اكتمال Production:
 
-## Delivery report
+- Firebase Firestore/Auth غير مؤكدين بسبب `403`.
+- لا يوجد Admin Backend.
+- لا يوجد EAS OTA أو APK/AAB فعلي.
+- Gallery/Files/Downloads/AI/Dynamic UI Engine ما زالت غير مكتملة.
+- لا يوجد اختبار جهاز Android حقيقي موثق.
 
-- **What was built:** Expo TypeScript foundation، design system، navigation، screens، service contracts، docs، Git-ready structure.
-- **What is working:** تشغيل، تنقل، واجهات أساسية، TypeScript check.
-- **Partially implemented:** Browser/Media/Files/AI/Auth contracts and empty states.
-- **Not implemented:** Native WebView، downloads، persistence، real auth/backend، EAS credentials.
-- **Required external services:** لا شيء حاليًا؛ ستُقترح الخيارات قبل الربط.
+## الوثائق المرتبطة
 
+- [`docs/architecture.md`](docs/architecture.md): قرارات المعمارية وتدفقات التنزيل والتخزين.
+- [`docs/firebase-hub.md`](docs/firebase-hub.md): طبقة Firebase وHub ونموذج البيانات وقواعد الأمان.
+- [`docs/release-management.md`](docs/release-management.md): تصنيف التحديثات، قنوات EAS، المراقبة والتراجع.
+- [`ideas.md`](ideas.md): اتجاه التصميم وهوية مُرشد S7.
+- [`firebase/firestore.rules`](firebase/firestore.rules): القواعد الأولية المقترحة.
 
-## Firebase + Improvement Hub (alternative path)
+## آخر تدقيق مؤكد
 
-بسبب عدم ظهور بطاقة Web Dev، تم إنشاء طبقة Firebase وواجهة Hub في المستودع المحلي المرتبط بـGitHub بدل إيقاف العمل. الطبقة لا تفترض وجود مشروع Firebase ولا تعرض بيانات وهمية: عند غياب الإعداد تظهر حالة `Firebase غير موصل بعد`، وعند اكتمال public configuration يستخدم التطبيق Firestore adapter.
-
-الملفات الأساسية هي `src/services/firebase/` و`src/screens/HubScreen.tsx` و`firebase/firestore.rules`. واجهة Hub تعرض حالة الاتصال، دورة `draft → review → approved → published`، وتصنيف `dynamic / ota / native`. تفاصيل نموذج البيانات، قواعد الأمان، والخطوات التي تحتاج حساب المالك موجودة في [`docs/firebase-hub.md`](docs/firebase-hub.md).
-
-القيم `EXPO_PUBLIC_FIREBASE_*` معرفات عامة وليست بديلًا عن قواعد الأمان. لا تضع Firebase Admin credentials أو EAS token داخل Expo أو GitHub. نشر EAS يجب أن يتم عبر Backend محمي مع admin claims وaudit log، وبعد الاختبار والموافقة.
-
-## Progress snapshot
-
-تم تنفيذ Hub قابل للتشغيل: إنشاء مسودة، اختيار تصنيف Dynamic/OTA/Native، قراءة المقترحات من Firestore، وانتقالات Draft/Review/Approved/Published مع audit log عند وجود صلاحية Admin. كما أضيفت `classifyUpdate()` و`evaluateReleaseHealth()` لتحديد قناة EAS أو الحاجة إلى Native Build وتوصية الاستمرار/الإيقاف/التراجع. ما يزال نشر EAS الفعلي وBackend الذي يحمل أسرار Admin/EXPO_TOKEN متطلبًا خارجيًا؛ لا يمكن تنفيذه بأمان من تطبيق الهاتف.
+تم تنفيذ آخر تدقيق على المشروع الرسمي فقط في `/home/ubuntu/projects/Murshid-S7`، وتحقق من Git وremote والملفات والإصدارات و`npx tsc --noEmit` و`npx expo-doctor`. آخر حالة مؤكدة: الفرع `main` نظيف ومتزامن مع `origin/main`، وآخر Commit هو `70ced09`.
