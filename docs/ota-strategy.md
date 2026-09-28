@@ -51,9 +51,9 @@ npx expo start --tunnel
 git add .
 git commit -m "feat: describe change"
 git push origin main
-npx eas update --branch preview --message "preview: tested change"
+npx eas update --channel preview --message "preview: tested change"
 # after review only
-npx eas update --branch production --message "production: approved change"
+npx eas update --channel production --message "production: approved change"
 ```
 
 EAS credentials remain outside GitHub. A CI workflow may be added later, but it must use a protected `EXPO_TOKEN`; the mobile bundle must never contain that token.

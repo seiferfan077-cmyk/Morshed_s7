@@ -285,8 +285,8 @@ npx eas build --profile development --platform android
 ثم، بعد وجود Binary مناسب واختبار Preview:
 
 ```bash
-npx eas update --branch preview --message "preview: describe change"
-npx eas update --branch production --message "production: describe approved change"
+npx eas update --channel preview --message "preview: describe change"
+npx eas update --channel production --message "production: describe approved change"
 ```
 
 تأكد من استخدام channel/branch mapping الذي يعرضه EAS عند الإعداد؛ لا تخلط بين branch وchannel يدويًا. لا تنشر Production مباشرة، ولا تستخدم OTA لتغيير Native.
@@ -305,9 +305,9 @@ git add .
 git commit -m "fix: describe change"
 git push origin main
 # بعد موافقة الاختبار فقط:
-npx eas update --branch preview --message "preview: tested change"
+npx eas update --channel preview --message "preview: tested change"
 # وبعد قبول Preview:
-npx eas update --branch production --message "production: approved change"
+npx eas update --channel production --message "production: approved change"
 ```
 
 هذا المسار لا يعتمد على Manus. GitHub هو مصدر الكود، وEAS هو نشر OTA بعد تسجيل حساب Expo. لا تضع `EXPO_TOKEN` في المشروع؛ استخدم `eas login` أو secret manager/CI.
