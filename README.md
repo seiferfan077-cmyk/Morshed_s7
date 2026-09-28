@@ -20,7 +20,7 @@ https://github.com/seiferfan077-cmyk/Morshed_s7.git
 |---|---|
 | Git branch | `main` |
 | Git status | نظيف ومتزامن مع `origin/main` وقت آخر تدقيق |
-| آخر Commit | `70ced09 feat: complete improvement hub and release policy foundation` |
+| آخر Commit | `900b224 chore: prepare eas ota runtime and channels` |
 | ملفات Git المتتبعة | 45 ملفًا |
 | Expo | `~57.0.25` |
 | React Native | `0.86.3` |
@@ -389,4 +389,4 @@ git push origin main
 
 ## آخر تدقيق مؤكد
 
-تم تنفيذ آخر تدقيق على المشروع الرسمي فقط في `/home/ubuntu/projects/Murshid-S7`، وتحقق من Git وremote والملفات والإصدارات و`runtimeVersion` و`eas.json` و`expo-updates` و`npx tsc --noEmit` و`npx expo-doctor`. إعداد OTA أصبح موجودًا محليًا، لكن EAS project ID و`updates.url` وProduction Build/Update ما زالت غير مهيأة. سيُحدّث Commit hash بعد رفع هذه المرحلة.
+تم تنفيذ آخر تدقيق على المشروع الرسمي فقط في `/home/ubuntu/projects/Murshid-S7`، وتحقق من Git وremote والملفات والإصدارات و`runtimeVersion` و`eas.json` و`expo-updates` و`npx tsc --noEmit` و`npx expo-doctor`. إعداد OTA المحلي موجود في Commit `900b224`، لكن EAS project ID و`updates.url` وProduction Build/Update ما زالت غير مهيأة.
