@@ -251,3 +251,12 @@ npx eas build --platform android --profile production # AAB حسب profile
 - **Partially implemented:** Browser/Media/Files/AI/Auth contracts and empty states.
 - **Not implemented:** Native WebView، downloads، persistence، real auth/backend، EAS credentials.
 - **Required external services:** لا شيء حاليًا؛ ستُقترح الخيارات قبل الربط.
+
+
+## Firebase + Improvement Hub (alternative path)
+
+بسبب عدم ظهور بطاقة Web Dev، تم إنشاء طبقة Firebase وواجهة Hub في المستودع المحلي المرتبط بـGitHub بدل إيقاف العمل. الطبقة لا تفترض وجود مشروع Firebase ولا تعرض بيانات وهمية: عند غياب الإعداد تظهر حالة `Firebase غير موصل بعد`، وعند اكتمال public configuration يستخدم التطبيق Firestore adapter.
+
+الملفات الأساسية هي `src/services/firebase/` و`src/screens/HubScreen.tsx` و`firebase/firestore.rules`. واجهة Hub تعرض حالة الاتصال، دورة `draft → review → approved → published`، وتصنيف `dynamic / ota / native`. تفاصيل نموذج البيانات، قواعد الأمان، والخطوات التي تحتاج حساب المالك موجودة في [`docs/firebase-hub.md`](docs/firebase-hub.md).
+
+القيم `EXPO_PUBLIC_FIREBASE_*` معرفات عامة وليست بديلًا عن قواعد الأمان. لا تضع Firebase Admin credentials أو EAS token داخل Expo أو GitHub. نشر EAS يجب أن يتم عبر Backend محمي مع admin claims وaudit log، وبعد الاختبار والموافقة.

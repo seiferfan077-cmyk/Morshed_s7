@@ -1,0 +1,27 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { EmptyState } from '../components/EmptyState';
+import { SurfaceCard } from '../components/SurfaceCard';
+import { firebaseConfigStatus } from '../services/firebase/firebaseConfig';
+import { createHubRepository, HubProposal } from '../services/firebase/hubRepository';
+import { colors, radii, spacing, typography } from '../theme';
+
+export function HubScreen() {
+  const [proposals, setProposals] = useState<HubProposal[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const repository = createHubRepository();
+  const load = async () => { setRefreshing(true); try { setProposals(await repository.listRecentProposals()); } finally { setLoading(false); setRefreshing(false); } };
+  useEffect(() => { void load(); }, []);
+  return <ScrollView style={styles.screen} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.teal} />}>
+    <View style={styles.header}><View><Text style={styles.eyebrow}>CONTROL HUB</Text><Text style={styles.title}>مركز التحسينات</Text><Text style={styles.detail}>إدارة المحتوى والإصدارات والمقترحات من مساحة واحدة.</Text></View><View style={styles.hubIcon}><Ionicons name="git-branch-outline" size={24} color={colors.tealDark} /></View></View>
+    <SurfaceCard accent={firebaseConfigStatus.configured ? colors.teal : colors.amber}><View style={styles.statusRow}><View style={[styles.statusDot, { backgroundColor: firebaseConfigStatus.configured ? colors.teal : colors.amber }]} /><View style={styles.statusCopy}><Text style={styles.cardTitle}>{firebaseConfigStatus.configured ? 'Firebase متصل' : 'Firebase غير موصل بعد'}</Text><Text style={styles.cardDetail}>{firebaseConfigStatus.configured ? 'ستُقرأ المقترحات من Firestore بعد تطبيق قواعد الأمان.' : 'الواجهة والعقد جاهزان. أضف إعدادات Firebase العامة عبر .env، ولا تضع Admin SDK key داخل Expo.'}</Text></View></View></SurfaceCard>
+    <Text style={styles.sectionTitle}>دورة التحسين</Text><View style={styles.metrics}><Metric icon="create-outline" label="مسودات" value="—" /><Metric icon="eye-outline" label="مراجعة" value="—" /><Metric icon="rocket-outline" label="منشور" value="—" /></View>
+    <Text style={styles.sectionTitle}>آخر المقترحات</Text>{loading ? <ActivityIndicator color={colors.teal} /> : proposals.length ? proposals.map((proposal) => <ProposalCard key={proposal.id} proposal={proposal} />) : <EmptyState icon="layers-outline" title="لا توجد مقترحات بعد" body="لن نعرض بيانات تجريبية. عند ربط Firebase ستظهر هنا المقترحات الفعلية وحالتها." />}
+    <SurfaceCard><Text style={styles.cardTitle}>تصنيف التحديثات</Text><Text style={styles.cardDetail}>Dynamic للمحتوى والإعدادات، OTA لكود JavaScript المتوافق، وNative لتغييرات Android التي تحتاج APK/AAB جديدًا.</Text></SurfaceCard>
+  </ScrollView>;
+}
+function Metric({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) { return <View style={styles.metric}><Ionicons name={icon} size={19} color={colors.tealDark} /><Text style={styles.metricValue}>{value}</Text><Text style={styles.metricLabel}>{label}</Text></View>; }
+function ProposalCard({ proposal }: { proposal: HubProposal }) { return <SurfaceCard><View style={styles.proposalHeader}><Text style={styles.cardTitle}>{proposal.title}</Text><Text style={styles.badge}>{proposal.status}</Text></View><Text style={styles.cardDetail}>{proposal.summary}</Text><Text style={styles.proposalMeta}>{proposal.updateClass} · {proposal.updatedAt}</Text></SurfaceCard>; }
+const styles = StyleSheet.create({ screen: { flex: 1, backgroundColor: colors.surface }, content: { padding: spacing.lg, paddingBottom: spacing.xxl }, header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xl }, eyebrow: { ...typography.label, color: colors.tealDark, letterSpacing: 1.1 }, title: { ...typography.display, color: colors.ink, marginTop: 3 }, detail: { ...typography.body, color: colors.inkMuted, marginTop: spacing.sm, maxWidth: 280 }, hubIcon: { width: 52, height: 52, borderRadius: 18, backgroundColor: colors.tealSoft, alignItems: 'center', justifyContent: 'center' }, statusRow: { flexDirection: 'row', alignItems: 'center' }, statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: spacing.sm }, statusCopy: { flex: 1 }, cardTitle: { ...typography.label, color: colors.ink }, cardDetail: { ...typography.body, color: colors.inkMuted, marginTop: 5 }, sectionTitle: { ...typography.h2, color: colors.ink, marginTop: spacing.xl, marginBottom: spacing.sm }, metrics: { flexDirection: 'row', gap: spacing.sm }, metric: { flex: 1, backgroundColor: colors.paper, borderRadius: radii.md, padding: spacing.md, borderWidth: 1, borderColor: colors.line }, metricValue: { ...typography.h2, color: colors.ink, marginTop: spacing.sm }, metricLabel: { ...typography.label, color: colors.inkMuted, marginTop: 2 }, proposalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, badge: { ...typography.label, color: colors.tealDark, backgroundColor: colors.tealSoft, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.pill, fontSize: 10 }, proposalMeta: { ...typography.label, color: colors.inkFaint, marginTop: spacing.sm, fontSize: 10 } });
