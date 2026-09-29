@@ -3,7 +3,9 @@
     "name": "مُرشد - S7",
     "slug": "murshid-s7",
     "version": "0.1.0",
-    "runtimeVersion": { "policy": "appVersion" },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -25,6 +27,15 @@
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c4512276-2c5f-4cd5-8c32-ef4550c79cf4"
+      }
+    },
+    "owner": "seif07",
+    "updates": {
+      "url": "https://u.expo.dev/c4512276-2c5f-4cd5-8c32-ef4550c79cf4"
+    }
   }
 }
