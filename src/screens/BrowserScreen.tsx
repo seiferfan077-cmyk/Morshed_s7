@@ -9,6 +9,7 @@ import { colors, radii, spacing, typography } from '../theme';
 
 const HOME_URL = 'https://www.google.com';
 const SEARCH_URL = 'https://www.google.com/search?q=';
+const HANZAKR_URL = 'https://haneenstudy-tu9hntzp.manus.space/';
 
 function resolveAddress(value: string) {
   const trimmed = value.trim();
@@ -40,6 +41,7 @@ export function BrowserScreen() {
   };
 
   const goHome = () => { setDraft(HOME_URL); setAddress(HOME_URL); };
+  const openHanzakr = () => { setDraft(HANZAKR_URL); setAddress(HANZAKR_URL); setShowControls(false); };
 
   return <View style={styles.screen}>
     <WebView ref={webViewRef} style={styles.webView} source={{ uri: address }} onNavigationStateChange={(state) => { setNavigationState(state); setDraft(state.url); }} onLoadStart={() => setLoading(true)} onLoadEnd={() => setLoading(false)} onError={() => setLoading(false)} javaScriptEnabled domStorageEnabled setSupportMultipleWindows={false} allowsBackForwardNavigationGestures={false} scalesPageToFit={false} injectedJavaScriptBeforeContentLoaded={INJECTED_KIOSK_SCRIPT} originWhitelist={['http://*', 'https://*']} startInLoadingState />
@@ -48,7 +50,7 @@ export function BrowserScreen() {
     {showControls ? <View style={styles.controls}>
       <View style={styles.controlTitle}><Text style={styles.controlEyebrow}>FULLSCREEN BROWSER</Text><Pressable onPress={() => setShowControls(false)}><Ionicons name="close-circle-outline" size={21} color={colors.inkMuted} /></Pressable></View>
       <View style={styles.addressBar}><Pressable accessibilityLabel="رجوع" disabled={!navigationState?.canGoBack} onPress={() => webViewRef.current?.goBack()} style={styles.navButton}><Ionicons name="chevron-back" size={20} color={navigationState?.canGoBack ? colors.ink : colors.inkFaint} /></Pressable><Pressable accessibilityLabel="تقدم" disabled={!navigationState?.canGoForward} onPress={() => webViewRef.current?.goForward()} style={styles.navButton}><Ionicons name="chevron-forward" size={20} color={navigationState?.canGoForward ? colors.ink : colors.inkFaint} /></Pressable><TextInput accessibilityLabel="العنوان أو البحث" value={draft} onChangeText={setDraft} onSubmitEditing={submitAddress} autoCapitalize="none" autoCorrect={false} keyboardType="url" returnKeyType="go" style={styles.input} placeholder="اكتب عنوانًا أو ابحث" placeholderTextColor={colors.inkFaint} /><Pressable accessibilityLabel="تحديث الصفحة" onPress={() => webViewRef.current?.reload()} style={styles.navButton}><Ionicons name="refresh-outline" size={19} color={colors.inkMuted} /></Pressable></View>
-      <View style={styles.actions}><Pressable onPress={goHome} style={styles.action}><Ionicons name="home-outline" size={17} color={colors.ink} /><Text style={styles.actionText}>الرئيسية</Text></Pressable><Pressable onPress={() => navigation.navigate('الرئيسية')} style={styles.action}><Ionicons name="exit-outline" size={17} color={colors.ink} /><Text style={styles.actionText}>إنهاء ملء الشاشة</Text></Pressable></View>
+      <View style={styles.actions}><Pressable onPress={openHanzakr} style={styles.action}><Ionicons name="school-outline" size={17} color={colors.tealDark} /><Text style={styles.actionText}>ادخل هنذاكره</Text></Pressable><Pressable onPress={goHome} style={styles.action}><Ionicons name="home-outline" size={17} color={colors.ink} /><Text style={styles.actionText}>الرئيسية</Text></Pressable><Pressable onPress={() => navigation.navigate('الرئيسية')} style={styles.action}><Ionicons name="exit-outline" size={17} color={colors.ink} /><Text style={styles.actionText}>إنهاء ملء الشاشة</Text></Pressable></View>
     </View> : null}
   </View>;
 }
