@@ -78,7 +78,7 @@ Screens
 │   ├── navigation/                 # Bottom tabs وRootTabParamList
 │   ├── screens/                    # تركيب واجهات Home/Browser/Media/Hub/Settings/AI/Files
 │   ├── services/
-│   │   ├── ai/                     # AIProvider contract؛ لا يوجد Backend AI عامل
+│   │   ├── ai/                     # AIProvider وBackendAIProvider؛ السر يبقى في Backend
 │   │   ├── auth/                   # AuthProvider contract العام
 │   │   ├── firebase/               # Firebase config/client/Auth/Hub Firestore adapter
 │   │   ├── monitoring/             # حساب صحة الإصدار ونسبة الفشل
@@ -139,9 +139,9 @@ Bottom tabs تعمل للصفحات: الرئيسية، المتصفح، الم�
 
 `FilesScreen` يعرض Empty State. `StorageProvider` contract موجود، لكن Expo FileSystem/MediaStore/S3 غير موصل. لا توجد صلاحيات أو تنزيلات أو مساحة حقيقية.
 
-### AI — Placeholder contract
+### AI — Chat UI + Backend contract
 
-`AIProvider` يحدد عقد الإرسال، لكن لا يوجد Backend أو مزود AI أو Chat UI متصل. لا توجد مفاتيح AI داخل التطبيق، وهذا مقصود أمنيًا.
+شاشة المساعد أصبحت واجهة محادثة فعلية تستخدم `BackendAIProvider` وترسل إلى `POST /ai/chat` فقط عند ضبط `EXPO_PUBLIC_API_BASE_URL` على Backend حقيقي. عند غياب Backend تظهر حالة غير موصولة بصدق ولا يتم إنشاء ردود وهمية. مفاتيح مزود الذكاء الاصطناعي يجب أن تبقى في الخادم، ولا تدخل Expo أو GitHub.
 
 ### Download Manager — Not implemented
 
@@ -375,7 +375,7 @@ git push origin main
 - Firebase Firestore/Auth غير مؤكدين بسبب `403`.
 - لا يوجد Admin Backend.
 - لا يوجد EAS OTA أو APK/AAB فعلي.
-- Gallery/Files/Downloads/AI/Dynamic UI Engine ما زالت غير مكتملة.
+- Gallery/Files/Downloads/Dynamic UI Engine ما زالت غير مكتملة؛ واجهة AI مكتملة لكن Backend ومزود النموذج يحتاجان إعدادًا.
 - لا يوجد اختبار جهاز Android حقيقي موثق.
 
 ## الوثائق المرتبطة
