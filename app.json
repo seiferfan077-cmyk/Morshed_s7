@@ -26,7 +26,15 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "اسمح لمُرشد بعرض الصور والفيديوهات الموجودة على جهازك.",
+          "savePhotosPermission": "اسمح لمُرشد بحفظ الوسائط على جهازك عند طلبك ذلك.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
     ],
     "extra": {
       "eas": {
