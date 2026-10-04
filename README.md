@@ -3,7 +3,7 @@
 تطبيق Android مبني على **React Native + Expo + TypeScript**. هذا المجلد هو المشروع الرسمي الوحيد:
 
 ```text
-/home/ubuntu/projects/Murshid-S7
+~/workspaces/Morshed_s7
 ```
 
 ومستودع GitHub هو مصدر الحقيقة الوحيد للكود:
@@ -131,13 +131,15 @@ Bottom tabs تعمل للصفحات: الرئيسية، المتصفح، الم�
 
 `firebaseAuthService.ts` يوفّر sign-in بالبريد وكلمة المرور، مراقبة المستخدم، sign-out، والتحقق من `admin` claim. لا توجد شاشة Login ولا Backend يعيّن claims ولا سياسة استرجاع كلمة المرور.
 
-### Gallery — Placeholder
+### Gallery & Files — Implemented locally with native permissions
 
-`MediaScreen` يعرض Empty State. توجد `MediaMetadata` types فقط. لا توجد قراءة صور من الجهاز، thumbnails، virtualization، viewer، share، delete، أو cache.
+`MediaScreen` يطلب إذن الصور والفيديوهات من الجهاز قبل القراءة. يستطيع المستخدم استيراد صور وفيديوهات أو أي ملفات عبر `expo-document-picker`، وتُنسخ العناصر المستوردة إلى مساحة محلية خاصة بالتطبيق عبر `expo-file-system` مع metadata في `AsyncStorage`. قسم التصفية يفرّق بين الكل والصور والفيديو والملفات، والضغط يفتح عارضًا أفقيًا بالسحب بين العناصر، مع تشغيل الفيديو عبر `expo-video`.
 
-### Files — Placeholder
+الحذف من مُرشد يحذف النسخة المحلية أو يخفي عنصر الجهاز من قائمة مُرشد فقط؛ لا ينفذ حذفًا على صور الجهاز. عناصر الجهاز المباشرة قد تختفي إذا حذف المستخدم أصلها من الجهاز، لذلك يعرض التطبيق تنبيهًا واضحًا بأن الاستيراد هو الطريقة الصحيحة للاحتفاظ بنسخة مستقلة.
 
-`FilesScreen` يعرض Empty State. `StorageProvider` contract موجود، لكن Expo FileSystem/MediaStore/S3 غير موصل. لا توجد صلاحيات أو تنزيلات أو مساحة حقيقية.
+الضغط المطوّل يفتح إجراءات الحذف أو الإخفاء. العناصر المخفية تظهر في قسم `الخصوصية` بعد الضغط ثلاث مرات على البلاطة السوداء أسفل المعرض وإدخال رمز من 4 إلى 8 أرقام. الرمز محفوظ في `SecureStore` ولا يُرسل إلى Backend. لا يوجد ادعاء بتشفير ملفات الوسائط نفسها؛ النسخ المحلية ليست بديلًا عن تشفير جهاز Android/iOS.
+
+هذه الإضافة Native وليست OTA-only: يلزم Development Build أو Build جديد بعد تثبيت `expo-document-picker` و`expo-file-system` و`expo-video`.
 
 ### AI BYOK — User-owned API keys
 
@@ -373,7 +375,7 @@ npx eas update --channel production --message "production: describe approved cha
 ### GitHub → EAS workflow من Termux/Acode
 
 ```bash
-cd ~/projects/Murshid-S7
+cd ~/workspaces/Morshed_s7
 git pull --rebase origin main
 # عدّل الكود في Acode أو المحرر
 npm ci
@@ -412,7 +414,7 @@ cp .env.example .env
 قبل أي تعديل، تحقق من المكان والربط:
 
 ```bash
-cd /home/ubuntu/projects/Murshid-S7
+cd ~/workspaces/Morshed_s7
 git remote -v
 git status --short --branch
 ```
@@ -454,7 +456,7 @@ git push origin main
 - Firebase Firestore/Auth غير مؤكدين بسبب `403`.
 - لا يوجد Admin Backend.
 - لا يوجد EAS OTA أو APK/AAB فعلي.
-- Gallery/Files/Downloads/Dynamic UI Engine ما زالت غير مكتملة؛ واجهة AI مكتملة لكن Backend ومزود النموذج يحتاجان إعدادًا.
+- Downloads وDynamic UI Engine ما زالت غير مكتملة؛ Gallery/Files تعمل محليًا بعد طلب الصلاحيات، وواجهة AI تدعم BYOK أو Backend حسب الإعداد.
 - لا يوجد اختبار جهاز Android حقيقي موثق.
 
 ## الوثائق المرتبطة
@@ -468,7 +470,7 @@ git push origin main
 
 ## آخر تدقيق مؤكد
 
-تم تنفيذ آخر تدقيق على المشروع الرسمي فقط في `/home/ubuntu/projects/Murshid-S7`، وتحقق من Git وremote والملفات والإصدارات و`runtimeVersion` و`eas.json` و`expo-updates` و`npx tsc --noEmit` و`npx expo-doctor`. إعداد OTA المحلي موجود في Commit `900b224`، لكن EAS project ID و`updates.url` وProduction Build/Update ما زالت غير مهيأة.
+تم تنفيذ آخر تدقيق على المشروع الرسمي فقط في `~/workspaces/Morshed_s7`، وتحقق من Git وremote والملفات والإصدارات و`runtimeVersion` و`eas.json` و`expo-updates` و`npx tsc --noEmit` و`npx expo-doctor`. إعداد EAS و`updates.url` موجودان، بينما أول Production Build واختبار OTA الفعلي يحتاجان تنفيذًا من Termux على حساب Expo.
 
 ### App icon
 
