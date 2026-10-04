@@ -18,6 +18,9 @@ export interface StoredMediaItem {
 
 const ITEMS_KEY = '@murshid/media-vault-items';
 const PIN_KEY = '@murshid/media-vault-pin';
+const PIN_LAST_CHAR_KEY = '@murshid/media-vault-pin-last-char';
+const RECOVERY_QUESTION_KEY = '@murshid/media-vault-recovery-question';
+const RECOVERY_ANSWER_KEY = '@murshid/media-vault-recovery-answer';
 const DEVICE_HIDDEN_KEY = '@murshid/media-device-hidden';
 const DEVICE_REMOVED_KEY = '@murshid/media-device-removed';
 const VAULT_DIR = `${FileSystem.documentDirectory ?? ''}murshid-vault/`;
@@ -71,11 +74,39 @@ export async function hasPrivacyPin() {
 
 export async function savePrivacyPin(pin: string) {
   await SecureStore.setItemAsync(PIN_KEY, pin, { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
+  await SecureStore.setItemAsync(PIN_LAST_CHAR_KEY, pin.slice(-1), { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
 }
 
 export async function verifyPrivacyPin(pin: string) {
   const saved = await SecureStore.getItemAsync(PIN_KEY);
   return Boolean(saved && saved === pin);
+}
+
+function normalizeRecoveryAnswer(answer: string) {
+  return answer.trim().normalize('NFKC').toLocaleLowerCase();
+}
+
+export async function savePrivacyCredentials(pin: string, question: string, answer: string) {
+  await savePrivacyPin(pin);
+  await SecureStore.setItemAsync(RECOVERY_QUESTION_KEY, question.trim(), { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
+  await SecureStore.setItemAsync(RECOVERY_ANSWER_KEY, normalizeRecoveryAnswer(answer), { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
+}
+
+export async function updatePrivacyPin(pin: string) {
+  await savePrivacyPin(pin);
+}
+
+export async function getPrivacyRecoveryQuestion() {
+  return SecureStore.getItemAsync(RECOVERY_QUESTION_KEY);
+}
+
+export async function verifyPrivacyRecoveryAnswer(answer: string) {
+  const saved = await SecureStore.getItemAsync(RECOVERY_ANSWER_KEY);
+  return Boolean(saved && saved === normalizeRecoveryAnswer(answer));
+}
+
+export async function getPrivacyPinLastCharacter() {
+  return SecureStore.getItemAsync(PIN_LAST_CHAR_KEY);
 }
 
 export async function getDeviceAssetVisibility() {
