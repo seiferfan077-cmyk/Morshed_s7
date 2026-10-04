@@ -34,7 +34,8 @@
           "savePhotosPermission": "اسمح لمُرشد بحفظ الوسائط على جهازك عند طلبك ذلك.",
           "isAccessMediaLocationEnabled": false
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

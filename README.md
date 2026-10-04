@@ -139,6 +139,24 @@ Bottom tabs تعمل للصفحات: الرئيسية، المتصفح، الم�
 
 `FilesScreen` يعرض Empty State. `StorageProvider` contract موجود، لكن Expo FileSystem/MediaStore/S3 غير موصل. لا توجد صلاحيات أو تنزيلات أو مساحة حقيقية.
 
+### AI BYOK — User-owned API keys
+
+يدعم التطبيق الآن نموذج **Bring Your Own Key** اختياريًا: يختار المستخدم مزودًا، يفتح صفحة API الرسمية، ينشئ مفتاحًا، ثم يدخله داخل لوحة `مرشد`. المفتاح يُحفظ عبر `expo-secure-store` باستخدام إعداد `WHEN_UNLOCKED_THIS_DEVICE_ONLY`، ولا يدخل GitHub أو Expo bundle أو أي رسالة إلى Manus. عند إرسال رسالة، يتصل التطبيق مباشرة بالمزود الذي اختاره المستخدم؛ لذلك يتلقى ذلك المزود الرسالة والذاكرة المرتبطة بها.
+
+اللوحة تحتوي على 30 preset قابلًا للتعديل، منها OpenAI وGoogle Gemini وxAI/Grok وOpenRouter وGroq وDeepSeek وMistral وTogether وFireworks وPerplexity وCerebras وSambaNova وNVIDIA NIM وCloudflare وHugging Face وAzure OpenAI وGitHub Models وReplicate وNovita وSiliconFlow وZhipu وMoonshot وQwen وLM Studio وOllama وvLLM وLiteLLM، إضافة إلى `مزود مخصص OpenAI-compatible`. المزودات العامة تستخدم adapter `/chat/completions`، وGemini له adapter مستقل؛ لا يدّعي preset دعم صيغة غير متوافقة، ويمكن تعديل `Base URL` واسم النموذج.
+
+روابط إنشاء المفاتيح الرسمية الموجودة داخل اللوحة تشمل:
+
+- [OpenAI API keys](https://platform.openai.com/api-keys)
+- [Google AI Studio API key](https://aistudio.google.com/app/apikey)
+- [xAI Console](https://console.x.ai/)
+- [OpenRouter keys](https://openrouter.ai/settings/keys)
+- [Groq keys](https://console.groq.com/keys)
+
+طريقة الاستخدام: سجّل الدخول في صفحة المزود، أنشئ API key من لوحة API، انسخه إلى لوحة مرشد، اختر النموذج، ثم احفظ. لا ترسل المفتاح في المحادثة ولا تضعه في ملفات المشروع. يمكن حذفه من الجهاز في أي وقت.
+
+**مهم أمنيًا:** SecureStore يحمي التخزين المحلي على الجهاز، لكنه لا يجعل المفتاح غير قابل للاستخراج من جهاز مكسور الحماية أو تطبيق معدّل. هذا النموذج مناسب لمن يوافق على اتصال مباشر بالمزود؛ للمؤسسات أو الاستخدام الحساس ما زال Backend الوسيط الأكثر أمانًا.
+
 ### AI — Chat UI + Backend contract
 
 شاشة المساعد أصبحت واجهة محادثة فعلية تستخدم `BackendAIProvider` وترسل إلى `POST /ai/chat` فقط عند ضبط `EXPO_PUBLIC_API_BASE_URL` على Backend حقيقي. تحتوي على شريط جانبي لإنشاء وفتح المحادثات، وتسمّي كل محادثة تلقائيًا من أول رسالة للمستخدم. تُحفظ المحادثات محليًا عبر AsyncStorage كذاكرة طويلة المدى على الجهاز، ويُرسل `conversationId` وسياق الرسائل إلى Backend عند توفره. عند غياب Backend تظهر حالة غير موصولة بصدق ولا يتم إنشاء ردود وهمية. مفاتيح مزود الذكاء الاصطناعي يجب أن تبقى في الخادم، ولا تدخل Expo أو GitHub.
