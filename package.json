@@ -29,8 +29,8 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "memory:test": "npm run memory:unit && npm run memory:integration",
     "memory:unit": "rm -rf .tmp-memory-test && npx tsc --ignoreConfig --outDir .tmp-memory-test --module commonjs --target es2022 --skipLibCheck src/types/memory.ts src/services/ai/aiService.ts src/services/memory/memoryExtractor.ts src/services/memory/memoryRetrieval.ts src/services/memory/contextAssembly.ts && node tests/memory-intelligence.test.js && rm -rf .tmp-memory-test",

@@ -141,6 +141,24 @@ Bottom tabs تعمل للصفحات: الرئيسية، المتصفح، الم�
 
 هذه الإضافة Native وليست OTA-only: يلزم Development Build أو Build جديد بعد تثبيت `expo-document-picker` و`expo-file-system` و`expo-video`.
 
+### Android Default Dialer — Foundation implemented, production integration pending
+
+بدأت بنية Murshid كتطبيق اتصال افتراضي على Android داخل المسارات `native/android` و`plugins/withMurshidDialer.js`. الـConfig Plugin يضيف صلاحيات الاتصال، مسار `ACTION_DIAL`، خدمة `InCallService`، وبيانات Android المطلوبة لدور الاتصال الافتراضي. الخدمة الحالية تعرض إشعار مكالمة واردة عالي الأولوية مع رنين النظام وشاشة Native أولية فيها الرد والرفض.
+
+هذه ليست بعدُ واجهة هاتف إنتاجية مكتملة: ما زال يلزم ربط جهات الاتصال، لوحة الأرقام الكاملة، المكالمات الجارية، التحقق المتقدم من الأرقام، اختيار رنة لكل جهة اتصال، واختبار أجهزة Android متعددة. لا يتم تفعيل الدور تلقائيًا دون موافقة المستخدم من إعدادات Android، ولا يجوز للتطبيق تجاوز تطبيق الاتصال الافتراضي أو المكالمات الطارئة.
+
+لإنشاء Development Build بعد سحب المستودع:
+
+```bash
+npm ci
+npx expo prebuild --platform android
+npx expo run:android
+```
+
+يجب تنفيذ هذه الأوامر من Termux أو جهاز يحتوي Android SDK و`ANDROID_HOME`. `expo-doctor` وTypeScript نجحا في بيئة البناء، أما تجميع APK داخل Sandbox فلم يبدأ بسبب عدم وجود Android SDK. تغييرات Dialer Native تتطلب Build جديدًا ولا تصل عبر OTA.
+
+مراجع Android الرسمية: [Default Phone App](https://developer.android.com/develop/connectivity/telecom/dialer-app)، [Call Screening](https://developer.android.com/develop/connectivity/telecom/dialer-app/screen-calls)، و[Call Notifications](https://developer.android.com/develop/connectivity/telecom/voip-app/notifications).
+
 ### AI BYOK — User-owned API keys
 
 يدعم التطبيق الآن نموذج **Bring Your Own Key** اختياريًا: يختار المستخدم مزودًا، يفتح صفحة API الرسمية، ينشئ مفتاحًا، ثم يدخله داخل لوحة `مرشد`. المفتاح يُحفظ عبر `expo-secure-store` باستخدام إعداد `WHEN_UNLOCKED_THIS_DEVICE_ONLY`، ولا يدخل GitHub أو Expo bundle أو أي رسالة إلى Manus. عند إرسال رسالة، يتصل التطبيق مباشرة بالمزود الذي اختاره المستخدم؛ لذلك يتلقى ذلك المزود الرسالة والذاكرة المرتبطة بها.
