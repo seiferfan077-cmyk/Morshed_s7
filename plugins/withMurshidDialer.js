@@ -54,6 +54,7 @@ module.exports = function withMurshidDialer(config) {
     ensurePermission(manifest, 'android.permission.READ_PHONE_STATE');
     ensurePermission(manifest, 'android.permission.CALL_PHONE');
     ensurePermission(manifest, 'android.permission.ANSWER_PHONE_CALLS');
+    ensurePermission(manifest, 'android.permission.READ_CONTACTS');
     ensurePermission(manifest, 'android.permission.POST_NOTIFICATIONS');
     const application = manifest.manifest.application?.[0];
     if (application) {
@@ -67,7 +68,7 @@ module.exports = function withMurshidDialer(config) {
     const sourceDir = path.join(config.modRequest.projectRoot, 'native', 'android');
     const targetDir = path.join(config.modRequest.platformProjectRoot, 'app', 'src', 'main', 'java', ...PACKAGE.split('.'));
     fs.mkdirSync(targetDir, { recursive: true });
-    for (const filename of ['MurshidDialerActivity.java', 'MurshidInCallService.java']) {
+    for (const filename of ['MurshidCallerInfo.java', 'MurshidDialerActivity.java', 'MurshidInCallService.java']) {
       fs.copyFileSync(path.join(sourceDir, filename), path.join(targetDir, filename));
     }
     return config;

@@ -8,6 +8,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.view.Gravity;
+import android.graphics.drawable.GradientDrawable;
+import android.widget.ImageView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.GridLayout;
@@ -18,6 +20,9 @@ import android.widget.Toast;
 public class MurshidDialerActivity extends Activity {
   public static final String ACTION_INCOMING = "com.murshid.s7.INCOMING_CALL";
   public static final String ACTION_ONGOING = "com.murshid.s7.ONGOING_CALL";
+  public static final String EXTRA_CALLER_NAME = "caller_name";
+  public static final String EXTRA_LINE_LABEL = "line_label";
+  public static final String EXTRA_VERIFIED = "verified";
   private EditText numberInput;
 
   @Override
@@ -82,9 +87,34 @@ public class MurshidDialerActivity extends Activity {
 
   private void renderCallScreen(String titleText, String detailText, boolean incoming) {
     LinearLayout root = baseLayout();
-    root.addView(label(titleText, 26, Color.rgb(16, 33, 43)));
+    LinearLayout card = new LinearLayout(this);
+    card.setOrientation(LinearLayout.VERTICAL);
+    card.setGravity(Gravity.CENTER);
+    card.setPadding(36, 30, 36, 30);
+    GradientDrawable background = new GradientDrawable();
+    background.setColor(Color.WHITE);
+    background.setCornerRadius(34);
+    card.setBackground(background);
+
+    ImageView icon = new ImageView(this);
+    icon.setImageResource(com.murshid.s7.R.mipmap.ic_launcher);
+    card.addView(icon, new LinearLayout.LayoutParams(96, 96));
+    card.addView(label(titleText, 24, Color.rgb(16, 33, 43)));
+
+    String callerName = getIntent().getStringExtra(EXTRA_CALLER_NAME);
+    String line = getIntent().getStringExtra(EXTRA_LINE_LABEL);
+    boolean verified = getIntent().getBooleanExtra(EXTRA_VERIFIED, false);
+    if (callerName == null || callerName.isEmpty()) callerName = detailText;
+    TextView caller = label(callerName, 22, Color.rgb(45, 75, 83));
+    card.addView(caller);
+    if (verified) {
+      TextView badge = label("✓ موثق لدى مُرشد", 14, Color.rgb(10, 132, 120));
+      card.addView(badge);
+    }
+    card.addView(label("يرن عبر " + (line == null ? "خط الهاتف" : line), 14, Color.rgb(92, 113, 119)));
     Uri data = getIntent() == null ? null : getIntent().getData();
-    root.addView(label(data == null ? detailText : data.toString(), 20, Color.rgb(45, 75, 83)));
+    if (data != null) card.addView(label(data.getSchemeSpecificPart(), 16, Color.rgb(92, 113, 119)));
+
     LinearLayout actions = new LinearLayout(this);
     actions.setGravity(Gravity.CENTER);
     if (incoming) {
@@ -102,7 +132,8 @@ public class MurshidDialerActivity extends Activity {
       hangup.setOnClickListener(v -> sendCallAction(MurshidInCallService.ACTION_HANGUP));
       actions.addView(hangup);
     }
-    root.addView(actions);
+    card.addView(actions);
+    root.addView(card, new LinearLayout.LayoutParams(-1, -2));
     setContentView(root);
   }
 
