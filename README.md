@@ -469,3 +469,7 @@ git push origin main
 ## آخر تدقيق مؤكد
 
 تم تنفيذ آخر تدقيق على المشروع الرسمي فقط في `/home/ubuntu/projects/Murshid-S7`، وتحقق من Git وremote والملفات والإصدارات و`runtimeVersion` و`eas.json` و`expo-updates` و`npx tsc --noEmit` و`npx expo-doctor`. إعداد OTA المحلي موجود في Commit `900b224`، لكن EAS project ID و`updates.url` وProduction Build/Update ما زالت غير مهيأة.
+
+### App icon
+
+تم اعتماد `assets/icon.png` كأيقونة عربية مربعة محسّنة: لا تحتوي على أحرف لاتينية، وتستخدم شعار مُرشد مع إطار تركوازي وتباين مناسب للأيقونات.
