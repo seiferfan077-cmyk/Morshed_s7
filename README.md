@@ -20,9 +20,9 @@ https://github.com/seiferfan077-cmyk/Morshed_s7.git
 |---|---|
 | Git branch | `main` |
 | Git status | نظيف ومتزامن مع `origin/main` وقت آخر تدقيق |
-| آخر Commit | `900b224 chore: prepare eas ota runtime and channels` |
+| آخر Commit | يُحدّث بعد كل مرحلة عبر GitHub |
 | ملفات Git المتتبعة | 45 ملفًا |
-| Expo | `~57.0.25` |
+| Expo | `~57.0.26` |
 | React Native | `0.86.3` |
 | React | `19.2.3` |
 | TypeScript | `~6.0.3` |
@@ -143,9 +143,20 @@ Bottom tabs تعمل للصفحات: الرئيسية، المتصفح، الم�
 
 شاشة المساعد أصبحت واجهة محادثة فعلية تستخدم `BackendAIProvider` وترسل إلى `POST /ai/chat` فقط عند ضبط `EXPO_PUBLIC_API_BASE_URL` على Backend حقيقي. تحتوي على شريط جانبي لإنشاء وفتح المحادثات، وتسمّي كل محادثة تلقائيًا من أول رسالة للمستخدم. تُحفظ المحادثات محليًا عبر AsyncStorage كذاكرة طويلة المدى على الجهاز، ويُرسل `conversationId` وسياق الرسائل إلى Backend عند توفره. عند غياب Backend تظهر حالة غير موصولة بصدق ولا يتم إنشاء ردود وهمية. مفاتيح مزود الذكاء الاصطناعي يجب أن تبقى في الخادم، ولا تدخل Expo أو GitHub.
 
-### Living Memory — Local foundation
+### Living Memory — Memory Intelligence Engine
 
-أضيفت شاشة `ذاكرتي` ومركز مستقل للذاكرة الحية. يستطيع المستخدم إضافة معلومة بموافقة صريحة، تصنيفها (معلومة، تفضيل، سياق، عادة، هدف، موقف)، البحث فيها، حذف عنصر أو كل الذاكرة، وإيقاف حفظ عناصر جديدة. كل `MemoryItem` يحمل نوعًا ومصدرًا وتواريخ وثقة وأهمية وحساسية وموافقة ووسومًا، والتخزين الحالي محلي عبر `AsyncStorage` خلف `MemoryProvider` قابل للاستبدال بقاعدة سحابية لاحقًا. هذه المرحلة لا تدّعي استخراجًا تلقائيًا أو Retrieval سحابيًا؛ لا تُحفظ أي ذاكرة من المحادثة تلقائيًا.
+أضيفت شاشة `ذاكرتي` ومركز مستقل للذاكرة الحية. يستطيع المستخدم إضافة معلومة بموافقة صريحة، تصنيفها (معلومة، تفضيل، سياق، عادة، هدف، موقف)، البحث فيها، حذف عنصر أو كل الذاكرة، وإيقاف حفظ عناصر جديدة. كل `MemoryItem` يحمل نوعًا ومصدرًا وتواريخ وثقة وأهمية وحساسية وموافقة ووسومًا، والتخزين الحالي محلي عبر `AsyncStorage` خلف `MemoryProvider` قابل للاستبدال بقاعدة سحابية لاحقًا.
+
+المرحلة الحالية تضيف **Memory Intelligence Engine** بشكل فعلي:
+
+- `memoryExtractor.ts`: يلتقط مرشحات منخفضة المخاطر من عبارات مثل «أفضل»، «عايز»، «عادة»، و«حاليًا» دون حفظ تلقائي.
+- `MemoryScreen`: يعرض المرشحات في قسم «اقتراحات مرشد للمراجعة»، ولا تنتقل إلى الذاكرة إلا بالضغط على «حفظ»، أو تُزال بالضغط على «تجاهل».
+- `memoryRetrieval.ts`: يفرز الذاكرة المقبولة حسب تطابق الكلمات، الأهمية، الثقة، والحداثة؛ ولا يرسل إلا عددًا محدودًا من العناصر المرتبطة.
+- `contextAssembly.ts`: يبني حزمة سياق من الرسالة الحالية، آخر 12 رسالة، والذكريات المرتبطة فقط.
+- `BackendAIProvider`: يرسل `conversationId` و`memory` و`activeGoals` و`activeTasks` إلى Backend؛ لا يوجد مفتاح AI داخل التطبيق.
+- دورة الحياة: العناصر المنتهية الصلاحية تُستبعد وتُنظف عند القراءة، وتحديث المرشح المقبول يدمج المعلومة بدل إنشاء تكرار مطابق.
+
+هذه ليست ذاكرة سحابية أو تحليلًا لغويًا شاملًا بعد؛ الاستخراج الحالي heuristic عربي محافظ، وحقول الأهداف والمهام جاهزة للتوسعة من دون ادعاء أنها موصولة بمصدر خارجي.
 
 ### Download Manager — Not implemented
 
@@ -163,6 +174,15 @@ Hub يدير مقترحات وتصنيفًا، لكنه لا يقرأ schema آ�
 
 `updateMonitor.ts` يحسب applied/failed/failureRate وruntime compatibility ويوصي Continue/Pause/Rollback. لا توجد telemetry حقيقية أو خدمة تستقبل الأحداث أو توقف EAS rollout فعليًا.
 
+## اختبارات المرحلة الحالية
+
+```bash
+npm run memory:test
+npx tsc --noEmit
+```
+
+اختبار `memory:test` يترجم الخدمات النقية مؤقتًا إلى `.tmp-memory-test` ثم يتحقق من: اكتشاف تفضيل عربي كمرشح pending، اختيار الذاكرة الأقرب للسؤال، وعدم إرجاع ذاكرة غير مرتبطة. المجلد المؤقت لا يُحفظ في Git.
+
 ## Dependencies والإصدارات
 
 الإصدارات الحالية من `package.json`:
@@ -179,7 +199,7 @@ Hub يدير مقترحات وتصنيفًا، لكنه لا يقرأ schema آ�
 | `@expo/vector-icons` | `^15.0.2` | icons |
 | `expo-font` | `~57.0.4` | font peer dependency |
 | `firebase` | `^12.19.0` | Firebase Web SDK |
-| `@react-native-async-storage/async-storage` | `2.2.0` | dependency prepared for persistence |
+| `@react-native-async-storage/async-storage` | `2.2.0` | local conversations and approved memory persistence |
 | `react-native-safe-area-context` | `~5.7.0` | safe areas |
 | `react-native-screens` | `~4.26.0` | navigation native optimization |
 | `expo-updates` | SDK-compatible | OTA runtime and update client |

@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { AIMessage, BackendAIProvider } from '../services/ai/aiService';
+import { assembleContext } from '../services/memory/contextAssembly';
+import { extractMemoryCandidates } from '../services/memory/memoryExtractor';
+import { localMemoryProvider } from '../services/memory/memoryService';
 import { colors, radii, spacing, typography } from '../theme';
 
 const configuredBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -82,13 +85,16 @@ export function AIScreen() {
     const nextConversations = conversations.map((item) => item.id === nextConversation.id ? nextConversation : item);
     await persist(nextConversations);
     setDraft('');
+    const candidates = extractMemoryCandidates(content);
+    await Promise.all(candidates.map((candidate) => localMemoryProvider.saveCandidate(candidate)));
     if (!provider) {
       setError('مرشد غير موصل بعد. أضف EXPO_PUBLIC_API_BASE_URL لواجهة Backend التي توفر /ai/chat.');
       return;
     }
     setSending(true);
     try {
-      const reply = await provider.sendMessage(nextMessages, undefined, { conversationId: nextConversation.id, memory: nextMessages });
+      const context = assembleContext(content, nextMessages, await localMemoryProvider.list());
+      const reply = await provider.sendMessage(nextMessages, undefined, { conversationId: nextConversation.id, memory: context.relevantMemories, activeGoals: context.activeGoals, activeTasks: context.activeTasks });
       const completed = { ...nextConversation, messages: [...nextMessages, { role: 'assistant' as const, content: reply.content }], updatedAt: Date.now() };
       await persist(nextConversations.map((item) => item.id === completed.id ? completed : item));
     } catch {

@@ -1,8 +1,12 @@
+import { MemoryItem } from '../../types/memory';
+
 export interface AIMessage { role: 'user' | 'assistant' | 'system'; content: string; }
 
 export interface AIRequestContext {
   conversationId?: string;
-  memory?: AIMessage[];
+  memory?: MemoryItem[];
+  activeGoals?: string[];
+  activeTasks?: string[];
 }
 
 export interface AIProvider {
@@ -17,7 +21,7 @@ export class BackendAIProvider implements AIProvider {
     const response = await fetch(`${this.baseUrl}/ai/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, conversationId: context?.conversationId, memory: context?.memory }),
+      body: JSON.stringify({ messages, conversationId: context?.conversationId, memory: context?.memory, activeGoals: context?.activeGoals, activeTasks: context?.activeTasks }),
       signal,
     });
     if (!response.ok) throw new Error(`AI request failed (${response.status})`);
