@@ -27,6 +27,20 @@ async function readJson<T>(key: string, fallback: T): Promise<T> {
   try { return JSON.parse(raw) as T; } catch { return fallback; }
 }
 
+function words(value: string) {
+  return new Set(value.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((word) => word.length > 2));
+}
+
+function findConflictIds(candidate: MemoryCandidate, items: MemoryItem[]) {
+  const candidateWords = words(candidate.content);
+  if (!candidateWords.size) return [];
+  return items.filter((item) => {
+    if (item.type !== candidate.type || item.sensitivity !== 'normal') return false;
+    const shared = [...candidateWords].filter((word) => words(item.content).has(word)).length;
+    return shared > 0 && shared / Math.max(candidateWords.size, words(item.content).size) >= 0.4;
+  }).map((item) => item.id);
+}
+
 export class LocalMemoryProvider implements MemoryProvider {
   async list() {
     const settings = await this.getSettings();
@@ -78,8 +92,10 @@ export class LocalMemoryProvider implements MemoryProvider {
   async saveCandidate(candidate: MemoryCandidate) {
     const settings = await this.getSettings();
     if (!settings.enabled || settings.disabledTypes.includes(candidate.type)) return;
+    const conflicts = findConflictIds(candidate, await this.list());
+    const enriched = { ...candidate, conflictIds: conflicts, suggestedAction: conflicts.length ? 'update' as const : 'save' as const };
     const candidates = await this.listCandidates();
-    await AsyncStorage.setItem(CANDIDATES_KEY, JSON.stringify([candidate, ...candidates.filter((item) => item.id !== candidate.id)]));
+    await AsyncStorage.setItem(CANDIDATES_KEY, JSON.stringify([enriched, ...candidates.filter((item) => item.id !== candidate.id)]));
   }
 
   async approveCandidate(id: string, content?: string) {
@@ -88,9 +104,12 @@ export class LocalMemoryProvider implements MemoryProvider {
     if (!candidate) return null;
     const now = new Date();
     const settings = await this.getSettings();
+    if (!settings.enabled) return null;
     const expiration = candidate.suggestedExpiration ?? (settings.retentionDays ? new Date(now.getTime() + settings.retentionDays * 86_400_000).toISOString() : undefined);
-    const existing = (await this.list()).find((item) => item.type === candidate.type && item.content.toLowerCase() === (content ?? candidate.content).toLowerCase());
-    const item: MemoryItem = existing ? (await this.update(existing.id, { content: content ?? candidate.content, confidence: candidate.confidence, expiration }))! : { id: `memory-${now.getTime()}`, userId: 'local-user', type: candidate.type, content: content ?? candidate.content, source: 'user', createdAt: now.toISOString(), updatedAt: now.toISOString(), confidence: candidate.confidence, importance: candidate.importance, sensitivity: candidate.sensitivity, expiration, consent: 'accepted', tags: candidate.tags };
+    const replacementId = candidate.conflictIds?.[0];
+    const exact = (await this.list()).find((item) => item.type === candidate.type && item.content.toLowerCase() === (content ?? candidate.content).toLowerCase());
+    const existing = replacementId ? (await this.list()).find((item) => item.id === replacementId) : exact;
+    const item: MemoryItem = existing ? (await this.update(existing.id, { content: content ?? candidate.content, confidence: candidate.confidence, importance: candidate.importance, sensitivity: candidate.sensitivity, expiration, tags: candidate.tags }))! : { id: `memory-${now.getTime()}`, userId: 'local-user', type: candidate.type, content: content ?? candidate.content, source: 'user', createdAt: now.toISOString(), updatedAt: now.toISOString(), confidence: candidate.confidence, importance: candidate.importance, sensitivity: candidate.sensitivity, expiration, consent: 'accepted', tags: candidate.tags };
     if (!existing) await this.save(item);
     await AsyncStorage.setItem(CANDIDATES_KEY, JSON.stringify(candidates.filter((entry) => entry.id !== id)));
     return item;

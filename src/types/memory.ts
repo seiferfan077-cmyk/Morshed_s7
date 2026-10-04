@@ -22,6 +22,15 @@ export interface MemoryItem {
   tags: string[];
 }
 
+/** Deliberately excludes userId, source, timestamps, and sensitivity from the AI payload. */
+export interface MemoryContextItem {
+  id: string;
+  type: MemoryType;
+  content: string;
+  importance: MemoryImportance;
+  tags: string[];
+}
+
 export interface MemoryCandidate {
   id: string;
   type: MemoryType;
@@ -34,6 +43,8 @@ export interface MemoryCandidate {
   tags: string[];
   status: 'pending' | 'accepted' | 'rejected';
   createdAt: string;
+  conflictIds?: string[];
+  suggestedAction?: 'save' | 'update';
 }
 
 export interface MemorySettings {

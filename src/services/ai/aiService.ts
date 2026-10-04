@@ -1,10 +1,10 @@
-import { MemoryItem } from '../../types/memory';
+import { MemoryContextItem } from '../../types/memory';
 
 export interface AIMessage { role: 'user' | 'assistant' | 'system'; content: string; }
 
 export interface AIRequestContext {
   conversationId?: string;
-  memory?: MemoryItem[];
+  memory?: MemoryContextItem[];
   activeGoals?: string[];
   activeTasks?: string[];
 }

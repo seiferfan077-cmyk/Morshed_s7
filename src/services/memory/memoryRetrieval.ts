@@ -15,6 +15,7 @@ export function retrieveRelevantMemories(query: string, memories: MemoryItem[], 
   const queryTokens = new Set(tokens(query));
   if (!queryTokens.size) return [];
   return memories
+    .filter((item) => item.consent === 'accepted' && item.sensitivity === 'normal' && item.confidence >= 0.6)
     .map((item) => {
       const itemTokens = new Set(tokens(`${item.content} ${item.tags.join(' ')} ${item.type}`));
       const overlap = [...queryTokens].filter((token) => itemTokens.has(token)).length;
