@@ -13,6 +13,7 @@
     "expo-font": "~57.0.4",
     "expo-media-library": "~57.0.5",
     "expo-secure-store": "~57.0.4",
+    "expo-speech": "^57.0.3",
     "expo-status-bar": "~57.0.1",
     "expo-updates": "~57.0.24",
     "expo-video": "~57.0.5",
