@@ -52,6 +52,7 @@ module.exports = function withMurshidDialer(config) {
   config = withAndroidManifest(config, (config) => {
     const manifest = config.modResults;
     ensurePermission(manifest, 'android.permission.READ_PHONE_STATE');
+    ensurePermission(manifest, 'android.permission.CALL_PHONE');
     ensurePermission(manifest, 'android.permission.ANSWER_PHONE_CALLS');
     ensurePermission(manifest, 'android.permission.POST_NOTIFICATIONS');
     const application = manifest.manifest.application?.[0];

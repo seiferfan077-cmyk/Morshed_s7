@@ -15,6 +15,7 @@ import android.telecom.InCallService;
 public class MurshidInCallService extends InCallService {
   public static final String ACTION_ANSWER = "com.murshid.s7.ACTION_ANSWER";
   public static final String ACTION_REJECT = "com.murshid.s7.ACTION_REJECT";
+  public static final String ACTION_HANGUP = "com.murshid.s7.ACTION_HANGUP";
   private static final String CHANNEL_ID = "murshid-incoming-calls";
   private static final int NOTIFICATION_ID = 7001;
   private static Call currentCall;
@@ -23,8 +24,13 @@ public class MurshidInCallService extends InCallService {
   public void onCallAdded(Call call) {
     super.onCallAdded(call);
     currentCall = call;
-    if (call.getState() == Call.STATE_RINGING) showIncomingCall(call);
-    call.registerCallback(new Call.Callback() { @Override public void onStateChanged(Call ignored, int state) { if (state == Call.STATE_DISCONNECTED) clearCall(); } });
+    showCallNotification(call, call.getState() == Call.STATE_RINGING);
+    call.registerCallback(new Call.Callback() {
+      @Override public void onStateChanged(Call ignored, int state) {
+        if (state == Call.STATE_DISCONNECTED) clearCall();
+        else if (currentCall != null) showCallNotification(currentCall, state == Call.STATE_RINGING);
+      }
+    });
   }
 
   @Override
@@ -37,21 +43,29 @@ public class MurshidInCallService extends InCallService {
   public int onStartCommand(Intent intent, int flags, int startId) {
     if (intent != null && currentCall != null) {
       if (ACTION_ANSWER.equals(intent.getAction())) currentCall.answer(0);
-      if (ACTION_REJECT.equals(intent.getAction())) currentCall.disconnect();
+      if (ACTION_REJECT.equals(intent.getAction()) || ACTION_HANGUP.equals(intent.getAction())) currentCall.disconnect();
     }
     return START_NOT_STICKY;
   }
 
-  private void showIncomingCall(Call call) {
+  private void showCallNotification(Call call, boolean incoming) {
     createChannel();
     Intent fullScreenIntent = new Intent(this, MurshidDialerActivity.class);
+    fullScreenIntent.setAction(incoming ? MurshidDialerActivity.ACTION_INCOMING : MurshidDialerActivity.ACTION_ONGOING);
     Uri handle = call.getDetails() == null ? null : call.getDetails().getHandle();
     if (handle != null) fullScreenIntent.setData(handle);
     fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_USER_ACTION);
     int immutable = Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0;
-    PendingIntent fullScreen = PendingIntent.getActivity(this, NOTIFICATION_ID, fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT | immutable);
+    PendingIntent content = PendingIntent.getActivity(this, NOTIFICATION_ID, fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT | immutable);
     Notification.Builder builder = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this);
-    builder.setSmallIcon(com.murshid.s7.R.mipmap.ic_launcher).setContentTitle("اتصال وارد إلى مُرشد").setContentText(handle == null ? "رقم وارد" : handle.toString()).setCategory(Notification.CATEGORY_CALL).setOngoing(true).setAutoCancel(false).setFullScreenIntent(fullScreen, true).setContentIntent(fullScreen);
+    builder.setSmallIcon(com.murshid.s7.R.mipmap.ic_launcher)
+        .setContentTitle(incoming ? "اتصال وارد إلى مُرشد" : "مكالمة مُرشد جارية")
+        .setContentText(handle == null ? "مكالمة هاتفية" : handle.toString())
+        .setCategory(incoming ? Notification.CATEGORY_CALL : Notification.CATEGORY_CALL)
+        .setOngoing(true)
+        .setAutoCancel(false)
+        .setFullScreenIntent(content, incoming)
+        .setContentIntent(content);
     ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(NOTIFICATION_ID, builder.build());
   }
 
