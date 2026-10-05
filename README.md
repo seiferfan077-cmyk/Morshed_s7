@@ -193,7 +193,7 @@ cp .env.example .env
 npx expo start --clear
 ```
 
-**لا تضع مفتاح Gemini في `.env` الخاص بتطبيق Expo أو GitHub.** كل متغير يبدأ بـ`EXPO_PUBLIC_` يدخل حزمة التطبيق ويمكن استخراجه؛ لذلك يوضع مفتاح Gemini في متغير بيئة سري على Backend فقط. أُضيف Backend مستقل في `backend/`، قابل للنشر كمشروع Vercel منفصل باختيار `backend` كـRoot Directory، ويوفر `POST /api/ai/chat`. خزّن `GEMINI_API_KEY` و`MURSHID_API_TOKEN` في إعدادات Vercel؛ واجعل `EXPO_PUBLIC_API_BASE_URL` و`EXPO_PUBLIC_MURSHID_API_TOKEN` في بيئة بناء التطبيق الشخصي. رمز التطبيق المضمّن في APK ليس مصادقة قوية، لذا هذا الإعداد مناسب للاستخدام الشخصي الخاص فقط؛ للنشر العام يلزم ربطه بمصادقة مستخدم حقيقية. ألغِ أي مفتاح Gemini سبق إرساله في رسالة أو رفعه إلى GitHub، وأنشئ بديلًا لا تشاركه في المحادثات.
+**لا تضع مفتاح Gemini في `.env` الخاص بتطبيق Expo أو GitHub.** كل متغير يبدأ بـ`EXPO_PUBLIC_` يدخل حزمة التطبيق ويمكن استخراجه؛ لذلك يوضع مفتاح Gemini في متغير بيئة سري على Backend فقط. أُضيف Backend مستقل في `backend/`، قابل للنشر كمشروع Vercel منفصل باختيار `backend` كـRoot Directory، ويوفر `POST /api/ai/chat`. خزّن `GEMINI_API_KEY` و`MURSHID_API_TOKEN` في إعدادات Vercel؛ واجعل `EXPO_PUBLIC_API_BASE_URL` و`EXPO_PUBLIC_MURSHID_API_TOKEN` في بيئة بناء التطبيق الشخصي. رمز التطبيق المضمّن في APK ليس مصادقة قوية، لذا هذا الإعداد مناسب للاستخدام الشخصي الخاص فقط؛ للنشر العام يلزم ربطه بمصادقة مستخدم حقيقية. ألغِ المفتاح وأنشئ بديلًا إذا ظهر في مستودع عام أو وصل إلى طرف غير موثوق.
 
 ### AI — Chat UI + Backend contract
 

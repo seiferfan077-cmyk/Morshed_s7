@@ -6,9 +6,11 @@ This folder is a standalone Vercel Node.js Functions project. Set the Vercel pro
 
 Add these in Vercel Project Settings → Environment Variables. Do not commit actual values or put the Gemini key in an Expo `EXPO_PUBLIC_*` variable.
 
-- `GEMINI_API_KEY`: Gemini API key for the server-side Murshid backend. If the key was shared in chat or source control, revoke it and create a replacement.
+- `GEMINI_API_KEY`: Gemini API key for the server-side Murshid backend. If the key is publicly exposed or committed to source control, revoke it and create a replacement.
 - `MURSHID_API_TOKEN`: a separate random access token required by the app when it calls this backend.
 - `GEMINI_MODEL`: optional; defaults to `gemini-3.8-flash`.
+
+Generate a new app access token locally with `openssl rand -hex 32`, then configure the same value as `MURSHID_API_TOKEN` in Vercel and `EXPO_PUBLIC_MURSHID_API_TOKEN` in the personal app build environment. Do not commit either value.
 
 For the personal Expo build, set `EXPO_PUBLIC_API_BASE_URL` to the deployed Vercel origin (no trailing slash) and `EXPO_PUBLIC_MURSHID_API_TOKEN` to the same app access token before building. Keep local `.env` files out of Git. Expo public variables are bundled in the client app; this shared token is a guard for a personal/private build, not strong authentication against someone who can extract the app. Do not distribute a build using this shared-token scheme publicly; add real user authentication (for example verified Firebase ID tokens) first.
 
