@@ -1,7 +1,4 @@
 import { handleChatRequest } from '../../lib/chat-handler.js';
+import { createVercelHandler } from '../../lib/vercel-adapter.js';
 
-export default {
-  fetch(request) {
-    return handleChatRequest(request);
-  },
-};
+export default createVercelHandler((request) => handleChatRequest(request));

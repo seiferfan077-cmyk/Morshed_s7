@@ -1,7 +1,4 @@
 import { handleHealthRequest } from '../lib/chat-handler.js';
+import { createVercelHandler } from '../lib/vercel-adapter.js';
 
-export default {
-  fetch(request) {
-    return handleHealthRequest(request);
-  },
-};
+export default createVercelHandler((request) => handleHealthRequest(request));
