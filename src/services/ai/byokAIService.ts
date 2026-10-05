@@ -11,6 +11,18 @@ function throwProviderError(response: Response) {
   throw new Error(`Provider request failed (${response.status})`);
 }
 
+export function providerErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  if (message.includes('API key rejected by provider')) return 'المزوّد رفض مفتاح API أو لا يملك صلاحية استخدام النموذج. تحقق من المفتاح والصلاحيات.';
+  if (message.includes('Provider rate limit reached')) return 'وصلت إلى حد الاستخدام أو نفد الرصيد لدى المزوّد. تحقق من لوحة حسابك ثم أعد المحاولة.';
+  const status = message.match(/\((\d{3})\)/)?.[1];
+  if (status === '402') return 'المزوّد يطلب تفعيل الفوترة أو إضافة رصيد.';
+  if (status === '400' || status === '404') return 'تحقق من اسم النموذج وBase URL؛ قد لا يدعم المزوّد هذا النموذج أو المسار.';
+  if (/network request failed|fetch failed|network/i.test(message)) return 'تعذّر الوصول إلى المزوّد. تحقق من اتصال الإنترنت ثم أعد المحاولة.';
+  if (message.includes('no assistant message')) return 'اتصل التطبيق بالمزوّد لكن لم يصل رد نصي. تحقق من النموذج وإعداداته.';
+  return 'تعذّر استلام الرد من المزوّد. تحقق من المفتاح والنموذج والاتصال ثم حاول مجددًا.';
+}
+
 function providerMessages(messages: AIMessage[], context?: AIRequestContext) {
   const memoryLines = context?.memory?.map((item) => `- ${item.content}`).join('\n');
   if (!memoryLines) return messages;
@@ -29,7 +41,7 @@ export class UserKeyOpenAICompatibleProvider implements AIProvider {
       signal,
     });
     if (!response.ok) throwProviderError(response);
-    const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const payload = await response.json() as { choices?: { message?: { content?: string } }[] };
     const content = payload.choices?.[0]?.message?.content;
     if (!content) throw new Error('Provider returned no assistant message');
     return { role: 'assistant' as const, content };
@@ -43,15 +55,15 @@ export class UserKeyGeminiProvider implements AIProvider {
     const preparedMessages = providerMessages(messages, context);
     const contents = preparedMessages.filter((message) => message.role !== 'system').map((message) => ({ role: message.role === 'assistant' ? 'model' : 'user', parts: [{ text: message.content }] }));
     const systemInstruction = preparedMessages.find((message) => message.role === 'system');
-    const url = `${cleanBaseUrl(this.config.baseUrl)}/models/${encodeURIComponent(this.config.model)}:generateContent?key=${encodeURIComponent(this.config.apiKey)}`;
+    const url = `${cleanBaseUrl(this.config.baseUrl)}/models/${encodeURIComponent(this.config.model)}:generateContent`;
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction.content }] } : undefined, contents, generationConfig: { responseMimeType: 'text/plain' }, metadata: context?.conversationId ? { user: context.conversationId } : undefined }),
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': this.config.apiKey },
+      body: JSON.stringify({ systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction.content }] } : undefined, contents, generationConfig: { responseMimeType: 'text/plain' } }),
       signal,
     });
     if (!response.ok) throwProviderError(response);
-    const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    const payload = await response.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const content = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('').trim();
     if (!content) throw new Error('Gemini returned no assistant message');
     return { role: 'assistant' as const, content };

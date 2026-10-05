@@ -5,7 +5,7 @@ import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pre
 import { AIConfigModal } from '../components/AIConfigModal';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { AIMessage, BackendAIProvider } from '../services/ai/aiService';
-import { createUserKeyProvider } from '../services/ai/byokAIService';
+import { createUserKeyProvider, providerErrorMessage } from '../services/ai/byokAIService';
 import { clearUserAIConfig, getUserAIConfig, saveUserAIConfig, UserAIConfig } from '../services/ai/userAIConfig';
 import { assembleContext } from '../services/memory/contextAssembly';
 import { extractMemoryCandidates } from '../services/memory/memoryExtractor';
@@ -109,8 +109,8 @@ export function AIScreen({ onOpenMemory }: { onOpenMemory?: () => void } = {}) {
       const reply = await provider.sendMessage(context.conversation, undefined, { conversationId: nextConversation.id, memory: context.relevantMemories, activeGoals: context.activeGoals, activeTasks: context.activeTasks });
       const completed = { ...nextConversation, messages: [...nextMessages, { role: 'assistant' as const, content: reply.content }], updatedAt: Date.now() };
       await persist(nextConversations.map((item) => item.id === completed.id ? completed : item));
-    } catch {
-      setError('تعذر الاتصال بمرشد. راجع Backend والاتصال بالشبكة ثم حاول مرة أخرى.');
+    } catch (requestError) {
+      setError(providerErrorMessage(requestError));
     } finally {
       setSending(false);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
