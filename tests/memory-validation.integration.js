@@ -86,6 +86,11 @@ const message = (content) => [{ role: 'user', content }];
   assert.equal('sensitivity' in context.relevantMemories[0], false);
   assert.equal('source' in context.relevantMemories[0], false);
 
+  const disabledMemoryContext = assembleContext('المذاكرة صباحًا', [], [contextMemory], [], [], { enabled: false, retrievalEnabled: true });
+  const disabledRetrievalContext = assembleContext('المذاكرة صباحًا', [], [contextMemory], [], [], { enabled: true, retrievalEnabled: false });
+  assert.equal(disabledMemoryContext.relevantMemories.length, 0);
+  assert.equal(disabledRetrievalContext.relevantMemories.length, 0);
+
   // 9) Unrelated, sensitive, and low-confidence memories are excluded.
   const unrelated = { ...contextMemory, id: 'm-unrelated', content: 'تعلم الرسم', type: 'goal' };
   const sensitive = { ...contextMemory, id: 'm-sensitive', content: 'المذاكرة صباحًا', sensitivity: 'sensitive' };

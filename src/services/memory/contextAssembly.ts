@@ -1,5 +1,5 @@
 import { AIMessage } from '../ai/aiService';
-import { MemoryContextItem, MemoryItem } from '../../types/memory';
+import { MemoryContextItem, MemoryItem, MemorySettings } from '../../types/memory';
 import { retrieveRelevantMemories } from './memoryRetrieval';
 
 export interface ContextPackage {
@@ -10,7 +10,8 @@ export interface ContextPackage {
   activeTasks: string[];
 }
 
-export function assembleContext(currentMessage: string, conversation: AIMessage[], memories: MemoryItem[], activeGoals: string[] = [], activeTasks: string[] = []): ContextPackage {
-  const relevantMemories = retrieveRelevantMemories(currentMessage, memories, 5).map(({ id, type, content, importance, tags }) => ({ id, type, content, importance, tags }));
+export function assembleContext(currentMessage: string, conversation: AIMessage[], memories: MemoryItem[], activeGoals: string[] = [], activeTasks: string[] = [], memorySettings: Pick<MemorySettings, 'enabled' | 'retrievalEnabled'> = { enabled: true, retrievalEnabled: true }): ContextPackage {
+  const memoryAvailable = memorySettings.enabled && memorySettings.retrievalEnabled;
+  const relevantMemories = (memoryAvailable ? retrieveRelevantMemories(currentMessage, memories, 5) : []).map(({ id, type, content, importance, tags }) => ({ id, type, content, importance, tags }));
   return { currentMessage, conversation: conversation.slice(-12), relevantMemories, activeGoals: activeGoals.slice(0, 5), activeTasks: activeTasks.slice(0, 5) };
 }
