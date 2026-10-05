@@ -13,18 +13,34 @@ export interface AIProvider {
   sendMessage(messages: AIMessage[], signal?: AbortSignal, context?: AIRequestContext): Promise<AIMessage>;
 }
 
-/** The mobile app never receives a provider secret. Configure the backend URL outside source control. */
+/** Provider keys stay server-side; the personal-app access token is supplied through build environment. */
 export class BackendAIProvider implements AIProvider {
-  constructor(private readonly baseUrl: string) {}
+  constructor(private readonly baseUrl: string, private readonly accessToken?: string) {}
 
   async sendMessage(messages: AIMessage[], signal?: AbortSignal, context?: AIRequestContext) {
-    const response = await fetch(`${this.baseUrl}/ai/chat`, {
+    const baseUrl = this.baseUrl.trim().replace(/\/+$/, '');
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`;
+    const response = await fetch(`${baseUrl}/api/ai/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ messages, conversationId: context?.conversationId, memory: context?.memory, activeGoals: context?.activeGoals, activeTasks: context?.activeTasks }),
       signal,
     });
-    if (!response.ok) throw new Error(`AI request failed (${response.status})`);
-    return (await response.json()) as AIMessage;
+
+    let payload: { role?: string; content?: string; error?: { code?: string } };
+    try {
+      payload = await response.json() as typeof payload;
+    } catch {
+      throw new Error(`Murshid backend returned an invalid response (${response.status})`);
+    }
+    if (!response.ok) {
+      const code = payload.error?.code;
+      throw new Error(`Murshid backend request failed (${response.status})${code ? `: ${code}` : ''}`);
+    }
+    if (payload.role !== 'assistant' || typeof payload.content !== 'string' || !payload.content.trim()) {
+      throw new Error('Backend returned no assistant message');
+    }
+    return { role: 'assistant' as const, content: payload.content };
   }
 }

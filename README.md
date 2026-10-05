@@ -165,12 +165,12 @@ npx expo run:android
 
 يدعم التطبيق الآن نموذج **Bring Your Own Key** اختياريًا: يختار المستخدم مزودًا، يفتح صفحة API الرسمية، ينشئ مفتاحًا، ثم يدخله داخل لوحة `مرشد`. المفتاح يُحفظ عبر `expo-secure-store` باستخدام إعداد `WHEN_UNLOCKED_THIS_DEVICE_ONLY`، ولا يدخل GitHub أو Expo bundle أو أي رسالة إلى Manus. عند إرسال رسالة، يتصل التطبيق مباشرة بالمزود الذي اختاره المستخدم؛ لذلك يتلقى ذلك المزود الرسالة والذاكرة المرتبطة بها.
 
-اللوحة تحتوي على 30 preset قابلًا للتعديل، منها OpenAI وGoogle Gemini وxAI/Grok وOpenRouter وGroq وDeepSeek وMistral وTogether وFireworks وPerplexity وCerebras وSambaNova وNVIDIA NIM وCloudflare وHugging Face وAzure OpenAI وGitHub Models وReplicate وNovita وSiliconFlow وZhipu وMoonshot وQwen وLM Studio وOllama وvLLM وLiteLLM، إضافة إلى `مزود مخصص OpenAI-compatible`. المزودات العامة تستخدم adapter `/chat/completions`، وGemini له adapter مستقل؛ لا يدّعي preset دعم صيغة غير متوافقة، ويمكن تعديل `Base URL` واسم النموذج.
+اللوحة تحتوي على 30 preset قابلًا للتعديل، منها OpenAI وGoogle Gemini وxAI/Grok وOpenRouter وGroq وDeepSeek وMistral وTogether وFireworks وPerplexity وCerebras وSambaNova وNVIDIA NIM وCloudflare وHugging Face وAzure OpenAI وGitHub Models وReplicate وNovita وSiliconFlow وZhipu وMoonshot وQwen وLM Studio وOllama وvLLM وLiteLLM، إضافة إلى `مزود مخصص OpenAI-compatible`. المزودات العامة تستخدم adapter `/chat/completions`، وGemini يستخدم Interactions API الحالية بمسار مستقل (`/interactions`) وموديل افتراضي `gemini-3.8-flash`؛ ويمكن تعديل `Base URL` واسم النموذج.
 
 روابط إنشاء المفاتيح الرسمية الموجودة داخل اللوحة تشمل:
 
 - [OpenAI API keys](https://platform.openai.com/api-keys)
-- [Google AI Studio API key](https://aistudio.google.com/app/apikey)
+- [Google AI Studio API key](https://aistudio.google.com/apikey)
 - [xAI Console](https://console.x.ai/)
 - [OpenRouter keys](https://openrouter.ai/settings/keys)
 - [Groq keys](https://console.groq.com/keys)
@@ -187,17 +187,17 @@ npx expo run:android
 cp .env.example .env
 ```
 
-اضبط `EXPO_PUBLIC_API_BASE_URL` على عنوان Backend الذي تملكه، ثم أعد تشغيل Expo مع تنظيف الكاش:
+اضبط `EXPO_PUBLIC_API_BASE_URL` على عنوان Backend الذي تملكه و`EXPO_PUBLIC_MURSHID_API_TOKEN` على رمز الوصول الخاص ببنائك الشخصي، ثم أعد تشغيل Expo مع تنظيف الكاش:
 
 ```bash
 npx expo start --clear
 ```
 
-**لا تضع مفتاح مزود AI في `.env` الخاص بتطبيق Expo.** كل متغير يبدأ بـ`EXPO_PUBLIC_` يدخل حزمة التطبيق ويمكن استخراجه؛ لذلك يحتوي ملف النموذج على عنوان Backend ومعرّفات Firebase العامة فقط. احفظ مفتاح المزود في متغير سري داخل استضافة Backend، واجعل الخادم يتعامل معه في `POST /ai/chat`. ملف `.env` مستثنى من Git عبر `.gitignore`؛ لا ترفع أسرارًا إلى المستودع. لا يوجد Backend عامل داخل هذا المستودع حاليًا، لذا يلزم توفير/نشر Endpoint متوافق قبل أن يعمل هذا المسار. للاستخدام الشخصي المباشر، أدخل مفتاحك في إعدادات مرشد AI داخل التطبيق بدل وضعه في ملفات المشروع.
+**لا تضع مفتاح Gemini في `.env` الخاص بتطبيق Expo أو GitHub.** كل متغير يبدأ بـ`EXPO_PUBLIC_` يدخل حزمة التطبيق ويمكن استخراجه؛ لذلك يوضع مفتاح Gemini في متغير بيئة سري على Backend فقط. أُضيف Backend مستقل في `backend/`، قابل للنشر كمشروع Vercel منفصل باختيار `backend` كـRoot Directory، ويوفر `POST /api/ai/chat`. خزّن `GEMINI_API_KEY` و`MURSHID_API_TOKEN` في إعدادات Vercel؛ واجعل `EXPO_PUBLIC_API_BASE_URL` و`EXPO_PUBLIC_MURSHID_API_TOKEN` في بيئة بناء التطبيق الشخصي. رمز التطبيق المضمّن في APK ليس مصادقة قوية، لذا هذا الإعداد مناسب للاستخدام الشخصي الخاص فقط؛ للنشر العام يلزم ربطه بمصادقة مستخدم حقيقية. ألغِ أي مفتاح Gemini سبق إرساله في رسالة أو رفعه إلى GitHub، وأنشئ بديلًا لا تشاركه في المحادثات.
 
 ### AI — Chat UI + Backend contract
 
-تبويب `مرشد AI` يجمع شاشة المحادثة وإدارة الذاكرة مع زر انتقال مباشر بينهما. تُحفظ المحادثات محليًا عبر AsyncStorage، ويمكن إنشاء محادثات متعددة. يدعم الرد عبر `BackendAIProvider` عند ضبط `EXPO_PUBLIC_API_BASE_URL`، أو عبر API key يضيفه المستخدم بنفسه من شاشة الإعداد ويحفظ محليًا في SecureStore عبر BYOK؛ لا يوجد مفتاح افتراضي أو سر داخل التطبيق أو GitHub. عند غياب إعداد API تظهر حالة واضحة ولا تُنشأ ردود وهمية.
+تبويب `مرشد AI` يجمع شاشة المحادثة وإدارة الذاكرة مع زر انتقال مباشر بينهما. تُحفظ المحادثات محليًا عبر AsyncStorage، ويمكن إنشاء محادثات متعددة. يدعم الرد عبر Backend مرشد عند ضبط عنوان الخادم ورمز وصول البناء الشخصي، أو يختار المستخدم زر المفتاح لربط Gemini أو مزود متوافق بمفتاحه الخاص عبر BYOK؛ إعداد المستخدم الشخصي يأخذ الأولوية، ومفتاحه محفوظ في SecureStore. لا يوجد مفتاح مزود افتراضي داخل التطبيق أو GitHub. عند غياب الإعدادين تظهر حالة واضحة ولا تُنشأ ردود وهمية.
 
 ### Living Memory — Memory Intelligence Engine
 
@@ -209,7 +209,7 @@ npx expo start --clear
 - `MemoryScreen`: يعرض المرشحات في قسم «اقتراحات مرشد للمراجعة»، ولا تنتقل إلى الذاكرة إلا بالضغط على «حفظ»، أو تُزال بالضغط على «تجاهل».
 - `memoryRetrieval.ts`: يفرز الذاكرة المقبولة حسب تطابق الكلمات، الأهمية، الثقة، والحداثة؛ ولا يرسل إلا عددًا محدودًا من العناصر المرتبطة.
 - `contextAssembly.ts`: يبني حزمة سياق من الرسالة الحالية، آخر 12 رسالة، والذكريات المرتبطة فقط.
-- `BackendAIProvider` وموفر BYOK يرسلان `conversationId` والسياق المرتبط فقط؛ يظل مفتاح BYOK في SecureStore على الجهاز. يلتزم الإرسال بآخر 12 رسالة ويحترم إيقاف الذاكرة أو استرجاعها.
+- `BackendAIProvider` وموفر BYOK يرسلان `conversationId` والسياق المرتبط فقط؛ يظل مفتاح BYOK في SecureStore على الجهاز. يلتزم الإرسال بآخر 12 رسالة ويحترم إيقاف الذاكرة أو استرجاعها. Gemini BYOK وBackend يستخدمان Interactions API مع `store: false` حتى لا يخزن Gemini التفاعل على خوادمه.
 - دورة الحياة: العناصر المنتهية الصلاحية تُستبعد وتُنظف عند القراءة، وتحديث المرشح المقبول يدمج المعلومة بدل إنشاء تكرار مطابق.
 
 هذه ليست ذاكرة سحابية أو تحليلًا لغويًا شاملًا بعد؛ الاستخراج الحالي heuristic عربي محافظ، وحقول الأهداف والمهام جاهزة للتوسعة من دون ادعاء أنها موصولة بمصدر خارجي. المعلومات المؤقتة تحصل على انتهاء افتراضي 7 أيام، وتعارض التفضيل المقبول يظهر كاقتراح تحديث بدل تكرار.
@@ -234,6 +234,8 @@ Hub يدير مقترحات وتصنيفًا، لكنه لا يقرأ schema آ�
 
 ```bash
 npm run memory:test
+npm run ai:test
+npm run backend:test
 npx tsc --noEmit
 ```
 
@@ -268,7 +270,7 @@ npx tsc --noEmit
 - الحذف يزيل العنصر من مفتاح الذاكرة المحلي، وتعطيل الذاكرة يمنع الاستخراج المحفوظ والاسترجاع.
 - المرشح لا يصبح `MemoryItem` إلا عبر `approveCandidate`؛ الفشل في الاستخراج لا يستدعي الحفظ.
 - `Context Package` لا يضمّن `userId` أو `source` أو `sensitivity` أو التواريخ في حمولة AI؛ ويستبعد الحساس والمنخفض الثقة.
-- مفتاح مزود AI لا يوجد في التطبيق أو Git؛ التطبيق يحتاج Backend حقيقيًا عبر `EXPO_PUBLIC_API_BASE_URL`. عند غياب Backend يبقى سلوك الشاشة غير موصول ولا يُنشئ ردًا وهميًا.
+- لا يوضع مفتاح Gemini في التطبيق أو GitHub؛ يحتفظ Backend بنسخته في متغير سرّي. يبقى رمز الوصول الشخصي الذي يضمّنه بناء Expo قابلًا للاستخراج، لذا لا توزّع هذا البناء للعامة قبل إضافة مصادقة حقيقية. يمكن للمستخدم بدلًا من ذلك ربط API الخاص به من إعدادات مرشد.
 
 ### مخاطر متبقية
 

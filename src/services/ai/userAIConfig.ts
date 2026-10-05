@@ -30,7 +30,7 @@ const CONFIG_KEY = '@murshid/user-ai-config';
  */
 export const AI_PROVIDER_PRESETS: AIProviderPreset[] = [
   { id: 'openai', name: 'OpenAI', kind: 'openai-compatible', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', apiUrl: 'https://platform.openai.com/api-keys', docsUrl: 'https://platform.openai.com/docs/api-reference' },
-  { id: 'gemini', name: 'Google Gemini', kind: 'gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-2.0-flash', apiUrl: 'https://aistudio.google.com/app/apikey', docsUrl: 'https://ai.google.dev/gemini-api/docs' },
+  { id: 'gemini', name: 'Google Gemini', kind: 'gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', model: 'gemini-3.8-flash', apiUrl: 'https://aistudio.google.com/apikey', docsUrl: 'https://ai.google.dev/gemini-api/docs/interactions-overview' },
   { id: 'xai', name: 'xAI / Grok', kind: 'openai-compatible', baseUrl: 'https://api.x.ai/v1', model: 'grok-3-mini', apiUrl: 'https://console.x.ai/', docsUrl: 'https://docs.x.ai/docs' },
   { id: 'openrouter', name: 'OpenRouter', kind: 'openai-compatible', baseUrl: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini', apiUrl: 'https://openrouter.ai/settings/keys', docsUrl: 'https://openrouter.ai/docs/api-reference/overview' },
   { id: 'groq', name: 'Groq', kind: 'openai-compatible', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', apiUrl: 'https://console.groq.com/keys', docsUrl: 'https://console.groq.com/docs/openai' },

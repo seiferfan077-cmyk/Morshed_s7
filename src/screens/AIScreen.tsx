@@ -13,7 +13,9 @@ import { localMemoryProvider } from '../services/memory/memoryService';
 import { colors, radii, spacing, typography } from '../theme';
 
 const configuredBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
-const hasBackend = Boolean(configuredBaseUrl && !configuredBaseUrl.includes('api.example.com'));
+const configuredBackendToken = process.env.EXPO_PUBLIC_MURSHID_API_TOKEN;
+const hasBackendUrl = Boolean(configuredBaseUrl && !configuredBaseUrl.includes('api.example.com'));
+const hasBackend = Boolean(hasBackendUrl && configuredBackendToken);
 const CONVERSATIONS_KEY = '@murshid/ai-conversations';
 
 type Conversation = { id: string; title: string; messages: AIMessage[]; updatedAt: number };
@@ -31,7 +33,7 @@ function titleFromMessage(content: string) {
 export function AIScreen({ onOpenMemory }: { onOpenMemory?: () => void } = {}) {
   const [userConfig, setUserConfig] = useState<UserAIConfig | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
-  const provider = useMemo(() => userConfig ? createUserKeyProvider(userConfig) : hasBackend ? new BackendAIProvider(configuredBaseUrl as string) : null, [userConfig]);
+  const provider = useMemo(() => userConfig ? createUserKeyProvider(userConfig) : hasBackend ? new BackendAIProvider(configuredBaseUrl as string, configuredBackendToken) : null, [userConfig]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -121,7 +123,7 @@ export function AIScreen({ onOpenMemory }: { onOpenMemory?: () => void } = {}) {
 
   return <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <View style={styles.headerRow}><View style={styles.headerCopy}><ScreenHeader eyebrow="AI ASSISTANT" title="مرشد AI" verified detail="محادثتك وذاكرتك في مساحة واحدة، وأنت تتحكم في الربط والحفظ." /></View><View style={styles.headerActions}>{onOpenMemory ? <Pressable accessibilityLabel="فتح ذاكرة مرشد AI" onPress={onOpenMemory} style={styles.menuButton}><Ionicons name="bookmark-outline" size={21} color={colors.ink} /></Pressable> : null}<Pressable accessibilityLabel="إعداد مفتاح API" onPress={() => setConfigOpen(true)} style={styles.menuButton}><Ionicons name="key-outline" size={21} color={colors.ink} /></Pressable><Pressable accessibilityLabel="فتح المحادثات" onPress={() => setSidebarOpen(true)} style={styles.menuButton}><Ionicons name="menu-outline" size={24} color={colors.ink} /></Pressable></View></View>
-    {!provider ? <View style={styles.connectionNotice}><Ionicons name="cloud-offline-outline" size={18} color={colors.amber} /><View style={styles.noticeCopy}><Text style={styles.noticeTitle}>مرشد AI ينتظر الربط</Text><Text style={styles.noticeBody}>أدخل مفتاحك من زر المفتاح؛ لن تُرسل الرسائل قبل الإعداد.</Text></View></View> : <View style={styles.providerNotice}><Ionicons name="checkmark-circle-outline" size={16} color={colors.tealDark} /><Text style={styles.providerNoticeText}>{userConfig ? `متصل عبر ${userConfig.providerName} بمفتاحك المحلي` : 'متصل عبر Backend آمن'}</Text></View>}
+    {!provider ? <View style={styles.connectionNotice}><Ionicons name="cloud-offline-outline" size={18} color={colors.amber} /><View style={styles.noticeCopy}><Text style={styles.noticeTitle}>مرشد AI ينتظر الربط</Text><Text style={styles.noticeBody}>{hasBackendUrl ? 'عنوان Backend مضبوط لكن رمز الوصول غير موجود في إعداد البناء الشخصي. أو أدخل مفتاح مزودك من زر المفتاح.' : 'أدخل مفتاح مزودك من زر المفتاح؛ لن تُرسل الرسائل قبل الإعداد.'}</Text></View></View> : <View style={styles.providerNotice}><Ionicons name="checkmark-circle-outline" size={16} color={colors.tealDark} /><Text style={styles.providerNoticeText}>{userConfig ? `متصل عبر ${userConfig.providerName} بمفتاحك المحلي` : 'متصل عبر Backend مرشد'}</Text></View>}
     <FlatList ref={listRef} data={messages} keyExtractor={(_, index) => `${activeConversation.id}-${index}`} contentContainerStyle={styles.messages} onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })} renderItem={({ item }) => <View style={[styles.bubble, item.role === 'user' ? styles.userBubble : styles.assistantBubble]}><Text style={[styles.bubbleText, item.role === 'user' && styles.userBubbleText]}>{item.content}</Text></View>} />
     {error ? <Text style={styles.error}>{error}</Text> : null}
     <View style={styles.composer}><TextInput value={draft} onChangeText={setDraft} placeholder="اسأل مرشد AI..." placeholderTextColor={colors.inkFaint} multiline maxLength={4000} style={styles.input} editable={!sending} /><Pressable accessibilityLabel="إرسال الرسالة" onPress={send} disabled={!draft.trim() || sending} style={({ pressed }) => [styles.sendButton, (!draft.trim() || sending) && styles.disabled, pressed && styles.pressed]}>{sending ? <ActivityIndicator size="small" color={colors.paper} /> : <Ionicons name="arrow-up" size={20} color={colors.paper} />}</Pressable></View>
