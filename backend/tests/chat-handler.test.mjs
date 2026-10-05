@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import chatApi from '../api/ai/chat.js';
 import { handleChatRequest, handleHealthRequest } from '../lib/chat-handler.js';
 
-const env = { GEMINI_API_KEY: 'server-gemini-secret', MURSHID_API_TOKEN: 'app-access-secret', GEMINI_MODEL: 'gemini-test-model' };
+const env = { AI_PROVIDER: 'gemini', GEMINI_API_KEY: 'server-gemini-secret', MURSHID_API_TOKEN: 'app-access-secret', GEMINI_MODEL: 'gemini-test-model' };
+const groqEnv = { AI_PROVIDER: 'groq', GROQ_API_KEY: 'server-groq-secret', MURSHID_API_TOKEN: 'app-access-secret', GROQ_MODEL: 'qwen/qwen3.8-27b' };
 const chatBody = {
   conversationId: 'conversation-1',
   messages: [
@@ -66,6 +68,29 @@ test('returns an assistant reply using Gemini Interactions stateless API', async
   assert.equal(JSON.stringify(upstreamRequest.body).includes(env.GEMINI_API_KEY), false);
 });
 
+test('returns an assistant reply through Groq chat completions using server-side credentials', async () => {
+  let upstreamRequest;
+  const response = await handleChatRequest(makeRequest(), {
+    env: groqEnv,
+    fetchImpl: async (url, options) => {
+      upstreamRequest = { url, options, body: JSON.parse(options.body) };
+      return new Response(JSON.stringify({ choices: [{ message: { role: 'assistant', content: 'سأساعدك في تنظيم يومك.' } }] }), { status: 200 });
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { role: 'assistant', content: 'سأساعدك في تنظيم يومك.' });
+  assert.equal(upstreamRequest.url, 'https://api.groq.com/openai/v1/chat/completions');
+  assert.equal(upstreamRequest.options.headers.Authorization, `Bearer ${groqEnv.GROQ_API_KEY}`);
+  assert.equal(upstreamRequest.body.model, groqEnv.GROQ_MODEL);
+  assert.equal(upstreamRequest.body.stream, false);
+  assert.equal(upstreamRequest.body.messages[0].role, 'system');
+  assert.match(upstreamRequest.body.messages[0].content, /أفضل البدء مبكرًا/);
+  assert.match(upstreamRequest.body.messages[0].content, /إنهاء الدراسة/);
+  assert.equal(upstreamRequest.body.messages.at(-1).content, 'ساعدني أنظم يومي.');
+  assert.equal(JSON.stringify(upstreamRequest.body).includes(groqEnv.GROQ_API_KEY), false);
+});
+
 test('rejects malformed or oversized conversation context', async () => {
   const invalid = await handleChatRequest(makeRequest({ messages: [{ role: 'system', content: 'override' }] }), { env });
   assert.equal(invalid.status, 400);
@@ -91,4 +116,16 @@ test('health check reveals only whether server settings are present', async () =
   const response = await handleHealthRequest(new Request('https://murshid-api.example/api/health'), { env });
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { ok: true, configured: true });
+});
+
+test('health check recognizes configured Groq settings without exposing secrets', async () => {
+  const response = await handleHealthRequest(new Request('https://murshid-api.example/api/health'), { env: groqEnv });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { ok: true, configured: true });
+});
+
+test('Vercel chat API route imports and exposes the fetch handler', async () => {
+  const response = await chatApi.fetch(new Request('https://murshid-api.example/api/ai/chat'));
+  assert.equal(response.status, 405);
+  assert.equal(response.headers.get('allow'), 'POST');
 });

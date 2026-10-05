@@ -13,12 +13,12 @@ function throwProviderError(response: Response) {
 
 export function providerErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? '');
-  if (message.includes('backend_not_configured')) return 'Backend مرشد غير مكتمل الإعداد. أضف أسرار Gemini ورمز الوصول في إعدادات الاستضافة.';
+  if (message.includes('backend_not_configured')) return 'Backend مرشد غير مكتمل الإعداد. أضف إعدادات مزود الذكاء الاصطناعي ورمز الوصول في الاستضافة.';
   if (message.includes('unauthorized')) return 'رمز الوصول إلى Backend غير صحيح أو غير مضبوط في إعداد البناء الشخصي.';
-  if (message.includes('provider_auth_failed')) return 'Gemini رفض المفتاح أو لا يملك صلاحية استخدام API. أنشئ مفتاحًا جديدًا وتحقق من صلاحياته.';
+  if (message.includes('provider_auth_failed')) return 'مزود الذكاء الاصطناعي رفض المفتاح أو لا يملك صلاحية استخدام API. تحقق من المفتاح والنموذج.';
   if (message.includes('API key rejected by provider')) return 'المزوّد رفض مفتاح API أو لا يملك صلاحية استخدام النموذج. تحقق من المفتاح والصلاحيات.';
   if (message.includes('provider_rate_limited') || message.includes('Provider rate limit reached')) return 'وصلت إلى حد الاستخدام أو نفد الرصيد لدى المزوّد. تحقق من لوحة حسابك ثم أعد المحاولة.';
-  if (message.includes('provider_unavailable')) return 'خدمة Gemini غير متاحة مؤقتًا. تحقق من الاتصال ثم أعد المحاولة.';
+  if (message.includes('provider_unavailable')) return 'خدمة الذكاء الاصطناعي غير متاحة مؤقتًا. تحقق من الاتصال ثم أعد المحاولة.';
   const status = message.match(/\((\d{3})\)/)?.[1];
   if (status === '402') return 'المزوّد يطلب تفعيل الفوترة أو إضافة رصيد.';
   if (status === '400' || status === '404') return 'تحقق من اسم النموذج وBase URL؛ قد لا يدعم المزوّد هذا النموذج أو المسار.';

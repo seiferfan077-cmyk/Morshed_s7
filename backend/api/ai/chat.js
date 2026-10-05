@@ -1,4 +1,4 @@
-import { handleChatRequest } from '../../../lib/chat-handler.js';
+import { handleChatRequest } from '../../lib/chat-handler.js';
 
 export default {
   fetch(request) {

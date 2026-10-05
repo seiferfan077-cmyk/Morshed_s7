@@ -1,27 +1,66 @@
-# Murshid AI Backend
+# Backend ذكاء مُرشد
 
-This folder is a standalone Vercel Node.js Functions project. Set the Vercel project **Root Directory** to `backend`; this keeps the Expo app and the existing support website untouched. The chat route is `POST /api/ai/chat` and the health route is `GET /api/health`.
+هذا Backend مستقل يعمل كـ Vercel Node.js Functions. اضبط **Root Directory** على `backend`، ثم انشر. المسارات:
 
-## Server environment variables
+- `POST /api/ai/chat` — محادثة مُرشد.
+- `GET /api/health` — فحص وجود الإعدادات فقط.
 
-Add these in Vercel Project Settings → Environment Variables. Do not commit actual values or put the Gemini key in an Expo `EXPO_PUBLIC_*` variable.
+## الإعداد المقترح للتجربة المجانية
 
-- `GEMINI_API_KEY`: Gemini API key for the server-side Murshid backend. If the key is publicly exposed or committed to source control, revoke it and create a replacement.
-- `MURSHID_API_TOKEN`: a separate random access token required by the app when it calls this backend.
-- `GEMINI_MODEL`: optional; defaults to `gemini-3.8-flash`.
+المزود الافتراضي هو **Groq** عبر واجهة OpenAI-compatible؛ مفتاحه يبقى على الخادم. النموذج الافتراضي `qwen/qwen3.8-27b`، ويمكن تغييره إلى أي نموذج نشط ومتاح في حساب Groq. الحدود الدقيقة للخطة المجانية تتغير حسب الحساب والنموذج، وتظهر في لوحة Groq.
 
-Generate a new app access token locally with `openssl rand -hex 32`, then configure the same value as `MURSHID_API_TOKEN` in Vercel and `EXPO_PUBLIC_MURSHID_API_TOKEN` in the personal app build environment. Do not commit either value.
+أضف الأسرار التالية من إعدادات Vercel → Environment Variables، ولا تحفظ قيمها في Git أو متغيرات `EXPO_PUBLIC_*`:
 
-For the personal Expo build, set `EXPO_PUBLIC_API_BASE_URL` to the deployed Vercel origin (no trailing slash) and `EXPO_PUBLIC_MURSHID_API_TOKEN` to the same app access token before building. Keep local `.env` files out of Git. Expo public variables are bundled in the client app; this shared token is a guard for a personal/private build, not strong authentication against someone who can extract the app. Do not distribute a build using this shared-token scheme publicly; add real user authentication (for example verified Firebase ID tokens) first.
+- `AI_PROVIDER=groq`
+- `GROQ_API_KEY` — مفتاح Groq API.
+- `GROQ_MODEL=qwen/qwen3.8-27b` — اختياري.
+- `MURSHID_API_TOKEN` — رمز وصول عشوائي مستقل للنسخة الشخصية من التطبيق.
 
-## Privacy and request contract
+يمكن توليد رمز التطبيق محليًا باستخدام `openssl rand -hex 32`. استخدم القيمة نفسها في Vercel باسم `MURSHID_API_TOKEN` وفي بيئة بناء Expo الشخصية باسم `EXPO_PUBLIC_MURSHID_API_TOKEN`. اضبط `EXPO_PUBLIC_API_BASE_URL` على عنوان نشر Vercel دون `/` في نهايته، ثم أعد بناء التطبيق.
 
-- The server sends the last 12 user/assistant messages and only context explicitly included by the client.
-- Gemini is called through the current Interactions API using `x-goog-api-key` on the server only.
-- `store: false` is set for each interaction; the backend does not persist conversations.
-- The server validates request sizes, roles, context limits, app token, and method. It does not log prompts or credentials.
-- BYOK remains separate: each user may connect their own Gemini or other supported provider key in the app. BYOK keys remain in that user's SecureStore and the request goes directly from that device to the selected provider.
+## API contract لأي عميل متوافق، بما فيه Motion إذا كان المقصود عميلًا خارجيًا
 
-## Local checks
+يرسل العميل طلبًا إلى `POST https://<backend-domain>/api/ai/chat` مع `Authorization: Bearer <MURSHID_API_TOKEN>` و`Content-Type: application/json`:
 
-From the repository root, run `npm run backend:test`. The tests mock Gemini and do not require a real API key.
+```json
+{
+  "messages": [
+    { "role": "user", "content": "ساعدني أنظم يومي" }
+  ],
+  "memory": [{ "content": "أفضل البدء مبكرًا" }],
+  "activeGoals": ["إنهاء الدراسة"],
+  "activeTasks": ["مراجعة الفصل الأول"]
+}
+```
+
+الحقول الاختيارية `memory` و`activeGoals` و`activeTasks` تُرسل فقط عند وجود موافقة/سياق مناسب. الرد الناجح:
+
+```json
+{ "role": "assistant", "content": "..." }
+```
+
+المستودع لا يحتوي تكاملًا باسم Motion؛ هذا endpoint هو واجهة HTTP عامة قابلة للاستهلاك من أي عميل يدعم REST. لو كان Motion منتجًا خارجيًا مستقلًا، يجب ضبط عنوان الـBackend وطريقة المصادقة لديه، وعدم استخدام رمز التطبيق المضمّن في APK كسرّ لتطبيق عام.
+
+## Gemini كبديل
+
+يمكن استخدام Gemini بدل Groq بتعيين `AI_PROVIDER=gemini` و`GEMINI_API_KEY`، واختياريًا `GEMINI_MODEL=gemini-3.8-flash`. يستخدم هذا المسار Gemini Interactions API مع `store: false`.
+
+**تنبيه الخصوصية:** تنص شروط Gemini API على أن المحتوى المرسل عبر الحصة المجانية قد يُستخدم لتحسين منتجات Google وقد يراجعه أشخاص؛ تجنب إرسال معلومات حساسة عبر الحصة المجانية. أما Groq فيذكر أن طلبات الاستدلال لا تُحتفظ بها افتراضيًا، مع احتمال تسجيل مؤقت محدود لأغراض الاعتمادية/مكافحة الإساءة حتى 30 يومًا؛ يمكن إدارة ذلك من إعدادات Data Controls وتفعيل Zero Data Retention. راجع الشروط الحالية للمزود قبل إطلاق التطبيق.
+
+## الخصوصية والأمان وحدود الاستخدام
+
+- يرسل التطبيق آخر 12 رسالة وما يختاره من الذكريات والسياق فقط؛ المحادثات محفوظة محليًا على الجهاز.
+- لا يسجل Backend محتوى المحادثة أو المفاتيح، ويضع `Cache-Control: no-store` ويرفض الأجسام والأدوار/السياقات غير الصالحة.
+- مفتاح المزود لا يغادر Backend. لا تضعه في تطبيق Expo أو GitHub.
+- رمز `EXPO_PUBLIC_MURSHID_API_TOKEN` يصبح قابلًا للاستخراج من APK؛ يصلح لبناء شخصي خاص فقط، وليس مصادقة قوية لتطبيق عام. قبل التوزيع العام، أضف مصادقة مستخدم حقيقية (مثل Firebase ID token موثّقًا على الخادم)، وحدود استخدام لكل مستخدم، ومراقبة استهلاك المزود.
+- Vercel Hobby مخصص للاستخدام الشخصي وغير التجاري. حدوده قابلة للتغيير؛ افحص لوحة Vercel قبل الإطلاق. Cloudflare Workers Free بديل معلن بحد 100,000 طلب يوميًا، لكنه يحتاج تهيئة/نقل المشروع بدل إعداد Vercel الحالي.
+
+## الاختبارات محليًا
+
+من مجلد المستودع الرئيسي:
+
+```bash
+npm run backend:test
+```
+
+الاختبارات تستخدم mocks لمزودي AI ولا تحتاج مفاتيح حقيقية.

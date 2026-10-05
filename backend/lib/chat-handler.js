@@ -1,7 +1,9 @@
 import { timingSafeEqual } from 'node:crypto';
 
 const GEMINI_INTERACTIONS_URL = 'https://generativelanguage.googleapis.com/v1beta/interactions';
-const DEFAULT_MODEL = 'gemini-3.8-flash';
+const GROQ_CHAT_COMPLETIONS_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
+const DEFAULT_GROQ_MODEL = 'qwen/qwen3.8-27b';
 const MAX_BODY_BYTES = 128_000;
 const MAX_MESSAGES = 12;
 const MAX_MESSAGE_LENGTH = 4_000;
@@ -48,6 +50,19 @@ function normalizeMemory(value) {
   return value.map((item) => item.content.trim()).filter(Boolean);
 }
 
+function normalizeProvider(env) {
+  const configured = env.AI_PROVIDER?.trim().toLowerCase();
+  // Preserve existing Gemini deployments that have not set AI_PROVIDER yet.
+  const provider = configured || (env.GROQ_API_KEY?.trim() ? 'groq' : 'gemini');
+  if (provider === 'gemini') {
+    return { name: provider, key: env.GEMINI_API_KEY?.trim(), model: env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL };
+  }
+  if (provider === 'groq') {
+    return { name: provider, key: env.GROQ_API_KEY?.trim(), model: env.GROQ_MODEL?.trim() || DEFAULT_GROQ_MODEL };
+  }
+  return null;
+}
+
 function buildSystemInstruction(memory, goals, tasks) {
   const sections = [
     'أنت مُرشد، مساعد شخصي عربي ودود ودقيق. أجب بلغة المستخدم، وكن واضحًا وعمليًا. لا تدّعِ تنفيذ إجراءات لم تنفذها.',
@@ -59,7 +74,7 @@ function buildSystemInstruction(memory, goals, tasks) {
   return sections.join('\n\n');
 }
 
-function extractOutputText(interaction) {
+function extractGeminiOutputText(interaction) {
   if (interaction?.status && interaction.status !== 'completed') return '';
   const steps = Array.isArray(interaction?.steps) ? interaction.steps : [];
   return steps
@@ -71,6 +86,20 @@ function extractOutputText(interaction) {
     .trim();
 }
 
+function extractChatCompletionText(payload) {
+  const content = payload?.choices?.[0]?.message?.content;
+  if (typeof content === 'string') return content.trim();
+  if (!Array.isArray(content)) return '';
+  return content.filter((part) => part?.type === 'text' && typeof part.text === 'string').map((part) => part.text).join('').trim();
+}
+
+function mapProviderError(upstream) {
+  if (upstream.status === 429) return errorResponse(429, 'provider_rate_limited');
+  if (upstream.status === 401 || upstream.status === 403) return errorResponse(502, 'provider_auth_failed');
+  if (upstream.status >= 500) return errorResponse(502, 'provider_unavailable');
+  return errorResponse(502, 'provider_request_failed');
+}
+
 export async function handleChatRequest(request, { env = process.env, fetchImpl = globalThis.fetch } = {}) {
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: { code: 'method_not_allowed' } }), {
@@ -80,8 +109,8 @@ export async function handleChatRequest(request, { env = process.env, fetchImpl 
   }
 
   const backendToken = env.MURSHID_API_TOKEN?.trim();
-  const geminiKey = env.GEMINI_API_KEY?.trim();
-  if (!backendToken || !geminiKey) return errorResponse(503, 'backend_not_configured');
+  const provider = normalizeProvider(env);
+  if (!backendToken || !provider?.key) return errorResponse(503, 'backend_not_configured');
 
   const authorization = request.headers.get('authorization') ?? '';
   const bearer = authorization.match(/^Bearer\s+(.+)$/i)?.[1] ?? '';
@@ -104,39 +133,43 @@ export async function handleChatRequest(request, { env = process.env, fetchImpl 
   const activeTasks = stringList(body?.activeTasks, MAX_CONTEXT_ITEMS, 300);
   if (!messages || !memory || !activeGoals || !activeTasks) return errorResponse(400, 'invalid_request');
 
-  const input = messages.map((message) => ({
-    type: message.role === 'assistant' ? 'model_output' : 'user_input',
-    content: [{ type: 'text', text: message.content }],
-  }));
-  const model = env.GEMINI_MODEL?.trim() || DEFAULT_MODEL;
+  const systemInstruction = buildSystemInstruction(memory, activeGoals, activeTasks);
+  const endpoint = provider.name === 'gemini' ? GEMINI_INTERACTIONS_URL : GROQ_CHAT_COMPLETIONS_URL;
+  const headers = provider.name === 'gemini'
+    ? { 'Content-Type': 'application/json', 'x-goog-api-key': provider.key }
+    : { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.key}` };
+  const upstreamBody = provider.name === 'gemini'
+    ? {
+        model: provider.model,
+        input: messages.map((message) => ({
+          type: message.role === 'assistant' ? 'model_output' : 'user_input',
+          content: [{ type: 'text', text: message.content }],
+        })),
+        system_instruction: systemInstruction,
+        store: false,
+      }
+    : {
+        model: provider.model,
+        messages: [{ role: 'system', content: systemInstruction }, ...messages],
+        stream: false,
+      };
 
   try {
-    const upstream = await fetchImpl(GEMINI_INTERACTIONS_URL, {
+    const upstream = await fetchImpl(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
-      body: JSON.stringify({
-        model,
-        input,
-        system_instruction: buildSystemInstruction(memory, activeGoals, activeTasks),
-        store: false,
-      }),
+      headers,
+      body: JSON.stringify(upstreamBody),
       signal: AbortSignal.timeout(25_000),
     });
+    if (!upstream.ok) return mapProviderError(upstream);
 
-    if (!upstream.ok) {
-      if (upstream.status === 429) return errorResponse(429, 'provider_rate_limited');
-      if (upstream.status === 401 || upstream.status === 403) return errorResponse(502, 'provider_auth_failed');
-      if (upstream.status >= 500) return errorResponse(502, 'provider_unavailable');
-      return errorResponse(502, 'provider_request_failed');
-    }
-
-    let interaction;
+    let payload;
     try {
-      interaction = await upstream.json();
+      payload = await upstream.json();
     } catch {
       return errorResponse(502, 'provider_invalid_response');
     }
-    const content = extractOutputText(interaction);
+    const content = provider.name === 'gemini' ? extractGeminiOutputText(payload) : extractChatCompletionText(payload);
     if (!content) return errorResponse(502, 'provider_empty_response');
     return json({ role: 'assistant', content });
   } catch {
@@ -146,5 +179,6 @@ export async function handleChatRequest(request, { env = process.env, fetchImpl 
 
 export function handleHealthRequest(request, { env = process.env } = {}) {
   if (request.method !== 'GET') return errorResponse(405, 'method_not_allowed');
-  return json({ ok: true, configured: Boolean(env.MURSHID_API_TOKEN && env.GEMINI_API_KEY) });
+  const provider = normalizeProvider(env);
+  return json({ ok: true, configured: Boolean(env.MURSHID_API_TOKEN?.trim() && provider?.key) });
 }
