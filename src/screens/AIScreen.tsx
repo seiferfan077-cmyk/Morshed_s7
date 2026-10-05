@@ -4,22 +4,23 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AIConfigModal } from '../components/AIConfigModal';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { AIMessage, BackendAIProvider } from '../services/ai/aiService';
+import { AIMessage, selectAIProvider } from '../services/ai/aiService';
 import { createUserKeyProvider, providerErrorMessage } from '../services/ai/byokAIService';
 import { clearUserAIConfig, getUserAIConfig, saveUserAIConfig, UserAIConfig } from '../services/ai/userAIConfig';
+import { getFirebaseAIIdToken } from '../services/firebase/firebaseAuthService';
+import { isFirebaseConfigured } from '../services/firebase/firebaseConfig';
 import { assembleContext } from '../services/memory/contextAssembly';
 import { extractMemoryCandidates } from '../services/memory/memoryExtractor';
 import { localMemoryProvider } from '../services/memory/memoryService';
 import { colors, radii, spacing, typography } from '../theme';
 
 const configuredBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
-const configuredBackendToken = process.env.EXPO_PUBLIC_MURSHID_API_TOKEN;
 const hasBackendUrl = Boolean(configuredBaseUrl && !configuredBaseUrl.includes('api.example.com'));
-const hasBackend = Boolean(hasBackendUrl && configuredBackendToken);
+const hasBackend = Boolean(hasBackendUrl && isFirebaseConfigured);
 const CONVERSATIONS_KEY = '@murshid/ai-conversations';
 
 type Conversation = { id: string; title: string; messages: AIMessage[]; updatedAt: number };
-const welcomeMessage: AIMessage = { role: 'assistant', content: 'أهلًا بك في مرشد AI. اكتب سؤالك، ويمكنك ربط API واستخدام ذاكرتك بموافقتك.' };
+const welcomeMessage: AIMessage = { role: 'assistant', content: 'أهلًا بك في مرشد AI. اسألني مباشرة؛ يتولى الخادم الاتصال بالذكاء الاصطناعي.' };
 
 function newConversation(): Conversation {
   return { id: `conversation-${Date.now()}`, title: 'محادثة جديدة', messages: [welcomeMessage], updatedAt: Date.now() };
@@ -33,7 +34,11 @@ function titleFromMessage(content: string) {
 export function AIScreen({ onOpenMemory }: { onOpenMemory?: () => void } = {}) {
   const [userConfig, setUserConfig] = useState<UserAIConfig | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
-  const provider = useMemo(() => userConfig ? createUserKeyProvider(userConfig) : hasBackend ? new BackendAIProvider(configuredBaseUrl as string, configuredBackendToken) : null, [userConfig]);
+  const provider = useMemo(() => selectAIProvider(
+    configuredBaseUrl,
+    isFirebaseConfigured ? getFirebaseAIIdToken : undefined,
+    userConfig ? createUserKeyProvider(userConfig) : null,
+  ), [userConfig]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -100,7 +105,7 @@ export function AIScreen({ onOpenMemory }: { onOpenMemory?: () => void } = {}) {
     const candidates = extractMemoryCandidates(content);
     await Promise.all(candidates.map((candidate) => localMemoryProvider.saveCandidate(candidate)));
     if (!provider) {
-      setError('مرشد AI غير موصل. اضغط زر المفتاح لإعداد API؛ لن تُرسل الرسائل قبل الربط.');
+      setError('خدمة مرشد AI غير جاهزة لهذا الإصدار بعد. لن تُرسل الرسالة قبل إعداد الخدمة.');
       return;
     }
     setSending(true);
@@ -122,8 +127,8 @@ export function AIScreen({ onOpenMemory }: { onOpenMemory?: () => void } = {}) {
   if (!hydrated || !activeConversation) return <View style={styles.loadingScreen}><ActivityIndicator color={colors.tealDark} /></View>;
 
   return <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <View style={styles.headerRow}><View style={styles.headerCopy}><ScreenHeader eyebrow="AI ASSISTANT" title="مرشد AI" verified detail="محادثتك وذاكرتك في مساحة واحدة، وأنت تتحكم في الربط والحفظ." /></View><View style={styles.headerActions}>{onOpenMemory ? <Pressable accessibilityLabel="فتح ذاكرة مرشد AI" onPress={onOpenMemory} style={styles.menuButton}><Ionicons name="bookmark-outline" size={21} color={colors.ink} /></Pressable> : null}<Pressable accessibilityLabel="إعداد مفتاح API" onPress={() => setConfigOpen(true)} style={styles.menuButton}><Ionicons name="key-outline" size={21} color={colors.ink} /></Pressable><Pressable accessibilityLabel="فتح المحادثات" onPress={() => setSidebarOpen(true)} style={styles.menuButton}><Ionicons name="menu-outline" size={24} color={colors.ink} /></Pressable></View></View>
-    {!provider ? <View style={styles.connectionNotice}><Ionicons name="cloud-offline-outline" size={18} color={colors.amber} /><View style={styles.noticeCopy}><Text style={styles.noticeTitle}>مرشد AI ينتظر الربط</Text><Text style={styles.noticeBody}>{hasBackendUrl ? 'عنوان Backend مضبوط لكن رمز الوصول غير موجود في إعداد البناء الشخصي. أو أدخل مفتاح مزودك من زر المفتاح.' : 'أدخل مفتاح مزودك من زر المفتاح؛ لن تُرسل الرسائل قبل الإعداد.'}</Text></View></View> : <View style={styles.providerNotice}><Ionicons name="checkmark-circle-outline" size={16} color={colors.tealDark} /><Text style={styles.providerNoticeText}>{userConfig ? `متصل عبر ${userConfig.providerName} بمفتاحك المحلي` : 'متصل عبر Backend مرشد'}</Text></View>}
+    <View style={styles.headerRow}><View style={styles.headerCopy}><ScreenHeader eyebrow="AI ASSISTANT" title="مرشد AI" verified detail="اسأل مرشد مباشرة؛ يتولى Backend الاتصال بخدمة الذكاء الاصطناعي." /></View><View style={styles.headerActions}>{onOpenMemory ? <Pressable accessibilityLabel="فتح ذاكرة مرشد AI" onPress={onOpenMemory} style={styles.menuButton}><Ionicons name="bookmark-outline" size={21} color={colors.ink} /></Pressable> : null}{!hasBackend ? <Pressable accessibilityLabel="إعداد مفتاح API شخصي اختياري" onPress={() => setConfigOpen(true)} style={styles.menuButton}><Ionicons name="key-outline" size={21} color={colors.ink} /></Pressable> : null}<Pressable accessibilityLabel="فتح المحادثات" onPress={() => setSidebarOpen(true)} style={styles.menuButton}><Ionicons name="menu-outline" size={24} color={colors.ink} /></Pressable></View></View>
+    {!provider ? <View style={styles.connectionNotice}><Ionicons name="cloud-offline-outline" size={18} color={colors.amber} /><View style={styles.noticeCopy}><Text style={styles.noticeTitle}>خدمة الذكاء الاصطناعي غير جاهزة بعد</Text><Text style={styles.noticeBody}>{hasBackendUrl ? 'عنوان Backend مضبوط لكن بيانات مشروع Firebase غير مضبوطة في هذا الإصدار. تواصل مع فريق التطبيق؛ لا تحتاج إلى مفتاح API خاص.' : 'سيعمل Chat تلقائيًا بعد إعداد خدمة AI المركزية وإصدار التطبيق بها.'}</Text></View></View> : <View style={styles.providerNotice}><Ionicons name="checkmark-circle-outline" size={16} color={colors.tealDark} /><Text style={styles.providerNoticeText}>{hasBackend ? 'متصل بخدمة الذكاء الاصطناعي المركزية' : `متصل عبر ${userConfig?.providerName ?? 'مزودك الشخصي'}`}</Text></View>}
     <FlatList ref={listRef} data={messages} keyExtractor={(_, index) => `${activeConversation.id}-${index}`} contentContainerStyle={styles.messages} onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })} renderItem={({ item }) => <View style={[styles.bubble, item.role === 'user' ? styles.userBubble : styles.assistantBubble]}><Text style={[styles.bubbleText, item.role === 'user' && styles.userBubbleText]}>{item.content}</Text></View>} />
     {error ? <Text style={styles.error}>{error}</Text> : null}
     <View style={styles.composer}><TextInput value={draft} onChangeText={setDraft} placeholder="اسأل مرشد AI..." placeholderTextColor={colors.inkFaint} multiline maxLength={4000} style={styles.input} editable={!sending} /><Pressable accessibilityLabel="إرسال الرسالة" onPress={send} disabled={!draft.trim() || sending} style={({ pressed }) => [styles.sendButton, (!draft.trim() || sending) && styles.disabled, pressed && styles.pressed]}>{sending ? <ActivityIndicator size="small" color={colors.paper} /> : <Ionicons name="arrow-up" size={20} color={colors.paper} />}</Pressable></View>

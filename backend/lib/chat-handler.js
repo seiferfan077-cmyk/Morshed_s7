@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { verifyFirebaseIdToken } from './firebase-auth.js';
 
 const GEMINI_INTERACTIONS_URL = 'https://generativelanguage.googleapis.com/v1beta/interactions';
 const GROQ_CHAT_COMPLETIONS_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -16,13 +16,6 @@ function json(body, status = 200) {
 
 function errorResponse(status, code) {
   return json({ error: { code } }, status);
-}
-
-function matchesSecret(received, expected) {
-  if (typeof received !== 'string' || typeof expected !== 'string' || !received || !expected) return false;
-  const receivedBytes = Buffer.from(received);
-  const expectedBytes = Buffer.from(expected);
-  return receivedBytes.length === expectedBytes.length && timingSafeEqual(receivedBytes, expectedBytes);
 }
 
 function stringList(value, maxItems, maxLength) {
@@ -100,7 +93,7 @@ function mapProviderError(upstream) {
   return errorResponse(502, 'provider_request_failed');
 }
 
-export async function handleChatRequest(request, { env = process.env, fetchImpl = globalThis.fetch } = {}) {
+export async function handleChatRequest(request, { env = process.env, fetchImpl = globalThis.fetch, verifyTokenImpl = verifyFirebaseIdToken } = {}) {
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: { code: 'method_not_allowed' } }), {
       status: 405,
@@ -108,13 +101,19 @@ export async function handleChatRequest(request, { env = process.env, fetchImpl 
     });
   }
 
-  const backendToken = env.MURSHID_API_TOKEN?.trim();
+  const firebaseProjectId = env.FIREBASE_PROJECT_ID?.trim();
   const provider = normalizeProvider(env);
-  if (!backendToken || !provider?.key) return errorResponse(503, 'backend_not_configured');
+  if (!firebaseProjectId || !provider?.key) return errorResponse(503, 'backend_not_configured');
 
   const authorization = request.headers.get('authorization') ?? '';
   const bearer = authorization.match(/^Bearer\s+(.+)$/i)?.[1] ?? '';
-  if (!matchesSecret(bearer, backendToken)) return errorResponse(401, 'unauthorized');
+  let authenticatedUser = null;
+  try {
+    if (bearer) authenticatedUser = await verifyTokenImpl(bearer, firebaseProjectId);
+  } catch {
+    authenticatedUser = null;
+  }
+  if (!authenticatedUser?.uid) return errorResponse(401, 'unauthorized');
 
   const contentLength = Number(request.headers.get('content-length') ?? 0);
   if (contentLength > MAX_BODY_BYTES) return errorResponse(413, 'request_too_large');
@@ -180,5 +179,5 @@ export async function handleChatRequest(request, { env = process.env, fetchImpl 
 export function handleHealthRequest(request, { env = process.env } = {}) {
   if (request.method !== 'GET') return errorResponse(405, 'method_not_allowed');
   const provider = normalizeProvider(env);
-  return json({ ok: true, configured: Boolean(env.MURSHID_API_TOKEN?.trim() && provider?.key) });
+  return json({ ok: true, configured: Boolean(env.FIREBASE_PROJECT_ID?.trim() && provider?.key) });
 }

@@ -13,8 +13,11 @@ function throwProviderError(response: Response) {
 
 export function providerErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? '');
-  if (message.includes('backend_not_configured')) return 'Backend مرشد غير مكتمل الإعداد. أضف إعدادات مزود الذكاء الاصطناعي ورمز الوصول في الاستضافة.';
-  if (message.includes('unauthorized')) return 'رمز الوصول إلى Backend غير صحيح أو غير مضبوط في إعداد البناء الشخصي.';
+  if (message.includes('firebase_auth_not_configured')) return 'إعداد تسجيل الدخول الآمن غير مكتمل في هذا الإصدار. تواصل مع فريق التطبيق.';
+  if (message.includes('firebase_anonymous_auth_disabled') || message.includes('auth/operation-not-allowed')) return 'يحتاج Chat إلى تفعيل تسجيل الدخول المجهول في إعدادات Firebase Authentication.';
+  if (message.includes('firebase_auth_failed')) return 'تعذر تجهيز جلسة Chat الآمنة. تحقق من الاتصال وحاول مجددًا.';
+  if (message.includes('backend_not_configured')) return 'خدمة Backend غير مكتملة الإعداد. تواصل مع فريق التطبيق.';
+  if (message.includes('unauthorized')) return 'تعذر التحقق من جلسة المستخدم لدى Backend. أعد المحاولة أو تواصل مع فريق التطبيق.';
   if (message.includes('provider_auth_failed')) return 'مزود الذكاء الاصطناعي رفض المفتاح أو لا يملك صلاحية استخدام API. تحقق من المفتاح والنموذج.';
   if (message.includes('API key rejected by provider')) return 'المزوّد رفض مفتاح API أو لا يملك صلاحية استخدام النموذج. تحقق من المفتاح والصلاحيات.';
   if (message.includes('provider_rate_limited') || message.includes('Provider rate limit reached')) return 'وصلت إلى حد الاستخدام أو نفد الرصيد لدى المزوّد. تحقق من لوحة حسابك ثم أعد المحاولة.';

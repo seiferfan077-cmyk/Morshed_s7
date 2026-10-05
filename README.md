@@ -163,7 +163,7 @@ npx expo run:android
 
 ### AI BYOK — User-owned API keys
 
-يدعم التطبيق الآن نموذج **Bring Your Own Key** اختياريًا: يختار المستخدم مزودًا، يفتح صفحة API الرسمية، ينشئ مفتاحًا، ثم يدخله داخل لوحة `مرشد`. المفتاح يُحفظ عبر `expo-secure-store` باستخدام إعداد `WHEN_UNLOCKED_THIS_DEVICE_ONLY`، ولا يدخل GitHub أو Expo bundle أو أي رسالة إلى Manus. عند إرسال رسالة، يتصل التطبيق مباشرة بالمزود الذي اختاره المستخدم؛ لذلك يتلقى ذلك المزود الرسالة والذاكرة المرتبطة بها.
+**لا يحتاج مستخدم Murshid العادي إلى إنشاء مفتاح API أو إدخاله.** يستخدم Chat خدمة AI المركزية على Backend تلقائيًا متى كانت إعدادات التطبيق مضبوطة. يظل **Bring Your Own Key** خيارًا شخصيًا اختياريًا عند عدم تهيئة Backend؛ عند استخدامه يختار المستخدم مزودًا، ينشئ مفتاحًا ويدخله بنفسه. المفتاح يُحفظ عبر `expo-secure-store` باستخدام إعداد `WHEN_UNLOCKED_THIS_DEVICE_ONLY`، ولا يدخل GitHub أو Expo bundle أو أي رسالة إلى Manus. عند اختيار BYOK يتصل التطبيق مباشرة بالمزود المختار، لذلك يتلقى المزود الرسالة والذاكرة المرتبطة بها.
 
 اللوحة تحتوي على 30 preset قابلًا للتعديل، منها OpenAI وGoogle Gemini وxAI/Grok وOpenRouter وGroq وDeepSeek وMistral وTogether وFireworks وPerplexity وCerebras وSambaNova وNVIDIA NIM وCloudflare وHugging Face وAzure OpenAI وGitHub Models وReplicate وNovita وSiliconFlow وZhipu وMoonshot وQwen وLM Studio وOllama وvLLM وLiteLLM، إضافة إلى `مزود مخصص OpenAI-compatible`. المزودات العامة تستخدم adapter `/chat/completions`، وGemini يستخدم Interactions API الحالية بمسار مستقل (`/interactions`) وموديل افتراضي `gemini-3.8-flash`؛ ويمكن تعديل `Base URL` واسم النموذج.
 
@@ -175,7 +175,7 @@ npx expo run:android
 - [OpenRouter keys](https://openrouter.ai/settings/keys)
 - [Groq keys](https://console.groq.com/keys)
 
-طريقة الاستخدام: سجّل الدخول في صفحة المزود، أنشئ API key من لوحة API، الصقه في إعدادات مرشد AI، اختر النموذج، ثم اضغط «اختبار المفتاح وحفظه». يرسل التطبيق طلب اختبار قصيرًا مباشرة إلى المزود قبل حفظ المفتاح في SecureStore؛ قد يستهلك قدرًا بسيطًا من رصيد API. لا ترسل المفتاح في المحادثة ولا تضعه في ملفات المشروع. يمكن حذفه من الجهاز في أي وقت.
+طريقة BYOK الاختيارية: سجّل الدخول في صفحة المزود، أنشئ API key، الصقه في إعدادات مرشد AI، اختر النموذج، ثم اضغط «اختبار المفتاح وحفظه». يرسل التطبيق طلب اختبار قصيرًا مباشرة إلى المزود قبل حفظ المفتاح في SecureStore؛ قد يستهلك قدرًا بسيطًا من رصيد API. هذا ليس مطلوبًا لمستخدم Chat عندما تكون خدمة Backend المركزية مهيأة.
 
 **مهم أمنيًا:** SecureStore يحمي التخزين المحلي على الجهاز، لكنه لا يجعل المفتاح غير قابل للاستخراج من جهاز مكسور الحماية أو تطبيق معدّل. هذا النموذج مناسب لمن يوافق على اتصال مباشر بالمزود؛ للمؤسسات أو الاستخدام الحساس ما زال Backend الوسيط الأكثر أمانًا.
 
@@ -187,17 +187,17 @@ npx expo run:android
 cp .env.example .env
 ```
 
-اضبط `EXPO_PUBLIC_API_BASE_URL` على عنوان Backend الذي تملكه و`EXPO_PUBLIC_MURSHID_API_TOKEN` على رمز الوصول الخاص ببنائك الشخصي، ثم أعد تشغيل Expo مع تنظيف الكاش:
+اضبط `EXPO_PUBLIC_API_BASE_URL` على عنوان Backend، وأدخل إعدادات Firebase العامة في `.env`، ثم أعد تشغيل Expo مع تنظيف الكاش. لا يوجد رمز وصول مشترك داخل التطبيق:
 
 ```bash
 npx expo start --clear
 ```
 
-**لا تضع أي مفتاح مزود AI في `.env` الخاص بتطبيق Expo أو GitHub.** كل متغير يبدأ بـ`EXPO_PUBLIC_` يدخل حزمة التطبيق ويمكن استخراجه؛ لذلك يوضع مفتاح Groq أو Gemini كسرّ على Backend فقط. Backend مستقل في `backend/` قابل للنشر على Vercel باختيار `backend` كـRoot Directory ويوفر `POST /api/ai/chat`. الإعداد الافتراضي `AI_PROVIDER=groq` مع `GROQ_API_KEY` و`MURSHID_API_TOKEN` على Vercel؛ يمكن اختيار Gemini عبر `AI_PROVIDER=gemini` و`GEMINI_API_KEY`. اجعل `EXPO_PUBLIC_API_BASE_URL` و`EXPO_PUBLIC_MURSHID_API_TOKEN` في بيئة بناء التطبيق الشخصي. رمز التطبيق المضمّن في APK قابل للاستخراج وليس مصادقة قوية؛ هذا الإعداد شخصي/خاص فقط، أما النشر العام فيحتاج مصادقة مستخدم حقيقية.
+**لا تضع مفتاح Groq أو Gemini في `.env` الخاص بتطبيق Expo أو GitHub.** كل متغير يبدأ بـ`EXPO_PUBLIC_` يدخل حزمة التطبيق ويمكن استخراجه؛ لذلك يبقى مفتاح المزود سرًا على Backend فقط. Backend مستقل في `backend/` قابل للنشر على Vercel باختيار `backend` كـRoot Directory ويوفر `POST /api/ai/chat`. الإعداد الافتراضي `AI_PROVIDER=groq` مع `GROQ_API_KEY` و`FIREBASE_PROJECT_ID` في Vercel؛ يمكن اختيار Gemini عبر `AI_PROVIDER=gemini` و`GEMINI_API_KEY`. فعّل Firebase Anonymous sign-in، واضبط إعدادات Firebase العامة و`EXPO_PUBLIC_API_BASE_URL` في بيئة بناء التطبيق. ينشئ Chat هوية Firebase مجهولة تلقائيًا ويرسل ID token؛ لا يحتاج المستخدم إلى مفتاح API أو رمز مشترك مضمّن.
 
 ### AI — Chat UI + Backend contract
 
-تبويب `مرشد AI` يجمع شاشة المحادثة وإدارة الذاكرة مع زر انتقال مباشر بينهما. تُحفظ المحادثات محليًا عبر AsyncStorage، ويمكن إنشاء محادثات متعددة. يستخدم التطبيق Backend مرشد (Groq افتراضيًا، أو Gemini) عند ضبط عنوان الخادم ورمز وصول البناء الشخصي، أو يختار المستخدم زر المفتاح لربط مزود متوافق عبر BYOK؛ إعداد المستخدم الشخصي يأخذ الأولوية، ومفتاحه محفوظ في SecureStore. لا يوجد مفتاح مزود افتراضي داخل التطبيق أو GitHub. عند غياب الإعدادين تظهر حالة واضحة ولا تُنشأ ردود وهمية.
+تبويب `مرشد AI` يجمع شاشة المحادثة وإدارة الذاكرة مع زر انتقال مباشر بينهما. تُحفظ المحادثات محليًا عبر AsyncStorage، ويمكن إنشاء محادثات متعددة. يستخدم Chat Backend مرشد (Groq افتراضيًا أو Gemini) تلقائيًا وبالأولوية عند تهيئة عنوان الخادم وFirebase في إصدار التطبيق؛ ينشئ هوية مجهولة للمستخدم غير المسجل ويرسل ID token صالحًا لكل إرسال. لا يطلب التطبيق من المستخدم مفتاحًا شخصيًا في هذا المسار. BYOK اختياري فقط كبديل عندما لا يكون Backend مضبوطًا. عند غياب الإعدادات تظهر رسالة تهيئة واضحة بدل رد وهمي.
 
 ### Living Memory — Memory Intelligence Engine
 

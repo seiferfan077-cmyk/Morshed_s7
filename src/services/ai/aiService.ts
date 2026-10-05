@@ -13,14 +13,15 @@ export interface AIProvider {
   sendMessage(messages: AIMessage[], signal?: AbortSignal, context?: AIRequestContext): Promise<AIMessage>;
 }
 
-/** Provider keys stay server-side; the personal-app access token is supplied through build environment. */
+/** Provider keys stay server-side; each backend request carries the Firebase user's ID token. */
 export class BackendAIProvider implements AIProvider {
-  constructor(private readonly baseUrl: string, private readonly accessToken?: string) {}
+  constructor(private readonly baseUrl: string, private readonly getAccessToken: () => Promise<string>) {}
 
   async sendMessage(messages: AIMessage[], signal?: AbortSignal, context?: AIRequestContext) {
     const baseUrl = this.baseUrl.trim().replace(/\/+$/, '');
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (this.accessToken) headers.Authorization = `Bearer ${this.accessToken}`;
+    const accessToken = await this.getAccessToken();
+    if (!accessToken) throw new Error('firebase_auth_missing_token');
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };
     const response = await fetch(`${baseUrl}/api/ai/chat`, {
       method: 'POST',
       headers,
@@ -43,4 +44,13 @@ export class BackendAIProvider implements AIProvider {
     }
     return { role: 'assistant' as const, content: payload.content };
   }
+}
+
+/** Prefer Murshid's centrally managed backend; a user-key provider is optional fallback only. */
+export function selectAIProvider(baseUrl: string | undefined, getAccessToken: (() => Promise<string>) | undefined, fallback: AIProvider | null): AIProvider | null {
+  const normalizedBaseUrl = baseUrl?.trim();
+  if (normalizedBaseUrl && !normalizedBaseUrl.includes('api.example.com') && getAccessToken) {
+    return new BackendAIProvider(normalizedBaseUrl, getAccessToken);
+  }
+  return fallback;
 }

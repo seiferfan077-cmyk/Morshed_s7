@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { BackendAIProvider } = require('../.tmp-byok-test/services/ai/aiService.js');
+const { BackendAIProvider, selectAIProvider } = require('../.tmp-byok-test/services/ai/aiService.js');
 const { UserKeyOpenAICompatibleProvider, UserKeyGeminiProvider, providerErrorMessage } = require('../.tmp-byok-test/services/ai/byokAIService.js');
 const originalFetch = global.fetch;
 
@@ -39,11 +39,16 @@ const originalFetch = global.fetch;
     request = { url, options, body: JSON.parse(options.body) };
     return { ok: true, async json() { return { role: 'assistant', content: 'backend ok' }; } };
   };
-  const backendReply = await new BackendAIProvider('https://murshid.example/', 'private-build-token').sendMessage([{ role: 'user', content: 'مرحبا' }]);
+  const backendReply = await new BackendAIProvider('https://murshid.example/', async () => 'firebase-id-token').sendMessage([{ role: 'user', content: 'مرحبا' }]);
   assert.equal(backendReply.content, 'backend ok');
   assert.equal(request.url, 'https://murshid.example/api/ai/chat');
-  assert.equal(request.options.headers.Authorization, 'Bearer private-build-token');
+  assert.equal(request.options.headers.Authorization, 'Bearer firebase-id-token');
   assert.equal(request.body.messages[0].content, 'مرحبا');
+
+  const personalProvider = new UserKeyOpenAICompatibleProvider(config);
+  const preferredProvider = selectAIProvider('https://murshid.example', async () => 'firebase-id-token', personalProvider);
+  assert.ok(preferredProvider instanceof BackendAIProvider, 'configured backend must be the default even when a personal key exists');
+  assert.equal(selectAIProvider(undefined, undefined, personalProvider), personalProvider, 'personal provider is only a fallback when backend is not configured');
 
   global.fetch = async () => ({ ok: false, status: 401 });
   await assert.rejects(new UserKeyOpenAICompatibleProvider(config).sendMessage([{ role: 'user', content: 'test' }]), (error) => {
@@ -54,7 +59,7 @@ const originalFetch = global.fetch;
   global.fetch = async () => ({ ok: false, status: 429 });
   await assert.rejects(new UserKeyOpenAICompatibleProvider(config).sendMessage([{ role: 'user', content: 'test' }]), /Provider rate limit reached/);
   assert.match(providerErrorMessage(new Error('Provider rate limit reached')), /الرصيد/);
-  assert.match(providerErrorMessage(new Error('Murshid backend request failed (401): unauthorized')), /رمز الوصول/);
+  assert.match(providerErrorMessage(new Error('Murshid backend request failed (401): unauthorized')), /جلسة المستخدم/);
   global.fetch = originalFetch;
   console.log('BYOK provider tests passed');
 })().catch((error) => { global.fetch = originalFetch; throw error; });
