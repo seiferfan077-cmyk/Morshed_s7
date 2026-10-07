@@ -102,7 +102,7 @@ const message = (content) => [{ role: 'user', content }];
   const originalFetch = global.fetch;
   let capturedBody;
   global.fetch = async (_url, options) => { capturedBody = JSON.parse(options.body); return { ok: true, async json() { return { role: 'assistant', content: 'ok' }; } }; };
-  await new BackendAIProvider('https://backend.invalid').sendMessage(context.conversation, undefined, { conversationId: 'conversation-1', memory: context.relevantMemories });
+  await new BackendAIProvider('https://backend.invalid', async () => 'firebase-id-token').sendMessage(context.conversation, undefined, { conversationId: 'conversation-1', memory: context.relevantMemories });
   assert.equal(capturedBody.conversationId, 'conversation-1');
   assert.equal(capturedBody.messages.length, 12);
   assert.equal('userId' in capturedBody.memory[0], false);
