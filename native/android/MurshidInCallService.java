@@ -119,7 +119,7 @@ public class MurshidInCallService extends InCallService {
     if (speech != null) { speech.stop(); speech.shutdown(); speech = null; }
     if (ringtone != null) { ringtone.stop(); ringtone = null; }
     currentCall = null;
-    NotificationManager manager = getSystemService(NOTIFICATION_SERVICE);
+    NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
     if (manager != null) manager.cancel(NOTIFICATION_ID);
   }
 }
