@@ -174,6 +174,6 @@ public class MurshidDialerActivity extends Activity {
     Intent intent = new Intent(this, MurshidInCallService.class);
     intent.setAction(action);
     startService(intent);
-    if (ACTION_REJECT.equals(action) || MurshidInCallService.ACTION_HANGUP.equals(action)) finish();
+    if (MurshidInCallService.ACTION_REJECT.equals(action) || MurshidInCallService.ACTION_HANGUP.equals(action)) finish();
   }
 }
