@@ -13,6 +13,9 @@ import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.ContactsContract;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
@@ -46,6 +49,7 @@ public class MurshidDialerActivity extends Activity {
   public static final String EXTRA_CALLER_NAME = "caller_name";
   public static final String EXTRA_LINE_LABEL = "line_label";
   public static final String EXTRA_VERIFIED = "verified";
+  public static final String EXTRA_CONNECTED_AT = "connected_at";
   private static final int TEAL = Color.rgb(10, 132, 120);
   private static final int INK = Color.rgb(16, 33, 43);
   private static final int MUTED = Color.rgb(92, 113, 119);
@@ -60,6 +64,20 @@ public class MurshidDialerActivity extends Activity {
   private EditText numberInput;
   private PhoneAccountHandle selectedAccount;
   private float gestureStartX;
+  private final Handler callTimerHandler = new Handler(Looper.getMainLooper());
+  private long callStartedElapsed;
+  private boolean muted;
+  private boolean speakerEnabled;
+  private TextView callDuration;
+  private final Runnable callTimer = new Runnable() {
+    @Override public void run() {
+      if (callDuration != null) {
+        long seconds = Math.max(0L, (SystemClock.elapsedRealtime() - callStartedElapsed) / 1000L);
+        callDuration.setText(String.format(Locale.ROOT, "%02d:%02d:%02d", seconds / 3600, (seconds / 60) % 60, seconds % 60));
+        callTimerHandler.postDelayed(this, 1000L);
+      }
+    }
+  };
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +85,12 @@ public class MurshidDialerActivity extends Activity {
     Window window = getWindow();
     window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
     render(getIntent());
+  }
+
+  @Override protected void onDestroy() {
+    callTimerHandler.removeCallbacks(callTimer);
+    callDuration = null;
+    super.onDestroy();
   }
 
   @Override
@@ -245,90 +269,145 @@ public class MurshidDialerActivity extends Activity {
   }
 
   private void renderCallScreen(String titleText, String detailText, boolean incoming) {
-    LinearLayout root = vertical(24, 28, 24, 28);
+    callTimerHandler.removeCallbacks(callTimer);
+    LinearLayout root = vertical(22, 20, 22, 24);
     root.setGravity(Gravity.CENTER);
-    GradientDrawable screenBackground = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[] { Color.rgb(7, 30, 39), Color.rgb(10, 102, 99), Color.rgb(16, 33, 43) });
-    root.setBackground(screenBackground);
-    root.addView(brandHeader(), marginParams(0, 0, 0, 18));
-    TextView eyebrow = label(incoming ? "INCOMING CALL" : "ACTIVE CALL", 12, TEAL, Typeface.BOLD);
-    eyebrow.setGravity(Gravity.CENTER);
-    eyebrow.setBackground(round(Color.argb(42, 255, 255, 255), 16));
-    eyebrow.setPadding(dp(14), dp(7), dp(14), dp(7));
-    root.addView(eyebrow);
+    root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+        new int[] { Color.rgb(7, 30, 39), Color.rgb(9, 83, 82), Color.rgb(16, 33, 43) }));
+    root.addView(brandHeader(), marginParams(0, 0, 0, 14));
+
+    TextView state = label(incoming ? "اتصال وارد" : "مكالمة جارية", 13, Color.rgb(202, 239, 233), Typeface.BOLD);
+    state.setGravity(Gravity.CENTER);
+    state.setBackground(round(Color.argb(35, 255, 255, 255), 18));
+    state.setPadding(dp(16), dp(8), dp(16), dp(8));
+    root.addView(state);
+
     LinearLayout card = card();
     card.setGravity(Gravity.CENTER);
-    card.setPadding(dp(24), dp(26), dp(24), dp(26));
+    card.setPadding(dp(20), dp(22), dp(20), dp(20));
     ImageView icon = new ImageView(this);
     icon.setImageResource(com.murshid.s7.R.mipmap.ic_launcher);
-    card.addView(icon, new LinearLayout.LayoutParams(dp(84), dp(84)));
-    TextView title = label(titleText, 25, INK, Typeface.BOLD);
-    title.setGravity(Gravity.CENTER);
-    card.addView(title, marginParams(0, 14, 0, 0));
+    icon.setBackground(round(Color.WHITE, 22));
+    icon.setPadding(dp(5), dp(5), dp(5), dp(5));
+    card.addView(icon, new LinearLayout.LayoutParams(dp(78), dp(78)));
+
     String callerName = getIntent().getStringExtra(EXTRA_CALLER_NAME);
     String line = getIntent().getStringExtra(EXTRA_LINE_LABEL);
     boolean verified = getIntent().getBooleanExtra(EXTRA_VERIFIED, false);
-    if (callerName == null || callerName.isEmpty()) callerName = "رقم غير معروف";
-    TextView caller = label(callerName, 20, MUTED, Typeface.NORMAL);
-    caller.setGravity(Gravity.CENTER);
-    card.addView(caller, marginParams(0, 6, 0, 0));
     Uri callUri = getIntent() == null ? null : getIntent().getData();
     String callerNumber = callUri == null ? "" : callUri.getSchemeSpecificPart();
-    if (callerNumber != null && !callerNumber.isEmpty()) {
-      TextView number = label("رقم جهة الاتصال: " + callerNumber, 16, INK, Typeface.BOLD);
+    if (callerName == null || callerName.trim().isEmpty()) callerName = callerNumber == null || callerNumber.isEmpty() ? "رقم غير معروف" : callerNumber;
+    TextView caller = label(callerName, 25, INK, Typeface.BOLD);
+    caller.setGravity(Gravity.CENTER);
+    caller.setMaxLines(2);
+    card.addView(caller, marginParams(0, 13, 0, 0));
+    if (callerNumber != null && !callerNumber.isEmpty() && !callerNumber.equals(callerName)) {
+      TextView number = label(callerNumber, 17, MUTED, Typeface.NORMAL);
       number.setGravity(Gravity.CENTER);
-      card.addView(number, marginParams(0, 6, 0, 0));
+      card.addView(number, marginParams(0, 4, 0, 0));
     }
     if (verified) {
       TextView badge = label("✓ موثق لدى مُرشد", 13, TEAL, Typeface.BOLD);
       badge.setGravity(Gravity.CENTER);
-      card.addView(badge, marginParams(0, 8, 0, 0));
+      card.addView(badge, marginParams(0, 7, 0, 0));
     }
-    TextView lineText = label("عبر " + (line == null ? "خط الهاتف" : line), 13, MUTED, Typeface.NORMAL);
+    TextView lineText = label("عبر  ◉  " + (line == null || line.isEmpty() ? "خط الهاتف" : line), 14, MUTED, Typeface.BOLD);
     lineText.setGravity(Gravity.CENTER);
-    card.addView(lineText, marginParams(0, 8, 0, 0));
+    card.addView(lineText, marginParams(0, 10, 0, 0));
 
     if (incoming) {
-      TextView swipeHint = label("اسحب الزر يمينًا للرد أو يسارًا للرفض", 13, MUTED, Typeface.NORMAL);
-      swipeHint.setGravity(Gravity.CENTER);
-      card.addView(swipeHint, marginParams(0, 18, 0, 10));
+      TextView prompt = label("اسحب يمينًا للرد · يسارًا للرفض", 13, MUTED, Typeface.NORMAL);
+      prompt.setGravity(Gravity.CENTER);
+      card.addView(prompt, marginParams(0, 18, 0, 9));
       LinearLayout swipeRail = horizontal();
       swipeRail.setGravity(Gravity.CENTER_VERTICAL);
       swipeRail.setBackground(round(Color.rgb(241, 246, 244), 28));
       TextView reject = label("رفض", 14, Color.rgb(190, 65, 68), Typeface.BOLD);
-      reject.setGravity(Gravity.CENTER);
       TextView swipe = label("↔  اسحب", 15, PAPER, Typeface.BOLD);
-      swipe.setGravity(Gravity.CENTER);
-      swipe.setBackground(round(TEAL, 26));
       TextView answer = label("رد  ✓", 14, TEAL, Typeface.BOLD);
-      answer.setGravity(Gravity.CENTER);
-      swipeRail.addView(reject, new LinearLayout.LayoutParams(0, dp(54), 1));
-      swipeRail.addView(swipe, new LinearLayout.LayoutParams(dp(110), dp(54)));
-      swipeRail.addView(answer, new LinearLayout.LayoutParams(0, dp(54), 1));
+      reject.setGravity(Gravity.CENTER); swipe.setGravity(Gravity.CENTER); answer.setGravity(Gravity.CENTER);
+      swipe.setBackground(round(TEAL, 26));
+      swipeRail.addView(reject, new LinearLayout.LayoutParams(0, dp(50), 1));
+      swipeRail.addView(swipe, new LinearLayout.LayoutParams(dp(104), dp(50)));
+      swipeRail.addView(answer, new LinearLayout.LayoutParams(0, dp(50), 1));
       swipeRail.setOnTouchListener((v, event) -> {
         if (event.getAction() == MotionEvent.ACTION_DOWN) { gestureStartX = event.getRawX(); return true; }
         if (event.getAction() == MotionEvent.ACTION_UP) {
           float delta = event.getRawX() - gestureStartX;
-          if (delta > dp(70)) sendCallAction(MurshidInCallService.ACTION_ANSWER);
-          else if (delta < -dp(70)) sendCallAction(MurshidInCallService.ACTION_REJECT);
-          else Toast.makeText(this, "اسحب الزر يمينًا أو يسارًا", Toast.LENGTH_SHORT).show();
+          if (delta > dp(65)) sendCallAction(MurshidInCallService.ACTION_ANSWER);
+          else if (delta < -dp(65)) sendCallAction(MurshidInCallService.ACTION_REJECT);
+          else Toast.makeText(this, "اسحب يمينًا للرد أو يسارًا للرفض", Toast.LENGTH_SHORT).show();
           return true;
         }
         return true;
       });
-      card.addView(swipeRail, new LinearLayout.LayoutParams(-1, dp(54)));
+      card.addView(swipeRail, new LinearLayout.LayoutParams(-1, dp(50)));
       Button answerButton = actionButton("الرد على المكالمة", TEAL);
       answerButton.setOnClickListener(v -> sendCallAction(MurshidInCallService.ACTION_ANSWER));
-      card.addView(answerButton, marginParams(0, 14, 0, 0));
-      Button rejectButton = actionButton("رفض وإيقاف الرنين", Color.rgb(190, 65, 68));
+      card.addView(answerButton, marginParams(0, 12, 0, 0));
+      Button rejectButton = actionButton("رفض المكالمة", Color.rgb(190, 65, 68));
       rejectButton.setOnClickListener(v -> sendCallAction(MurshidInCallService.ACTION_REJECT));
-      card.addView(rejectButton, marginParams(0, 8, 0, 0));
+      card.addView(rejectButton, marginParams(0, 7, 0, 0));
     } else {
+      long connectedAt = getIntent().getLongExtra(EXTRA_CONNECTED_AT, System.currentTimeMillis());
+      callStartedElapsed = SystemClock.elapsedRealtime() - Math.max(0L, System.currentTimeMillis() - connectedAt);
+      TextView waveLabel = label("مؤشر اتصال", 12, MUTED, Typeface.NORMAL);
+      waveLabel.setGravity(Gravity.CENTER);
+      card.addView(waveLabel, marginParams(0, 16, 0, 0));
+      LinearLayout wave = horizontal();
+      wave.setGravity(Gravity.CENTER);
+      int[] heights = { 16, 28, 40, 24, 48, 30, 18, 38, 25, 14, 32 };
+      for (int height : heights) {
+        View bar = new View(this);
+        bar.setBackground(round(TEAL, 8));
+        LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(dp(4), dp(height));
+        barParams.setMargins(dp(3), 0, dp(3), 0);
+        wave.addView(bar, barParams);
+      }
+      card.addView(wave, marginParams(0, 6, 0, 0));
+      TextView note = label("رسم توضيحي فقط — لا يقيس الصوت", 11, MUTED, Typeface.NORMAL);
+      note.setGravity(Gravity.CENTER);
+      card.addView(note, marginParams(0, 5, 0, 0));
+      callDuration = label("00:00:00", 26, INK, Typeface.BOLD);
+      callDuration.setGravity(Gravity.CENTER);
+      card.addView(callDuration, marginParams(0, 12, 0, 0));
+      callTimerHandler.post(callTimer);
+
+      LinearLayout controls = horizontal();
+      controls.setGravity(Gravity.CENTER);
+      Button mute = utilityButton("🎙  كتم");
+      Button speaker = utilityButton("◖))  سماعة");
+      Button record = utilityButton("●  تسجيل");
+      mute.setOnClickListener(v -> {
+        muted = !muted;
+        mute.setText(muted ? "🎙  إلغاء الكتم" : "🎙  كتم");
+        mute.setBackground(round(muted ? Color.rgb(255, 232, 220) : Color.rgb(231, 244, 240), 16));
+        sendCallControl(MurshidInCallService.ACTION_SET_MUTED, muted);
+      });
+      speaker.setOnClickListener(v -> {
+        speakerEnabled = !speakerEnabled;
+        speaker.setText(speakerEnabled ? "◖))  إيقاف السبيكر" : "◖))  سماعة");
+        speaker.setBackground(round(speakerEnabled ? Color.rgb(210, 240, 233) : Color.rgb(231, 244, 240), 16));
+        sendCallControl(MurshidInCallService.ACTION_SET_SPEAKER, speakerEnabled);
+      });
+      record.setOnClickListener(v -> Toast.makeText(this, "تسجيل صوت طرفَي المكالمة غير متاح لتطبيق Android عادي. لم يبدأ أي تسجيل.", Toast.LENGTH_LONG).show());
+      controls.addView(mute, new LinearLayout.LayoutParams(0, dp(48), 1));
+      controls.addView(speaker, new LinearLayout.LayoutParams(0, dp(48), 1));
+      controls.addView(record, new LinearLayout.LayoutParams(0, dp(48), 1));
+      card.addView(controls, marginParams(0, 18, 0, 0));
       Button hangup = actionButton("إنهاء المكالمة", Color.rgb(190, 65, 68));
       hangup.setOnClickListener(v -> sendCallAction(MurshidInCallService.ACTION_HANGUP));
-      card.addView(hangup, marginParams(0, 24, 0, 0));
+      card.addView(hangup, marginParams(0, 18, 0, 0));
     }
     root.addView(card, new LinearLayout.LayoutParams(-1, -2));
     setContentView(root);
+  }
+
+  private void sendCallControl(String action, boolean enabled) {
+    Intent intent = new Intent(this, MurshidInCallService.class);
+    intent.setAction(action);
+    intent.putExtra(MurshidInCallService.EXTRA_ENABLED, enabled);
+    startService(intent);
   }
 
   private LinearLayout brandHeader() {
@@ -582,7 +661,11 @@ public class MurshidDialerActivity extends Activity {
     Intent intent = new Intent(this, MurshidInCallService.class);
     intent.setAction(action);
     startService(intent);
-    finish();
+    if (MurshidInCallService.ACTION_ANSWER.equals(action)) {
+      callTimerHandler.postDelayed(() -> renderCallScreen("مكالمة مُرشد جارية", "المكالمة متصلة", false), 650L);
+    } else {
+      finish();
+    }
   }
 
   private Button keyButton(String text) {

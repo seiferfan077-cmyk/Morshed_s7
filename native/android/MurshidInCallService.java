@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.speech.tts.TextToSpeech;
 import android.telecom.Call;
+import android.telecom.CallAudioState;
 import android.telecom.InCallService;
 import java.util.Locale;
 
@@ -19,6 +20,9 @@ public class MurshidInCallService extends InCallService {
   public static final String ACTION_ANSWER = "com.murshid.s7.ACTION_ANSWER";
   public static final String ACTION_REJECT = "com.murshid.s7.ACTION_REJECT";
   public static final String ACTION_HANGUP = "com.murshid.s7.ACTION_HANGUP";
+  public static final String ACTION_SET_MUTED = "com.murshid.s7.ACTION_SET_MUTED";
+  public static final String ACTION_SET_SPEAKER = "com.murshid.s7.ACTION_SET_SPEAKER";
+  public static final String EXTRA_ENABLED = "enabled";
   private static final String CHANNEL_ID = "murshid-incoming-calls-v2";
   private static final int NOTIFICATION_ID = 7001;
   private static Call currentCall;
@@ -34,13 +38,13 @@ public class MurshidInCallService extends InCallService {
     showCallNotification(info, incoming);
     if (incoming) announceThenRing(info);
     call.registerCallback(new Call.Callback() {
-      @Override public void onStateChanged(Call ignored, int state) {
+      @Override public void onStateChanged(Call changedCall, int state) {
         if (state == Call.STATE_RINGING) {
-          showCallNotification(MurshidCallerInfo.from(MurshidInCallService.this, currentCall), true);
+          showCallNotification(MurshidCallerInfo.from(MurshidInCallService.this, changedCall), true);
         } else {
           stopRinging();
           if (state == Call.STATE_DISCONNECTED) clearCall();
-          else if (currentCall != null) showCallNotification(MurshidCallerInfo.from(MurshidInCallService.this, currentCall), false);
+          else showCallNotification(MurshidCallerInfo.from(MurshidInCallService.this, changedCall), false);
         }
       }
     });
@@ -62,6 +66,11 @@ public class MurshidInCallService extends InCallService {
       } else if (ACTION_REJECT.equals(action) || ACTION_HANGUP.equals(action)) {
         stopRinging();
         currentCall.disconnect();
+      } else if (ACTION_SET_MUTED.equals(action)) {
+        setMuted(intent.getBooleanExtra(EXTRA_ENABLED, false));
+      } else if (ACTION_SET_SPEAKER.equals(action)) {
+        setAudioRoute(intent.getBooleanExtra(EXTRA_ENABLED, false)
+            ? CallAudioState.ROUTE_SPEAKER : CallAudioState.ROUTE_EARPIECE);
       }
     }
     return START_NOT_STICKY;
@@ -74,12 +83,18 @@ public class MurshidInCallService extends InCallService {
     fullScreenIntent.putExtra(MurshidDialerActivity.EXTRA_CALLER_NAME, info.displayName);
     fullScreenIntent.putExtra(MurshidDialerActivity.EXTRA_LINE_LABEL, info.lineLabel);
     fullScreenIntent.putExtra(MurshidDialerActivity.EXTRA_VERIFIED, info.verified);
+    long connectedAt = 0L;
+    if (Build.VERSION.SDK_INT >= 23 && currentCall != null && currentCall.getDetails() != null) {
+      connectedAt = currentCall.getDetails().getConnectTimeMillis();
+    }
+    fullScreenIntent.putExtra(MurshidDialerActivity.EXTRA_CONNECTED_AT,
+        connectedAt > 0L ? connectedAt : System.currentTimeMillis());
     fullScreenIntent.setData(Uri.parse("tel:" + Uri.encode(info.number)));
     fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_USER_ACTION | Intent.FLAG_ACTIVITY_SINGLE_TOP);
     int immutable = Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0;
     PendingIntent content = PendingIntent.getActivity(this, NOTIFICATION_ID, fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT | immutable);
     Notification.Builder builder = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this);
-    String title = info.displayName.isEmpty() ? info.number : info.displayName;
+    String title = info.displayName == null || info.displayName.trim().isEmpty() ? info.number : info.displayName;
     if (info.verified) title = "✓  " + title;
     builder.setSmallIcon(com.murshid.s7.R.mipmap.ic_launcher)
         .setContentTitle(incoming ? "اتصال وارد إلى مُرشد · " + title : "مكالمة مُرشد جارية · " + title)
