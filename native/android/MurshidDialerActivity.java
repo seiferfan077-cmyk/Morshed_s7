@@ -191,8 +191,13 @@ public class MurshidDialerActivity extends Activity {
   private void renderCallScreen(String titleText, String detailText, boolean incoming) {
     LinearLayout root = vertical(24, 28, 24, 28);
     root.setGravity(Gravity.CENTER);
+    GradientDrawable screenBackground = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[] { Color.rgb(7, 30, 39), Color.rgb(10, 102, 99), Color.rgb(16, 33, 43) });
+    root.setBackground(screenBackground);
+    root.addView(brandHeader(), marginParams(0, 0, 0, 18));
     TextView eyebrow = label(incoming ? "INCOMING CALL" : "ACTIVE CALL", 12, TEAL, Typeface.BOLD);
     eyebrow.setGravity(Gravity.CENTER);
+    eyebrow.setBackground(round(Color.argb(42, 255, 255, 255), 16));
+    eyebrow.setPadding(dp(14), dp(7), dp(14), dp(7));
     root.addView(eyebrow);
     LinearLayout card = card();
     card.setGravity(Gravity.CENTER);
@@ -261,6 +266,22 @@ public class MurshidDialerActivity extends Activity {
     }
     root.addView(card, new LinearLayout.LayoutParams(-1, -2));
     setContentView(root);
+  }
+
+  private LinearLayout brandHeader() {
+    LinearLayout header = vertical(0, 0, 0, 0);
+    header.setGravity(Gravity.CENTER);
+    ImageView logo = new ImageView(this);
+    logo.setImageResource(com.murshid.s7.R.mipmap.ic_launcher);
+    logo.setBackground(round(Color.WHITE, 18));
+    header.addView(logo, new LinearLayout.LayoutParams(dp(54), dp(54)));
+    TextView brand = label("مُرشد", 25, Color.WHITE, Typeface.BOLD);
+    brand.setGravity(Gravity.CENTER);
+    header.addView(brand, marginParams(0, 7, 0, 0));
+    TextView caption = label("اتصال آمن وواضح", 12, Color.rgb(202, 239, 233), Typeface.NORMAL);
+    caption.setGravity(Gravity.CENTER);
+    header.addView(caption, marginParams(0, 2, 0, 0));
+    return header;
   }
 
   private void placeCall() {
