@@ -189,6 +189,11 @@ module.exports = function withMurshidDialer(config) {
       });
       ensureSmsRespondService(application);
       ensureInCallService(application);
+      application.receiver ??= [];
+      const callActionReceiver = '.MurshidCallActionReceiver';
+      if (!application.receiver.some((entry) => entry.$?.['android:name'] === callActionReceiver)) {
+        application.receiver.push({ $: { 'android:name': callActionReceiver, 'android:exported': 'false' } });
+      }
     }
     return config;
   });
@@ -209,10 +214,17 @@ module.exports = function withMurshidDialer(config) {
     const sourceDir = path.join(config.modRequest.projectRoot, 'native', 'android');
     const targetDir = path.join(config.modRequest.platformProjectRoot, 'app', 'src', 'main', 'java', ...PACKAGE.split('.'));
     fs.mkdirSync(targetDir, { recursive: true });
+    const fontSourceDir = path.join(config.modRequest.projectRoot, 'assets', 'fonts');
+    const fontTargetDir = path.join(config.modRequest.platformProjectRoot, 'app', 'src', 'main', 'assets', 'fonts');
+    fs.mkdirSync(fontTargetDir, { recursive: true });
+    for (const fontName of ['ArefRuqaa-Regular.ttf', 'ArefRuqaa-Bold.ttf']) {
+      fs.copyFileSync(path.join(fontSourceDir, fontName), path.join(fontTargetDir, fontName));
+    }
     for (const filename of [
       'MurshidCallerInfo.java',
       'MurshidDialerActivity.java',
       'MurshidInCallService.java',
+      'MurshidCallActionReceiver.java',
       'MurshidRolePromptActivity.java',
       'MurshidSmsModule.java',
       'MurshidSmsPackage.java',

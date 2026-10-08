@@ -26,8 +26,14 @@ public class MurshidInCallService extends InCallService {
   private static final String CHANNEL_ID = "murshid-incoming-calls-v2";
   private static final int NOTIFICATION_ID = 7001;
   private static Call currentCall;
+  private static MurshidInCallService activeService;
   private TextToSpeech speech;
   private Ringtone ringtone;
+
+  @Override public void onCreate() {
+    super.onCreate();
+    activeService = this;
+  }
 
   @Override
   public void onCallAdded(Call call) {
@@ -56,24 +62,43 @@ public class MurshidInCallService extends InCallService {
     super.onCallRemoved(call);
   }
 
+  @Override public void onDestroy() {
+    if (activeService == this) activeService = null;
+    super.onDestroy();
+  }
+
   @Override
   public int onStartCommand(Intent intent, int flags, int startId) {
-    if (intent != null && currentCall != null) {
-      String action = intent.getAction();
-      if (ACTION_ANSWER.equals(action)) {
-        stopRinging();
-        currentCall.answer(0);
-      } else if (ACTION_REJECT.equals(action) || ACTION_HANGUP.equals(action)) {
-        stopRinging();
-        currentCall.disconnect();
-      } else if (ACTION_SET_MUTED.equals(action)) {
-        setMuted(intent.getBooleanExtra(EXTRA_ENABLED, false));
-      } else if (ACTION_SET_SPEAKER.equals(action)) {
-        setAudioRoute(intent.getBooleanExtra(EXTRA_ENABLED, false)
-            ? CallAudioState.ROUTE_SPEAKER : CallAudioState.ROUTE_EARPIECE);
-      }
-    }
+    if (intent != null) dispatchAction(intent.getAction(), intent.getBooleanExtra(EXTRA_ENABLED, false));
     return START_NOT_STICKY;
+  }
+
+  public static boolean dispatchAction(String action, boolean enabled) {
+    MurshidInCallService service = activeService;
+    Call call = currentCall;
+    if (service == null || call == null) return false;
+    if (ACTION_ANSWER.equals(action)) {
+      service.stopRinging();
+      call.answer(0);
+    } else if (ACTION_REJECT.equals(action) || ACTION_HANGUP.equals(action)) {
+      service.stopRinging();
+      call.disconnect();
+    } else if (ACTION_SET_MUTED.equals(action)) {
+      service.setMuted(enabled);
+    } else if (ACTION_SET_SPEAKER.equals(action)) {
+      service.setAudioRoute(enabled ? CallAudioState.ROUTE_SPEAKER : CallAudioState.ROUTE_EARPIECE);
+    } else {
+      return false;
+    }
+    return true;
+  }
+
+  public static long getConnectedAtMillis() {
+    Call call = currentCall;
+    if (Build.VERSION.SDK_INT >= 23 && call != null && call.getDetails() != null) {
+      return call.getDetails().getConnectTimeMillis();
+    }
+    return 0L;
   }
 
   private void showCallNotification(MurshidCallerInfo info, boolean incoming) {
@@ -120,11 +145,11 @@ public class MurshidInCallService extends InCallService {
   }
 
   private PendingIntent callActionPendingIntent(String action, int requestCode) {
-    Intent intent = new Intent(this, MurshidInCallService.class);
+    Intent intent = new Intent(this, MurshidCallActionReceiver.class);
     intent.setAction(action);
     int flags = PendingIntent.FLAG_UPDATE_CURRENT;
     if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
-    return PendingIntent.getService(this, requestCode, intent, flags);
+    return PendingIntent.getBroadcast(this, requestCode, intent, flags);
   }
 
   private void announceThenRing(MurshidCallerInfo info) {

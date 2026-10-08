@@ -69,6 +69,8 @@ public class MurshidDialerActivity extends Activity {
   private boolean muted;
   private boolean speakerEnabled;
   private TextView callDuration;
+  private Typeface ruqaaRegular;
+  private Typeface ruqaaBold;
   private final Runnable callTimer = new Runnable() {
     @Override public void run() {
       if (callDuration != null) {
@@ -154,6 +156,7 @@ public class MurshidDialerActivity extends Activity {
     numberInput.setHintTextColor(Color.rgb(160, 177, 175));
     numberInput.setTextColor(INK);
     numberInput.setTextSize(26);
+    numberInput.setTypeface(ruqaaRegular());
     numberInput.setGravity(Gravity.CENTER);
     numberInput.setSingleLine(true);
     numberInput.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
@@ -349,7 +352,8 @@ public class MurshidDialerActivity extends Activity {
       rejectButton.setOnClickListener(v -> sendCallAction(MurshidInCallService.ACTION_REJECT));
       card.addView(rejectButton, marginParams(0, 7, 0, 0));
     } else {
-      long connectedAt = getIntent().getLongExtra(EXTRA_CONNECTED_AT, System.currentTimeMillis());
+      long connectedAt = MurshidInCallService.getConnectedAtMillis();
+      if (connectedAt <= 0L) connectedAt = getIntent().getLongExtra(EXTRA_CONNECTED_AT, System.currentTimeMillis());
       callStartedElapsed = SystemClock.elapsedRealtime() - Math.max(0L, System.currentTimeMillis() - connectedAt);
       TextView waveLabel = label("مؤشر اتصال", 12, MUTED, Typeface.NORMAL);
       waveLabel.setGravity(Gravity.CENTER);
@@ -404,10 +408,9 @@ public class MurshidDialerActivity extends Activity {
   }
 
   private void sendCallControl(String action, boolean enabled) {
-    Intent intent = new Intent(this, MurshidInCallService.class);
-    intent.setAction(action);
-    intent.putExtra(MurshidInCallService.EXTRA_ENABLED, enabled);
-    startService(intent);
+    if (!MurshidInCallService.dispatchAction(action, enabled)) {
+      Toast.makeText(this, "تعذر التحكم بالمكالمة؛ أعد فتح شاشة الاتصال", Toast.LENGTH_SHORT).show();
+    }
   }
 
   private LinearLayout brandHeader() {
@@ -658,9 +661,11 @@ public class MurshidDialerActivity extends Activity {
   }
 
   private void sendCallAction(String action) {
-    Intent intent = new Intent(this, MurshidInCallService.class);
-    intent.setAction(action);
-    startService(intent);
+    if (!MurshidInCallService.dispatchAction(action, false)) {
+      Toast.makeText(this, "المكالمة لم تعد نشطة", Toast.LENGTH_SHORT).show();
+      finish();
+      return;
+    }
     if (MurshidInCallService.ACTION_ANSWER.equals(action)) {
       callTimerHandler.postDelayed(() -> renderCallScreen("مكالمة مُرشد جارية", "المكالمة متصلة", false), 650L);
     } else {
@@ -673,7 +678,7 @@ public class MurshidDialerActivity extends Activity {
     button.setText(text);
     button.setTextSize(20);
     button.setTextColor(INK);
-    button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+    button.setTypeface(ruqaaBold());
     button.setAllCaps(false);
     button.setBackground(round(PAPER, 18));
     return button;
@@ -684,7 +689,7 @@ public class MurshidDialerActivity extends Activity {
     button.setText(text);
     button.setTextColor(TEAL);
     button.setTextSize(13);
-    button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+    button.setTypeface(ruqaaBold());
     button.setAllCaps(false);
     button.setBackground(round(Color.rgb(231, 244, 240), 16));
     return button;
@@ -695,7 +700,7 @@ public class MurshidDialerActivity extends Activity {
     button.setText(text);
     button.setTextColor(PAPER);
     button.setTextSize(15);
-    button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+    button.setTypeface(ruqaaBold());
     button.setAllCaps(false);
     button.setBackground(round(color, 18));
     return button;
@@ -716,7 +721,23 @@ public class MurshidDialerActivity extends Activity {
 
   private LinearLayout horizontal() { LinearLayout view = new LinearLayout(this); view.setOrientation(LinearLayout.HORIZONTAL); return view; }
 
-  private TextView label(String text, int size, int color, int style) { TextView view = new TextView(this); view.setText(text); view.setTextSize(size); view.setTextColor(color); view.setTypeface(Typeface.DEFAULT, style); return view; }
+  private TextView label(String text, int size, int color, int style) { TextView view = new TextView(this); view.setText(text); view.setTextSize(size); view.setTextColor(color); view.setTypeface(style == Typeface.BOLD ? ruqaaBold() : ruqaaRegular()); return view; }
+
+  private Typeface ruqaaRegular() {
+    if (ruqaaRegular == null) {
+      try { ruqaaRegular = Typeface.createFromAsset(getAssets(), "fonts/ArefRuqaa-Regular.ttf"); }
+      catch (RuntimeException ignored) { ruqaaRegular = Typeface.DEFAULT; }
+    }
+    return ruqaaRegular;
+  }
+
+  private Typeface ruqaaBold() {
+    if (ruqaaBold == null) {
+      try { ruqaaBold = Typeface.createFromAsset(getAssets(), "fonts/ArefRuqaa-Bold.ttf"); }
+      catch (RuntimeException ignored) { ruqaaBold = Typeface.DEFAULT_BOLD; }
+    }
+    return ruqaaBold;
+  }
 
   private GradientDrawable round(int color, int radius) { GradientDrawable drawable = new GradientDrawable(); drawable.setColor(color); drawable.setCornerRadius(dp(radius)); return drawable; }
 
