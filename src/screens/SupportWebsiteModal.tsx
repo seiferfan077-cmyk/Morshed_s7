@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { RuqaaText as Text } from '../components/RuqaaText';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { colors, radii, spacing, typography } from '../theme';

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RuqaaText as Text } from '../components/RuqaaText';
+import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { colors, radii, spacing, typography } from '../theme';
 

@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import { RuqaaText as Text, RuqaaTextInput as TextInput } from '../components/RuqaaText';
 import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { WebView, WebViewMessageEvent, WebViewNavigation } from 'react-native-webview';
 import { RootTabParamList } from '../navigation/AppNavigator';
 import { colors, radii, spacing, typography } from '../theme';

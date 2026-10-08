@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { RuqaaText as Text, RuqaaTextInput as TextInput } from './RuqaaText';
 import { useMemo, useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { colors, radii, spacing, typography } from '../theme';
 import { AI_PROVIDER_PRESETS, UserAIConfig, getPreset } from '../services/ai/userAIConfig';
 import { createUserKeyProvider, providerErrorMessage } from '../services/ai/byokAIService';

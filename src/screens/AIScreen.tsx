@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { RuqaaText as Text, RuqaaTextInput as TextInput } from '../components/RuqaaText';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { AIConfigModal } from '../components/AIConfigModal';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { AIMessage, selectAIProvider } from '../services/ai/aiService';

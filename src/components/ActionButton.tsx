@@ -1,5 +1,6 @@
 import { PropsWithChildren } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { RuqaaText as Text } from './RuqaaText';
+import { Pressable, StyleSheet } from 'react-native';
 import { colors, radii, spacing, typography } from '../theme';
 
 export function ActionButton({ children, onPress, tone = 'primary' }: PropsWithChildren<{ onPress?: () => void; tone?: 'primary' | 'quiet' }>) {

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { RuqaaText as Text } from '../components/RuqaaText';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { SupportWebsiteModal } from './SupportWebsiteModal';

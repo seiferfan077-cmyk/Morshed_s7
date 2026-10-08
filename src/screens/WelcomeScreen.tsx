@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { RuqaaText as Text } from '../components/RuqaaText';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 import { colors, radii, spacing, typography } from '../theme';
 
 const WELCOME_SEEN_KEY = '@murshid/welcome-seen';

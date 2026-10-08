@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { RuqaaText as Text, RuqaaTextInput as TextInput } from '../components/RuqaaText';
 import * as DocumentPicker from 'expo-document-picker';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { MediaType } from '../types/domain';
 import { colors, radii, spacing, typography } from '../theme';

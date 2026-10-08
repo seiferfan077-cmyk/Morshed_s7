@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { RuqaaText as Text } from './RuqaaText';
 import { colors, spacing, typography } from '../theme';
 export function EmptyState({ icon, title, body }: { icon: string; title: string; body: string }) {
   return <View style={styles.wrap}><View style={styles.icon}><Text style={styles.iconText}>{icon}</Text></View><Text style={styles.title}>{title}</Text><Text style={styles.body}>{body}</Text></View>;

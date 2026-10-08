@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { RuqaaText as Text, RuqaaTextInput as TextInput } from '../components/RuqaaText';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { ActionButton } from '../components/ActionButton';
 import { EmptyState } from '../components/EmptyState';
 import { SurfaceCard } from '../components/SurfaceCard';

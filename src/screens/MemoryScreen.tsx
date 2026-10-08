@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { RuqaaText as Text, RuqaaTextInput as TextInput } from '../components/RuqaaText';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Switch, View } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors, radii, spacing, typography } from '../theme';
 import { defaultMemorySettings, MemoryCandidate, MemoryItem, MemorySettings, MemoryType } from '../types/memory';

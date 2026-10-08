@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { RuqaaText as Text } from '../components/RuqaaText';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { ActionButton } from '../components/ActionButton';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { RootTabParamList } from '../navigation/AppNavigator';

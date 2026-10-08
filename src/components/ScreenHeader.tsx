@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, View } from 'react-native';
+import { RuqaaText as Text } from './RuqaaText';
+import { StyleSheet, View } from 'react-native';
 import { colors, spacing, typography } from '../theme';
 export function ScreenHeader({ eyebrow, title, detail, verified = false }: { eyebrow?: string; title: string; detail?: string; verified?: boolean }) {
   return <View style={styles.wrap}>{eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}<View style={styles.titleRow}><Text style={styles.title}>{title}</Text>{verified ? <View accessibilityLabel="حساب موثق" style={styles.verified}><Ionicons name="checkmark" size={12} color={colors.paper} /></View> : null}</View>{detail ? <Text style={styles.detail}>{detail}</Text> : null}</View>;

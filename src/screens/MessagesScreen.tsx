@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
+import { RuqaaText as Text } from '../components/RuqaaText';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as IntentLauncher from 'expo-intent-launcher';
-import { AppState, NativeModules, PermissionsAndroid, Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppState, NativeModules, PermissionsAndroid, Platform, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { ActionButton } from '../components/ActionButton';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { colors, radii, spacing, typography } from '../theme';
