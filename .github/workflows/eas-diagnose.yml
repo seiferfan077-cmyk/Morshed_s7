@@ -32,17 +32,49 @@ jobs:
         run: |
           eas build:view "${{ inputs.build_id }}" --json > /tmp/eas-view.txt
           python3 - <<'PY'
+          import bz2
           import gzip
           import json
+          import lzma
+          import pathlib
           import urllib.request
+          import zipfile
+          import zlib
           text = open('/tmp/eas-view.txt', encoding='utf-8').read()
           data = json.loads(text[text.find('{'):])
           url = data['logFiles'][0]
-          raw = urllib.request.urlopen(url).read()
-          try:
-              raw = gzip.decompress(raw)
-          except gzip.BadGzipFile:
-              pass
+          response = urllib.request.urlopen(url)
+          raw = response.read()
+          print(f"log_url={url}")
+          print(f"content_type={response.headers.get('content-type')}")
+          print(f"content_encoding={response.headers.get('content-encoding')}")
+          print(f"raw_size={len(raw)} raw_magic={raw[:32].hex()}")
+
+          decoded = None
+          decoders = [
+              ('gzip', lambda value: gzip.decompress(value)),
+              ('zlib', lambda value: zlib.decompress(value)),
+              ('deflate-raw', lambda value: zlib.decompress(value, -15)),
+              ('bz2', lambda value: bz2.decompress(value)),
+              ('lzma', lambda value: lzma.decompress(value)),
+          ]
+          for name, decoder in decoders:
+              try:
+                  candidate = decoder(raw)
+                  if candidate and (b'Gradle' in candidate or b'FAILURE' in candidate or b'Execution failed' in candidate or candidate[:1] in (b'{', b'[', b'\n')):
+                      decoded = candidate
+                      print(f"decoder={name} decoded_size={len(candidate)} decoded_magic={candidate[:32].hex()}")
+                      break
+              except Exception:
+                  continue
+          if decoded is None:
+              try:
+                  pathlib.Path('/tmp/eas-log.bin').write_bytes(raw)
+                  with zipfile.ZipFile('/tmp/eas-log.bin') as archive:
+                      decoded = b'\n'.join(archive.read(item) for item in archive.namelist())
+              except Exception:
+                  decoded = raw
+          raw = decoded
           log = raw.decode('utf-8', errors='replace')
           lines = log.splitlines()
           keywords = ('FAILURE', 'What went wrong', 'Execution failed', 'error:', 'Error:', 'Could not', 'A problem occurred')
