@@ -15,20 +15,44 @@ function ensurePermission(manifest, name) {
 
 function ensureActivity(application, name) {
   application.activity ??= [];
-  if (application.activity.some((entry) => entry.$?.['android:name'] === name)) return;
-  application.activity.push({
+  const filters = [
+    { action: [{ $: { 'android:name': 'android.intent.action.DIAL' } }], category: [{ $: { 'android:name': 'android.intent.category.DEFAULT' } }], data: [{ $: { 'android:scheme': 'tel' } }] },
+    { action: [{ $: { 'android:name': 'android.intent.action.DIAL' } }], category: [{ $: { 'android:name': 'android.intent.category.DEFAULT' } }] },
+    { action: [{ $: { 'android:name': 'com.murshid.s7.OPEN_DIALER' } }], category: [{ $: { 'android:name': 'android.intent.category.DEFAULT' } }] },
+    { action: [{ $: { 'android:name': 'android.intent.action.VIEW' } }], category: [{ $: { 'android:name': 'android.intent.category.DEFAULT' } }, { $: { 'android:name': 'android.intent.category.BROWSABLE' } }], data: [{ $: { 'android:scheme': 'murshid', 'android:host': 'dialer' } }] },
+  ];
+  const existing = application.activity.find((entry) => entry.$?.['android:name'] === name);
+  const activity = existing || {
     $: {
       'android:name': name,
       'android:exported': 'true',
+      'android:launchMode': 'singleTask',
       'android:theme': '@style/Theme.App.SplashScreen',
       'android:showWhenLocked': 'true',
       'android:turnScreenOn': 'true',
     },
-    'intent-filter': [
-      { action: [{ $: { 'android:name': 'android.intent.action.DIAL' } }], category: [{ $: { 'android:name': 'android.intent.category.DEFAULT' } }], data: [{ $: { 'android:scheme': 'tel' } }] },
-      { action: [{ $: { 'android:name': 'android.intent.action.DIAL' } }], category: [{ $: { 'android:name': 'android.intent.category.DEFAULT' } }] },
-    ],
-  });
+    'intent-filter': [],
+  };
+  if (!existing) application.activity.push(activity);
+  activity.$ = {
+    ...activity.$,
+    'android:exported': 'true',
+    'android:launchMode': 'singleTask',
+    'android:theme': '@style/Theme.App.SplashScreen',
+    'android:showWhenLocked': 'true',
+    'android:turnScreenOn': 'true',
+  };
+  activity['intent-filter'] ??= [];
+  const filterKey = (filter) => {
+    const actions = (filter.action ?? []).map((item) => item.$?.['android:name'] || '').sort().join(',');
+    const data = (filter.data ?? []).map((item) => `${item.$?.['android:scheme'] || ''}:${item.$?.['android:host'] || ''}:${item.$?.['android:path'] || ''}`).sort().join(',');
+    return `${actions}|${data}`;
+  };
+  const existingKeys = new Set(activity['intent-filter'].map(filterKey));
+  for (const filter of filters) {
+    const key = filterKey(filter);
+    if (!existingKeys.has(key)) activity['intent-filter'].push(filter);
+  }
 }
 
 function ensureInCallService(application) {
@@ -56,6 +80,7 @@ module.exports = function withMurshidDialer(config) {
     ensurePermission(manifest, 'android.permission.ANSWER_PHONE_CALLS');
     ensurePermission(manifest, 'android.permission.READ_CONTACTS');
     ensurePermission(manifest, 'android.permission.POST_NOTIFICATIONS');
+    ensurePermission(manifest, 'android.permission.USE_FULL_SCREEN_INTENT');
     const application = manifest.manifest.application?.[0];
     if (application) {
       ensureActivity(application, ACTIVITY_NAME);

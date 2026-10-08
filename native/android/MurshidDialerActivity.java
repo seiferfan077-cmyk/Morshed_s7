@@ -1,15 +1,23 @@
 package com.murshid.s7;
 
 import android.app.Activity;
+import android.app.role.RoleManager;
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.ContactsContract;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -24,10 +32,15 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
 
 public class MurshidDialerActivity extends Activity {
   public static final String ACTION_INCOMING = "com.murshid.s7.INCOMING_CALL";
   public static final String ACTION_ONGOING = "com.murshid.s7.ONGOING_CALL";
+  public static final String ACTION_OPEN_DIALER = "com.murshid.s7.OPEN_DIALER";
   public static final String EXTRA_CALLER_NAME = "caller_name";
   public static final String EXTRA_LINE_LABEL = "line_label";
   public static final String EXTRA_VERIFIED = "verified";
@@ -37,6 +50,11 @@ public class MurshidDialerActivity extends Activity {
   private static final int PAPER = Color.rgb(255, 255, 255);
   private static final int SURFACE = Color.rgb(247, 250, 249);
   private static final int LINE = Color.rgb(214, 228, 224);
+  private static final int REQUEST_CONTACTS = 9201;
+  private static final int REQUEST_DIALER_ROLE = 9202;
+  private static final int REQUEST_CALL_PHONE = 9203;
+  private static final int REQUEST_PHONE_STATE = 9204;
+  private static final int REQUEST_POST_NOTIFICATIONS = 9205;
   private EditText numberInput;
   private PhoneAccountHandle selectedAccount;
   private float gestureStartX;
@@ -54,6 +72,19 @@ public class MurshidDialerActivity extends Activity {
     super.onNewIntent(intent);
     setIntent(intent);
     render(intent);
+  }
+
+  @Override
+  protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    super.onActivityResult(requestCode, resultCode, data);
+    if (requestCode == REQUEST_DIALER_ROLE) {
+      if (isDefaultDialer()) {
+        Toast.makeText(this, "أصبح مُرشد تطبيق الهاتف الافتراضي", Toast.LENGTH_LONG).show();
+        renderDialPad(numberInput == null ? "" : numberInput.getText().toString());
+      } else {
+        Toast.makeText(this, "لم يتم تغيير تطبيق الهاتف الافتراضي؛ سيبقى الاتصال داخل مُرشد متوقفًا حتى الموافقة", Toast.LENGTH_LONG).show();
+      }
+    }
   }
 
   private void render(Intent intent) {
@@ -104,6 +135,10 @@ public class MurshidDialerActivity extends Activity {
     numberCard.addView(numberInput, new LinearLayout.LayoutParams(-1, dp(68)));
     root.addView(numberCard, marginParams(0, 22, 0, 0));
 
+    Button contactsButton = utilityButton("جهات الاتصال  ·  اختر اسمًا للاتصال");
+    contactsButton.setOnClickListener(v -> renderContacts());
+    root.addView(contactsButton, marginParams(0, 12, 0, 0));
+
     TextView simHeading = label("اختر الشريحة", 16, INK, Typeface.BOLD);
     root.addView(simHeading, marginParams(0, 20, 0, 8));
     LinearLayout simRow = horizontal();
@@ -151,6 +186,17 @@ public class MurshidDialerActivity extends Activity {
     call.setOnClickListener(v -> placeCall());
     root.addView(call, marginParams(0, 20, 0, 0));
 
+    if (!isDefaultDialer()) {
+      Button roleButton = utilityButton("اجعل مُرشد تطبيق الهاتف الافتراضي");
+      roleButton.setOnClickListener(v -> requestDialerRole());
+      root.addView(roleButton, marginParams(0, 12, 0, 0));
+    }
+    if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+      Button notificationButton = utilityButton("السماح بإشعارات المكالمات الواردة");
+      notificationButton.setOnClickListener(v -> requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, REQUEST_POST_NOTIFICATIONS));
+      root.addView(notificationButton, marginParams(0, 8, 0, 0));
+    }
+
     TextView hint = label("يمكنك تغيير الشريحة قبل الضغط على اتصال.", 12, MUTED, Typeface.NORMAL);
     hint.setGravity(Gravity.CENTER);
     root.addView(hint, marginParams(0, 12, 0, 0));
@@ -159,6 +205,12 @@ public class MurshidDialerActivity extends Activity {
   }
 
   private void addSimAccounts(LinearLayout row) {
+    if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+      Button permission = utilityButton("السماح بعرض شرائح SIM");
+      permission.setOnClickListener(v -> requestPermissions(new String[] { Manifest.permission.READ_PHONE_STATE }, REQUEST_PHONE_STATE));
+      row.addView(permission, new LinearLayout.LayoutParams(-1, dp(48)));
+      return;
+    }
     TelecomManager telecom = (TelecomManager) getSystemService(Context.TELECOM_SERVICE);
     List<PhoneAccountHandle> accounts = null;
     try { accounts = telecom.getCallCapablePhoneAccounts(); } catch (SecurityException ignored) { }
@@ -177,7 +229,7 @@ public class MurshidDialerActivity extends Activity {
       } catch (Exception ignored) { }
       Button sim = utilityButton(label);
       if (selectedAccount == null) selectedAccount = account;
-      boolean selected = selectedAccount == account;
+      boolean selected = selectedAccount != null && selectedAccount.equals(account);
       sim.setText((selected ? "✓ " : "") + label);
       sim.setTag(account);
       sim.setOnClickListener(v -> {
@@ -213,10 +265,17 @@ public class MurshidDialerActivity extends Activity {
     String callerName = getIntent().getStringExtra(EXTRA_CALLER_NAME);
     String line = getIntent().getStringExtra(EXTRA_LINE_LABEL);
     boolean verified = getIntent().getBooleanExtra(EXTRA_VERIFIED, false);
-    if (callerName == null || callerName.isEmpty()) callerName = detailText;
+    if (callerName == null || callerName.isEmpty()) callerName = "رقم غير معروف";
     TextView caller = label(callerName, 20, MUTED, Typeface.NORMAL);
     caller.setGravity(Gravity.CENTER);
     card.addView(caller, marginParams(0, 6, 0, 0));
+    Uri callUri = getIntent() == null ? null : getIntent().getData();
+    String callerNumber = callUri == null ? "" : callUri.getSchemeSpecificPart();
+    if (callerNumber != null && !callerNumber.isEmpty()) {
+      TextView number = label("رقم جهة الاتصال: " + callerNumber, 16, INK, Typeface.BOLD);
+      number.setGravity(Gravity.CENTER);
+      card.addView(number, marginParams(0, 6, 0, 0));
+    }
     if (verified) {
       TextView badge = label("✓ موثق لدى مُرشد", 13, TEAL, Typeface.BOLD);
       badge.setGravity(Gravity.CENTER);
@@ -286,9 +345,152 @@ public class MurshidDialerActivity extends Activity {
     return header;
   }
 
+  private void renderContacts() {
+    if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+      requestPermissions(new String[] { Manifest.permission.READ_CONTACTS }, REQUEST_CONTACTS);
+      return;
+    }
+    ScrollView scroll = new ScrollView(this);
+    scroll.setBackgroundColor(SURFACE);
+    LinearLayout root = vertical(22, 24, 22, 28);
+    root.addView(label("MURSHID CONTACTS", 12, TEAL, Typeface.BOLD));
+    root.addView(label("جهات الاتصال", 28, INK, Typeface.BOLD), marginParams(0, 4, 0, 0));
+    root.addView(label("اختر جهة اتصال محفوظة على الجهاز أو شريحة SIM التي يعرضها النظام.", 13, MUTED, Typeface.NORMAL), marginParams(0, 4, 0, 12));
+    Button back = utilityButton("العودة إلى لوحة الاتصال");
+    back.setOnClickListener(v -> renderDialPad(numberInput == null ? "" : numberInput.getText().toString()));
+    root.addView(back);
+    EditText search = new EditText(this);
+    search.setSingleLine(true);
+    search.setHint("ابحث بالاسم أو الرقم");
+    search.setTextSize(16);
+    search.setTextColor(INK);
+    search.setBackground(round(PAPER, 16));
+    root.addView(search, marginParams(0, 14, 0, 12));
+    LinearLayout rows = vertical(0, 0, 0, 0);
+    root.addView(rows);
+    scroll.addView(root);
+    setContentView(scroll);
+
+    List<String[]> contacts = new ArrayList<>();
+    Set<String> seen = new HashSet<>();
+    String[] projection = {
+      ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+      ContactsContract.CommonDataKinds.Phone.NUMBER
+    };
+    try (Cursor cursor = getContentResolver().query(
+        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+        projection,
+        ContactsContract.CommonDataKinds.Phone.NUMBER + " IS NOT NULL",
+        null,
+        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " COLLATE LOCALIZED ASC")) {
+      if (cursor != null) {
+        int nameColumn = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME);
+        int numberColumn = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
+        while (cursor.moveToNext()) {
+          String name = nameColumn < 0 ? "" : cursor.getString(nameColumn);
+          String number = numberColumn < 0 ? "" : cursor.getString(numberColumn);
+          if (number == null || number.trim().isEmpty()) continue;
+          String key = MurshidCallerInfo.normalize(number);
+          if (!seen.add(key)) continue;
+          contacts.add(new String[] { name == null || name.trim().isEmpty() ? "بدون اسم" : name, number });
+        }
+      }
+    } catch (SecurityException error) {
+      Toast.makeText(this, "اسمح لمُرشد بقراءة جهات الاتصال لعرضها", Toast.LENGTH_LONG).show();
+      return;
+    }
+    TextView empty = label("لا توجد جهات اتصال بأرقام هاتف على الجهاز.", 14, MUTED, Typeface.NORMAL);
+    empty.setGravity(Gravity.CENTER);
+    root.addView(empty, marginParams(0, 16, 0, 0));
+    Runnable refreshRows = () -> {
+      rows.removeAllViews();
+      String filter = search.getText().toString().trim().toLowerCase(Locale.ROOT);
+      int count = 0;
+      for (String[] contact : contacts) {
+        if (!filter.isEmpty() && !contact[0].toLowerCase(Locale.ROOT).contains(filter) && !contact[1].toLowerCase(Locale.ROOT).contains(filter)) continue;
+        LinearLayout item = vertical(16, 12, 16, 12);
+        item.setBackground(round(PAPER, 16));
+        TextView name = label(contact[0], 16, INK, Typeface.BOLD);
+        TextView phone = label(contact[1], 14, MUTED, Typeface.NORMAL);
+        item.addView(name);
+        item.addView(phone, marginParams(0, 4, 0, 0));
+        item.setOnClickListener(v -> {
+          renderDialPad(contact[1]);
+          numberInput.setText(contact[1]);
+          numberInput.setSelection(numberInput.length());
+        });
+        rows.addView(item, marginParams(0, 0, 0, 8));
+        count++;
+      }
+      empty.setVisibility(count == 0 ? View.VISIBLE : View.GONE);
+      empty.setText(contacts.isEmpty() ? "لا توجد جهات اتصال بأرقام هاتف على الجهاز." : "لا توجد نتائج مطابقة.");
+    };
+    root.removeView(empty);
+    root.addView(empty, marginParams(0, 12, 0, 0));
+    search.addTextChangedListener(new TextWatcher() {
+      @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+      @Override public void onTextChanged(CharSequence s, int start, int before, int count) { refreshRows.run(); }
+      @Override public void afterTextChanged(Editable s) { }
+    });
+    refreshRows.run();
+  }
+
+  private boolean isDefaultDialer() {
+    if (Build.VERSION.SDK_INT >= 29) {
+      RoleManager roleManager = getSystemService(RoleManager.class);
+      return roleManager != null && roleManager.isRoleHeld(RoleManager.ROLE_DIALER);
+    }
+    TelecomManager telecom = (TelecomManager) getSystemService(Context.TELECOM_SERVICE);
+    return telecom != null && getPackageName().equals(telecom.getDefaultDialerPackage());
+  }
+
+  private void requestDialerRole() {
+    try {
+      if (Build.VERSION.SDK_INT >= 29) {
+        RoleManager roleManager = getSystemService(RoleManager.class);
+        if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_DIALER)) {
+          startActivityForResult(roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER), REQUEST_DIALER_ROLE);
+          return;
+        }
+      }
+      Intent intent = new Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER);
+      intent.putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, getPackageName());
+      startActivityForResult(intent, REQUEST_DIALER_ROLE);
+    } catch (Exception error) {
+      Toast.makeText(this, "افتح إعدادات التطبيقات الافتراضية واختر مُرشد لتطبيق الهاتف", Toast.LENGTH_LONG).show();
+    }
+  }
+
+  @Override
+  public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    if (requestCode == REQUEST_CONTACTS) {
+      if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) renderContacts();
+      else Toast.makeText(this, "يلزم السماح بجهات الاتصال لعرض الأسماء والأرقام", Toast.LENGTH_LONG).show();
+    } else if (requestCode == REQUEST_PHONE_STATE) {
+      if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) renderDialPad(numberInput == null ? "" : numberInput.getText().toString());
+      else Toast.makeText(this, "يلزم السماح بحالة الهاتف لعرض شرائح SIM", Toast.LENGTH_LONG).show();
+    } else if (requestCode == REQUEST_CALL_PHONE) {
+      if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) placeCall();
+      else Toast.makeText(this, "يلزم السماح بإجراء المكالمات للاتصال من مُرشد", Toast.LENGTH_LONG).show();
+    } else if (requestCode == REQUEST_POST_NOTIFICATIONS) {
+      if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) renderDialPad(numberInput == null ? "" : numberInput.getText().toString());
+      else Toast.makeText(this, "فعّل إشعارات مُرشد من إعدادات Android لظهور المكالمات الواردة", Toast.LENGTH_LONG).show();
+    }
+  }
+
   private void placeCall() {
     String number = numberInput == null ? "" : numberInput.getText().toString().trim();
     if (number.isEmpty()) { Toast.makeText(this, "اكتب رقمًا أولًا", Toast.LENGTH_SHORT).show(); return; }
+    if (!isDefaultDialer()) {
+      Toast.makeText(this, "للاتصال من مُرشد دون فتح تطبيق خارجي، اجعل مُرشد تطبيق الهاتف الافتراضي أولًا", Toast.LENGTH_LONG).show();
+      requestDialerRole();
+      return;
+    }
+    if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+      requestPermissions(new String[] { Manifest.permission.CALL_PHONE }, REQUEST_CALL_PHONE);
+      return;
+    }
     try {
       TelecomManager telecom = (TelecomManager) getSystemService(Context.TELECOM_SERVICE);
       Bundle extras = new Bundle();

@@ -3,6 +3,7 @@ package com.murshid.s7;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.Person;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.media.Ringtone;
@@ -82,21 +83,43 @@ public class MurshidInCallService extends InCallService {
     if (info.verified) title = "✓  " + title;
     builder.setSmallIcon(com.murshid.s7.R.mipmap.ic_launcher)
         .setContentTitle(incoming ? "اتصال وارد إلى مُرشد · " + title : "مكالمة مُرشد جارية · " + title)
-        .setContentText("عبر " + info.lineLabel)
+        .setContentText("الرقم: " + info.number + " · عبر " + info.lineLabel)
         .setCategory(Notification.CATEGORY_CALL)
         .setPriority(Notification.PRIORITY_MAX)
         .setOngoing(true)
         .setAutoCancel(false)
         .setFullScreenIntent(content, incoming)
         .setContentIntent(content);
+    if (incoming) {
+      PendingIntent reject = callActionPendingIntent(ACTION_REJECT, 7002);
+      PendingIntent answer = callActionPendingIntent(ACTION_ANSWER, 7003);
+      if (Build.VERSION.SDK_INT >= 31) {
+        Person caller = new Person.Builder().setName(title).setImportant(true).build();
+        builder.setStyle(Notification.CallStyle.forIncomingCall(caller, reject, answer));
+      } else {
+        builder.addAction(new Notification.Action.Builder(android.R.drawable.ic_menu_close_clear_cancel, "رفض", reject).build());
+        builder.addAction(new Notification.Action.Builder(android.R.drawable.sym_action_call, "رد", answer).build());
+      }
+    }
     ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(NOTIFICATION_ID, builder.build());
   }
 
+  private PendingIntent callActionPendingIntent(String action, int requestCode) {
+    Intent intent = new Intent(this, MurshidInCallService.class);
+    intent.setAction(action);
+    int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+    if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
+    return PendingIntent.getService(this, requestCode, intent, flags);
+  }
+
   private void announceThenRing(MurshidCallerInfo info) {
-    String spoken = info.displayName.isEmpty() ? "اتصال وارد" : "اتصال وارد من " + info.displayName;
+    String caller = info.displayName == null || info.displayName.trim().isEmpty() ? "رقم غير معروف" : info.displayName;
+    String number = info.number == null || info.number.trim().isEmpty() ? "رقم غير معروف" : info.number;
+    String spoken = "لديك الآن اتصال وارد من " + caller + "، رقم جهة الاتصال " + number;
     speech = new TextToSpeech(this, status -> {
       if (status != TextToSpeech.SUCCESS) { playRingtone(); return; }
-      speech.setLanguage(Locale.getDefault());
+      int arabicStatus = speech.setLanguage(new Locale("ar"));
+      if (arabicStatus == TextToSpeech.LANG_MISSING_DATA || arabicStatus == TextToSpeech.LANG_NOT_SUPPORTED) speech.setLanguage(Locale.getDefault());
       speech.setSpeechRate(0.95f);
       if (Build.VERSION.SDK_INT >= 21) speech.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
         @Override public void onStart(String utteranceId) { }
@@ -109,7 +132,7 @@ public class MurshidInCallService extends InCallService {
   }
 
   private void playRingtone() {
-    if (currentCall == null || ringtone != null) return;
+    if (currentCall == null || currentCall.getState() != Call.STATE_RINGING || ringtone != null) return;
     Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
     ringtone = RingtoneManager.getRingtone(this, uri);
     if (ringtone != null) ringtone.play();

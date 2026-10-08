@@ -30,11 +30,11 @@ export function FeaturesScreen() {
       </SurfaceCard>
 
       <Text style={styles.sectionTitle}>الاتصال الهاتفي</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="فتح لوحة الاتصال" onPress={() => { void Linking.openURL('tel:'); }} style={({ pressed }) => [styles.callCard, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="فتح لوحة اتصال مُرشد" onPress={() => { void Linking.sendIntent('com.murshid.s7.OPEN_DIALER').catch(() => Linking.openURL('murshid://dialer')); }} style={({ pressed }) => [styles.callCard, pressed && styles.pressed]}>
         <View style={styles.callIcon}><Ionicons name="call-outline" size={28} color={colors.paper} /></View>
         <View style={styles.callCopy}>
           <Text style={styles.callTitle}>اتصال مُرشد</Text>
-          <Text style={styles.callDetail}>لوحة أرقام حديثة، اختيار الشريحة، واتصال مباشر من داخل التطبيق.</Text>
+          <Text style={styles.callDetail}>لوحة أرقام مُرشد وجهات اتصال الجهاز واختيار الشريحة والاتصال من داخل التطبيق.</Text>
           <Text style={styles.callHint}>اضغط لفتح لوحة الاتصال</Text>
         </View>
         <Ionicons name="chevron-forward-outline" size={22} color={colors.tealDark} />
