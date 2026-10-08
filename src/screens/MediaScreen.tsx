@@ -61,12 +61,12 @@ export function MediaScreen() {
   const [pinError, setPinError] = useState<string | null>(null);
   const [pendingHide, setPendingHide] = useState<DisplayItem | null>(null);
   const [secretTaps, setSecretTaps] = useState(0);
-  const viewerRef = useRef<FlatList<DisplayItem>>(null);
-
   const load = useCallback(async (refresh = false) => {
     if (!permission?.granted) return;
+    await Promise.resolve();
     setError(null);
-    refresh ? setRefreshing(true) : setLoading(true);
+    if (refresh) setRefreshing(true);
+    else setLoading(true);
     try {
       const [photos, videos, stored] = await Promise.all([
         getAllDeviceAssets('photo'),
@@ -81,14 +81,22 @@ export function MediaScreen() {
     } catch { setError('تعذر قراءة وسائط الجهاز حاليًا. حاول مرة أخرى.'); } finally { setLoading(false); setRefreshing(false); }
   }, [permission?.granted]);
 
-  useEffect(() => { load(); if (!permission?.granted) return; const subscription = MediaLibrary.addListener(() => { load(true); }); return () => subscription.remove(); }, [load, permission?.granted]);
+  useEffect(() => {
+    const initialLoad = setTimeout(() => { void load(); }, 0);
+    if (!permission?.granted) return () => clearTimeout(initialLoad);
+    const subscription = MediaLibrary.addListener(() => { void load(true); });
+    return () => {
+      clearTimeout(initialLoad);
+      subscription.remove();
+    };
+  }, [load, permission?.granted]);
 
   const allItems = useMemo(() => storedItems, [storedItems]);
   const visibleItems = useMemo(() => allItems.filter((item) => {
     if (filter === 'private') return privateUnlocked && item.hidden;
     if (item.hidden) return false;
     return filter === 'all' || item.type === filter;
-  }), [allItems, filter]);
+  }), [allItems, filter, privateUnlocked]);
 
   const importAssets = async (acceptedTypes: string | string[]) => {
     const result = await DocumentPicker.getDocumentAsync({ type: acceptedTypes, multiple: true, copyToCacheDirectory: true });

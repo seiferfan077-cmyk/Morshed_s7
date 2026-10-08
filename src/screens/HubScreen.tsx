@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RuqaaText as Text, RuqaaTextInput as TextInput } from '../components/RuqaaText';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { ActionButton } from '../components/ActionButton';
 import { EmptyState } from '../components/EmptyState';
@@ -14,12 +14,20 @@ const NEXT_STATUS: Partial<Record<ProposalStatus, ProposalStatus>> = { draft: 'r
 export function HubScreen() {
   const [proposals, setProposals] = useState<HubProposal[]>([]); const [refreshing, setRefreshing] = useState(false); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null); const [title, setTitle] = useState(''); const [summary, setSummary] = useState(''); const [updateClass, setUpdateClass] = useState<UpdateClass>('dynamic');
   const repository = useMemo(() => createHubRepository(), []);
-  const load = async () => { setRefreshing(true); setError(null); try { setProposals(await repository.listRecentProposals()); } catch { setError('تعذر قراءة Firestore. تحقق من تفعيل Firestore وتسجيل دخول مستخدم Admin.'); } finally { setLoading(false); setRefreshing(false); } };
-  useEffect(() => { void load(); }, []);
-  const createProposal = async () => { if (!title.trim() || !summary.trim()) { setError('اكتب عنوان المقترح وملخصه قبل الحفظ.'); return; } setSaving(true); setError(null); try { await repository.createProposal({ title: title.trim(), summary: summary.trim(), updateClass }); setTitle(''); setSummary(''); await load(); } catch { setError('تعذر إنشاء المسودة. يجب تفعيل Firebase وتسجيل دخول Admin.'); } finally { setSaving(false); } };
-  const transition = async (proposal: HubProposal) => { const next = NEXT_STATUS[proposal.status]; if (!next) return; setSaving(true); setError(null); try { await repository.transitionProposal(proposal.id, next); await load(); } catch { setError('تعذر تغيير الحالة. تحقق من صلاحية Admin وقواعد Firestore.'); } finally { setSaving(false); } };
+  const load = useCallback(async (refresh = false) => {
+    if (refresh) { setRefreshing(true); setError(null); }
+    try { setProposals(await repository.listRecentProposals()); }
+    catch { setError('تعذر قراءة Firestore. تحقق من تفعيل Firestore وتسجيل دخول مستخدم Admin.'); }
+    finally { setLoading(false); if (refresh) setRefreshing(false); }
+  }, [repository]);
+  useEffect(() => {
+    const task = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(task);
+  }, [load]);
+  const createProposal = async () => { if (!title.trim() || !summary.trim()) { setError('اكتب عنوان المقترح وملخصه قبل الحفظ.'); return; } setSaving(true); setError(null); try { await repository.createProposal({ title: title.trim(), summary: summary.trim(), updateClass }); setTitle(''); setSummary(''); await load(true); } catch { setError('تعذر إنشاء المسودة. يجب تفعيل Firebase وتسجيل دخول Admin.'); } finally { setSaving(false); } };
+  const transition = async (proposal: HubProposal) => { const next = NEXT_STATUS[proposal.status]; if (!next) return; setSaving(true); setError(null); try { await repository.transitionProposal(proposal.id, next); await load(true); } catch { setError('تعذر تغيير الحالة. تحقق من صلاحية Admin وقواعد Firestore.'); } finally { setSaving(false); } };
   const counts = { draft: proposals.filter((p) => p.status === 'draft').length, review: proposals.filter((p) => p.status === 'review').length, published: proposals.filter((p) => p.status === 'published').length };
-  return <ScrollView style={styles.screen} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={colors.teal} />}>
+  return <ScrollView style={styles.screen} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void load(true); }} tintColor={colors.teal} />}>
     <View style={styles.header}><View><Text style={styles.eyebrow}>CONTROL HUB</Text><Text style={styles.title}>مركز التحسينات</Text><Text style={styles.detail}>إدارة المقترحات، الموافقات، والتحديثات من مساحة واحدة.</Text></View><View style={styles.hubIcon}><Ionicons name="git-branch-outline" size={24} color={colors.tealDark} /></View></View>
     <SurfaceCard accent={firebaseConfigStatus.configured ? colors.teal : colors.amber}><View style={styles.statusRow}><View style={[styles.statusDot, { backgroundColor: firebaseConfigStatus.configured ? colors.teal : colors.amber }]} /><View style={styles.statusCopy}><Text style={styles.cardTitle}>{firebaseConfigStatus.configured ? 'Firebase مهيأ' : 'Firebase غير موصل بعد'}</Text><Text style={styles.cardDetail}>{firebaseConfigStatus.configured ? 'العمليات الفعلية تحتاج مستخدمًا مسجلًا بصلاحية Admin وقواعد Firestore.' : 'أضف إعدادات Firebase العامة عبر .env. لا تضع Admin SDK داخل Expo.'}</Text></View></View></SurfaceCard>
     <Text style={styles.sectionTitle}>دورة التحسين</Text><View style={styles.metrics}><Metric icon="create-outline" label="مسودات" value={String(counts.draft)} /><Metric icon="eye-outline" label="مراجعة" value={String(counts.review)} /><Metric icon="rocket-outline" label="منشور" value={String(counts.published)} /></View>

@@ -117,7 +117,8 @@ export async function getDeviceAssetVisibility() {
 
 export async function setDeviceAssetHidden(id: string, hidden: boolean) {
   const visibility = await getDeviceAssetVisibility();
-  hidden ? visibility.hidden.add(id) : visibility.hidden.delete(id);
+  if (hidden) visibility.hidden.add(id);
+  else visibility.hidden.delete(id);
   await AsyncStorage.setItem(DEVICE_HIDDEN_KEY, JSON.stringify([...visibility.hidden]));
 }
 

@@ -18,8 +18,6 @@ module.exports = defineConfig([
       'no-unreachable': 'error',
       'no-duplicate-imports': 'error',
       eqeqeq: ['error', 'always', { null: 'ignore' }],
-      // Existing effects synchronize asynchronous native/storage APIs and UI state.
-      'react-hooks/set-state-in-effect': 'warn',
     },
   },
   {

@@ -1,6 +1,6 @@
 import { MemoryCandidate, MemoryType } from '../../types/memory';
 
-const patterns: Array<{ type: MemoryType; regex: RegExp; confidence: number; importance: 'low' | 'medium' | 'high'; tag: string }> = [
+const patterns: { type: MemoryType; regex: RegExp; confidence: number; importance: 'low' | 'medium' | 'high'; tag: string }[] = [
   { type: 'preference', regex: /(?:بحب|أفضل|افضل|بفضل|مش بحب|لا أحب|أحب)\s+(.{2,80})/i, confidence: 0.86, importance: 'medium', tag: 'preference' },
   { type: 'habit', regex: /(?:كل يوم|عادة|متعود|بحاول ألتزم|بحاول التزم|روتيني)\s+(.{2,100})/i, confidence: 0.78, importance: 'medium', tag: 'habit' },
   { type: 'goal', regex: /(?:عايز|أريد|نفسي|هدفي|هدفي هو|محتاج)\s+(.{2,100})/i, confidence: 0.72, importance: 'medium', tag: 'goal' },

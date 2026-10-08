@@ -29,8 +29,9 @@ function makeTab(url = HOME_URL): BrowserTab { const id = `tab-${Date.now()}-${M
 export function BrowserScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const webViewRefs = useRef<Record<string, WebView | null>>({});
-  const [tabs, setTabs] = useState<BrowserTab[]>(() => [makeTab()]);
-  const [activeTabId, setActiveTabId] = useState('');
+  const [initialTab] = useState(() => makeTab());
+  const [tabs, setTabs] = useState<BrowserTab[]>([initialTab]);
+  const [activeTabId, setActiveTabId] = useState(initialTab.id);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [showControls, setShowControls] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
@@ -40,7 +41,6 @@ export function BrowserScreen() {
   const activeTab = useMemo(() => tabs.find((tab) => tab.id === activeTabId) || tabs[0], [tabs, activeTabId]);
   const activeRef = activeTab ? webViewRefs.current[activeTab.id] : null;
 
-  useEffect(() => { if (!activeTabId && tabs[0]) setActiveTabId(tabs[0].id); }, [activeTabId, tabs]);
   useEffect(() => { AsyncStorage.getItem(FAVORITES_KEY).then((raw) => { if (raw) { try { setFavorites(JSON.parse(raw) as Favorite[]); } catch { setFavorites([]); } } }); }, []);
   useEffect(() => { AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites)); }, [favorites]);
 
@@ -81,7 +81,13 @@ export function BrowserScreen() {
   const submitAddress = () => { if (!activeTab) return; const nextUrl = resolveAddress(activeTab.draft); updateTab(activeTab.id, { url: nextUrl, draft: nextUrl, testMode: false, title: nextUrl.replace(/^https?:\/\//, '').split('/')[0] }); Keyboard.dismiss(); };
   const goHome = () => activeTab && updateTab(activeTab.id, { url: HOME_URL, draft: HOME_URL, testMode: false, title: 'Google' });
   const openHanzakr = () => activeTab && updateTab(activeTab.id, { url: HANZAKR_URL, draft: HANZAKR_URL, testMode: false, title: 'هنذاكره' });
-  const openSpeechTest = () => activeTab && (updateTab(activeTab.id, { testMode: true, title: 'اختبار الصوت' }), setShowControls(false), setShowDiagnostics(true), addDiagnostic('Diagnostics test page opened'));
+  const openSpeechTest = () => {
+    if (!activeTab) return;
+    updateTab(activeTab.id, { testMode: true, title: 'اختبار الصوت' });
+    setShowControls(false);
+    setShowDiagnostics(true);
+    addDiagnostic('Diagnostics test page opened');
+  };
   const isFavorite = Boolean(activeTab && favorites.some((item) => item.url === activeTab.url));
   const toggleFavorite = () => { if (!activeTab || activeTab.testMode) return; setFavorites((current) => isFavorite ? current.filter((item) => item.url !== activeTab.url) : [{ id: `fav-${Date.now()}`, url: activeTab.url, title: activeTab.title, createdAt: new Date().toISOString() }, ...current]); };
   const openFavorite = (favorite: Favorite) => { if (activeTab) updateTab(activeTab.id, { url: favorite.url, draft: favorite.url, title: favorite.title, testMode: false }); setShowFavorites(false); };

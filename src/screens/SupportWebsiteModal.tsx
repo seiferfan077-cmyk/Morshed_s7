@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { RuqaaText as Text } from '../components/RuqaaText';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -18,12 +18,11 @@ export function SupportWebsiteModal({ visible, onClose }: SupportWebsiteModalPro
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
-  useEffect(() => {
-    if (visible) {
-      setLoading(true);
-      setHasError(false);
-    }
-  }, [visible]);
+  const handleShow = () => {
+    setLoading(true);
+    setHasError(false);
+    webViewRef.current?.reload();
+  };
 
   const retry = () => {
     setHasError(false);
@@ -37,6 +36,7 @@ export function SupportWebsiteModal({ visible, onClose }: SupportWebsiteModalPro
       animationType="slide"
       presentationStyle="fullScreen"
       onRequestClose={onClose}
+      onShow={handleShow}
     >
       <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
         <View style={styles.header}>
