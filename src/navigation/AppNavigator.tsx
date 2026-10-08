@@ -8,10 +8,12 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { HubScreen } from '../screens/HubScreen';
 import { MurshidAIScreen } from '../screens/MurshidAIScreen';
 import { FeaturesScreen } from '../screens/FeaturesScreen';
+import { MessagesScreen } from '../screens/MessagesScreen';
 import { colors, typography } from '../theme';
 
 export type RootTabParamList = {
   الرئيسية: undefined;
+  الرسائل: undefined;
   المتصفح: undefined;
   المعرض: undefined;
   'مرشد AI': undefined;
@@ -35,6 +37,7 @@ export function AppNavigator() {
           tabBarIcon: ({ color, size }) => {
             const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
               الرئيسية: 'grid-outline',
+              الرسائل: 'chatbubbles-outline',
               المتصفح: 'compass-outline',
               المعرض: 'images-outline',
               'مرشد AI': 'sparkles-outline',
@@ -47,6 +50,7 @@ export function AppNavigator() {
         })}
       >
         <Tabs.Screen name="الرئيسية" component={HomeScreen} />
+        <Tabs.Screen name="الرسائل" component={MessagesScreen} />
         <Tabs.Screen name="المتصفح" component={BrowserScreen} />
         <Tabs.Screen name="المعرض" component={MediaScreen} />
         <Tabs.Screen name="مرشد AI" component={MurshidAIScreen} />

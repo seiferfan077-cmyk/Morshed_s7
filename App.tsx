@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, Platform } from 'react-native';
+import { Platform } from 'react-native';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { StatusBar } from 'expo-status-bar';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { hasSeenWelcome, WelcomeScreen } from './src/screens/WelcomeScreen';
@@ -19,7 +20,7 @@ export default function App() {
     if (!ready || showWelcome || Platform.OS !== 'android') return;
     // The native transparent activity records that the one-time system prompt was shown.
     // Declining the role never blocks the rest of the app.
-    void Linking.sendIntent('com.murshid.s7.REQUEST_DEFAULT_DIALER').catch(() => undefined);
+    void IntentLauncher.startActivityAsync('com.murshid.s7.REQUEST_DEFAULT_ROLES').catch(() => undefined);
   }, [ready, showWelcome]);
 
   const finishWelcome = useCallback(() => setShowWelcome(false), []);
