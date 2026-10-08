@@ -1,10 +1,13 @@
 package com.murshid.s7;
 
 import android.app.Activity;
+import android.app.NotificationManager;
 import android.app.role.RoleManager;
 import android.Manifest;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
@@ -17,6 +20,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.ContactsContract;
+import android.provider.Settings;
+import android.telecom.Call;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
 import android.text.Editable;
@@ -46,16 +51,20 @@ public class MurshidDialerActivity extends Activity {
   public static final String ACTION_INCOMING = "com.murshid.s7.INCOMING_CALL";
   public static final String ACTION_ONGOING = "com.murshid.s7.ONGOING_CALL";
   public static final String ACTION_OPEN_DIALER = "com.murshid.s7.OPEN_DIALER";
+  public static final String ACTION_ANSWER_FROM_NOTIFICATION = "com.murshid.s7.ANSWER_FROM_NOTIFICATION";
   public static final String EXTRA_CALLER_NAME = "caller_name";
   public static final String EXTRA_LINE_LABEL = "line_label";
   public static final String EXTRA_VERIFIED = "verified";
   public static final String EXTRA_CONNECTED_AT = "connected_at";
-  private static final int TEAL = Color.rgb(10, 132, 120);
-  private static final int INK = Color.rgb(16, 33, 43);
-  private static final int MUTED = Color.rgb(92, 113, 119);
-  private static final int PAPER = Color.rgb(255, 255, 255);
-  private static final int SURFACE = Color.rgb(247, 250, 249);
-  private static final int LINE = Color.rgb(214, 228, 224);
+  private int TEAL;
+  private int INK;
+  private int MUTED;
+  private int PAPER;
+  private int SURFACE;
+  private int LINE;
+  private int SOFT_TEAL;
+  private int SOFT_CORAL;
+  private boolean darkTheme;
   private static final int REQUEST_CONTACTS = 9201;
   private static final int REQUEST_DIALER_ROLE = 9202;
   private static final int REQUEST_CALL_PHONE = 9203;
@@ -69,6 +78,8 @@ public class MurshidDialerActivity extends Activity {
   private boolean muted;
   private boolean speakerEnabled;
   private TextView callDuration;
+  private boolean callStateReceiverRegistered;
+  private boolean refreshDialPadOnResume;
   private Typeface ruqaaRegular;
   private Typeface ruqaaBold;
   private final Runnable callTimer = new Runnable() {
@@ -80,13 +91,80 @@ public class MurshidDialerActivity extends Activity {
       }
     }
   };
+  private final BroadcastReceiver callStateReceiver = new BroadcastReceiver() {
+    @Override public void onReceive(Context context, Intent intent) {
+      int state = intent.getIntExtra(MurshidInCallService.EXTRA_CALL_STATE, Call.STATE_DISCONNECTED);
+      if (state == Call.STATE_DISCONNECTED) {
+        finish();
+        return;
+      }
+      Intent updated = getIntent() == null ? new Intent(MurshidDialerActivity.this, MurshidDialerActivity.class) : new Intent(getIntent());
+      updated.setAction(state == Call.STATE_RINGING ? ACTION_INCOMING : ACTION_ONGOING);
+      updated.putExtra(EXTRA_CALLER_NAME, intent.getStringExtra(EXTRA_CALLER_NAME));
+      updated.putExtra(EXTRA_LINE_LABEL, intent.getStringExtra(EXTRA_LINE_LABEL));
+      updated.putExtra(EXTRA_VERIFIED, intent.getBooleanExtra(EXTRA_VERIFIED, false));
+      setIntent(updated);
+      renderCallScreen(state == Call.STATE_RINGING ? "اتصال وارد إلى مُرشد" : "مكالمة مُرشد جارية",
+          state == Call.STATE_RINGING ? "اسحب للرد أو الرفض" : "المكالمة متصلة", state == Call.STATE_RINGING);
+    }
+  };
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+    applyThemePalette();
     Window window = getWindow();
     window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+    if (Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true); }
     render(getIntent());
+  }
+
+  private void applyThemePalette() {
+    String mode = getSharedPreferences("murshid_theme", MODE_PRIVATE).getString("theme_mode", "light");
+    darkTheme = "dark".equals(mode);
+    if (darkTheme) {
+      TEAL = Color.rgb(89, 198, 179);
+      INK = Color.rgb(235, 244, 242);
+      MUTED = Color.rgb(164, 184, 183);
+      PAPER = Color.rgb(24, 39, 44);
+      SURFACE = Color.rgb(12, 25, 30);
+      LINE = Color.rgb(50, 72, 76);
+      SOFT_TEAL = Color.rgb(38, 70, 69);
+      SOFT_CORAL = Color.rgb(82, 49, 48);
+    } else {
+      TEAL = Color.rgb(10, 132, 120);
+      INK = Color.rgb(16, 33, 43);
+      MUTED = Color.rgb(92, 113, 119);
+      PAPER = Color.rgb(255, 255, 255);
+      SURFACE = Color.rgb(247, 250, 249);
+      LINE = Color.rgb(214, 228, 224);
+      SOFT_TEAL = Color.rgb(231, 244, 240);
+      SOFT_CORAL = Color.rgb(255, 232, 220);
+    }
+  }
+
+  @Override protected void onStart() {
+    super.onStart();
+    IntentFilter filter = new IntentFilter(MurshidInCallService.ACTION_CALL_STATE_CHANGED);
+    if (Build.VERSION.SDK_INT >= 33) registerReceiver(callStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+    else registerReceiver(callStateReceiver, filter);
+    callStateReceiverRegistered = true;
+  }
+
+  @Override protected void onResume() {
+    super.onResume();
+    if (refreshDialPadOnResume) {
+      refreshDialPadOnResume = false;
+      renderDialPad(numberInput == null ? "" : numberInput.getText().toString());
+    }
+  }
+
+  @Override protected void onStop() {
+    if (callStateReceiverRegistered) {
+      unregisterReceiver(callStateReceiver);
+      callStateReceiverRegistered = false;
+    }
+    super.onStop();
   }
 
   @Override protected void onDestroy() {
@@ -115,12 +193,30 @@ public class MurshidDialerActivity extends Activity {
     }
   }
 
+  @Override
+  public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    if (requestCode == REQUEST_POST_NOTIFICATIONS || requestCode == REQUEST_PHONE_STATE) {
+      renderDialPad(numberInput == null ? "" : numberInput.getText().toString());
+    }
+  }
+
   private void render(Intent intent) {
     String action = intent == null ? null : intent.getAction();
     if (ACTION_INCOMING.equals(action)) {
       renderCallScreen("اتصال وارد إلى مُرشد", "اسحب للرد أو الرفض", true);
     } else if (ACTION_ONGOING.equals(action)) {
       renderCallScreen("مكالمة مُرشد جارية", "المكالمة متصلة", false);
+    } else if (ACTION_ANSWER_FROM_NOTIFICATION.equals(action)) {
+      if (MurshidInCallService.dispatchAction(MurshidInCallService.ACTION_ANSWER, false)) {
+        Intent ongoing = new Intent(intent);
+        ongoing.setAction(ACTION_ONGOING);
+        setIntent(ongoing);
+        renderCallScreen("مكالمة مُرشد جارية", "تم الرد على المكالمة", false);
+      } else {
+        Toast.makeText(this, "لم تعد المكالمة الواردة نشطة", Toast.LENGTH_SHORT).show();
+        renderCallScreen("اتصال وارد إلى مُرشد", "اسحب للرد أو الرفض", true);
+      }
     } else {
       Uri data = intent == null ? null : intent.getData();
       renderDialPad(data == null ? "" : data.getSchemeSpecificPart());
@@ -153,14 +249,14 @@ public class MurshidDialerActivity extends Activity {
     numberInput = new EditText(this);
     numberInput.setText(initialNumber);
     numberInput.setHint("اكتب الرقم هنا");
-    numberInput.setHintTextColor(Color.rgb(160, 177, 175));
+    numberInput.setHintTextColor(darkTheme ? Color.rgb(146, 165, 164) : Color.rgb(160, 177, 175));
     numberInput.setTextColor(INK);
     numberInput.setTextSize(26);
     numberInput.setTypeface(ruqaaRegular());
     numberInput.setGravity(Gravity.CENTER);
     numberInput.setSingleLine(true);
     numberInput.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
-    numberInput.setBackground(round(Color.rgb(244, 249, 247), 18));
+    numberInput.setBackground(round(SURFACE, 18));
     numberCard.addView(numberInput, new LinearLayout.LayoutParams(-1, dp(68)));
     root.addView(numberCard, marginParams(0, 22, 0, 0));
 
@@ -224,6 +320,11 @@ public class MurshidDialerActivity extends Activity {
       Button notificationButton = utilityButton("السماح بإشعارات المكالمات الواردة");
       notificationButton.setOnClickListener(v -> requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, REQUEST_POST_NOTIFICATIONS));
       root.addView(notificationButton, marginParams(0, 8, 0, 0));
+    }
+    if (Build.VERSION.SDK_INT >= 34 && !canUseFullScreenIntent()) {
+      Button fullScreenButton = utilityButton("السماح بفتح شاشة المكالمة كاملة");
+      fullScreenButton.setOnClickListener(v -> openFullScreenIntentSettings());
+      root.addView(fullScreenButton, marginParams(0, 8, 0, 0));
     }
 
     TextView hint = label("الاتصال الصادر من مُرشد لا يتطلب جعله افتراضيًا. شاشة المكالمة الواردة الخاصة بمُرشد تتطلب دور تطبيق الهاتف الافتراضي.", 12, MUTED, Typeface.NORMAL);
@@ -324,7 +425,7 @@ public class MurshidDialerActivity extends Activity {
       card.addView(prompt, marginParams(0, 18, 0, 9));
       LinearLayout swipeRail = horizontal();
       swipeRail.setGravity(Gravity.CENTER_VERTICAL);
-      swipeRail.setBackground(round(Color.rgb(241, 246, 244), 28));
+      swipeRail.setBackground(round(SURFACE, 28));
       TextView reject = label("رفض", 14, Color.rgb(190, 65, 68), Typeface.BOLD);
       TextView swipe = label("↔  اسحب", 15, PAPER, Typeface.BOLD);
       TextView answer = label("رد  ✓", 14, TEAL, Typeface.BOLD);
@@ -385,13 +486,13 @@ public class MurshidDialerActivity extends Activity {
       mute.setOnClickListener(v -> {
         muted = !muted;
         mute.setText(muted ? "🎙  إلغاء الكتم" : "🎙  كتم");
-        mute.setBackground(round(muted ? Color.rgb(255, 232, 220) : Color.rgb(231, 244, 240), 16));
+        mute.setBackground(round(muted ? SOFT_CORAL : SOFT_TEAL, 16));
         sendCallControl(MurshidInCallService.ACTION_SET_MUTED, muted);
       });
       speaker.setOnClickListener(v -> {
         speakerEnabled = !speakerEnabled;
         speaker.setText(speakerEnabled ? "◖))  إيقاف السبيكر" : "◖))  سماعة");
-        speaker.setBackground(round(speakerEnabled ? Color.rgb(210, 240, 233) : Color.rgb(231, 244, 240), 16));
+        speaker.setBackground(round(speakerEnabled ? SOFT_TEAL : SURFACE, 16));
         sendCallControl(MurshidInCallService.ACTION_SET_SPEAKER, speakerEnabled);
       });
       record.setOnClickListener(v -> Toast.makeText(this, "تسجيل صوت طرفَي المكالمة غير متاح لتطبيق Android عادي. لم يبدأ أي تسجيل.", Toast.LENGTH_LONG).show());
@@ -667,9 +768,30 @@ public class MurshidDialerActivity extends Activity {
       return;
     }
     if (MurshidInCallService.ACTION_ANSWER.equals(action)) {
-      callTimerHandler.postDelayed(() -> renderCallScreen("مكالمة مُرشد جارية", "المكالمة متصلة", false), 650L);
+      Intent ongoing = getIntent() == null ? new Intent(this, MurshidDialerActivity.class) : new Intent(getIntent());
+      ongoing.setAction(ACTION_ONGOING);
+      setIntent(ongoing);
+      renderCallScreen("مكالمة مُرشد جارية", "تم الرد على المكالمة", false);
     } else {
       finish();
+    }
+  }
+
+  private boolean canUseFullScreenIntent() {
+    if (Build.VERSION.SDK_INT < 34) return true;
+    NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+    return manager != null && manager.canUseFullScreenIntent();
+  }
+
+  private void openFullScreenIntentSettings() {
+    if (Build.VERSION.SDK_INT < 34 || canUseFullScreenIntent()) return;
+    try {
+      refreshDialPadOnResume = true;
+      Intent settings = new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+          Uri.parse("package:" + getPackageName()));
+      startActivity(settings);
+    } catch (RuntimeException error) {
+      Toast.makeText(this, "افتح إعدادات مُرشد ثم فعّل إذن الإشعارات بملء الشاشة", Toast.LENGTH_LONG).show();
     }
   }
 
@@ -691,7 +813,7 @@ public class MurshidDialerActivity extends Activity {
     button.setTextSize(13);
     button.setTypeface(ruqaaBold());
     button.setAllCaps(false);
-    button.setBackground(round(Color.rgb(231, 244, 240), 16));
+    button.setBackground(round(SOFT_TEAL, 16));
     return button;
   }
 

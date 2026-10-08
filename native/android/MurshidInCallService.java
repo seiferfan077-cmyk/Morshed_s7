@@ -22,11 +22,14 @@ public class MurshidInCallService extends InCallService {
   public static final String ACTION_HANGUP = "com.murshid.s7.ACTION_HANGUP";
   public static final String ACTION_SET_MUTED = "com.murshid.s7.ACTION_SET_MUTED";
   public static final String ACTION_SET_SPEAKER = "com.murshid.s7.ACTION_SET_SPEAKER";
+  public static final String ACTION_CALL_STATE_CHANGED = "com.murshid.s7.CALL_STATE_CHANGED";
   public static final String EXTRA_ENABLED = "enabled";
+  public static final String EXTRA_CALL_STATE = "call_state";
   private static final String CHANNEL_ID = "murshid-incoming-calls-v2";
   private static final int NOTIFICATION_ID = 7001;
   private static Call currentCall;
   private static MurshidInCallService activeService;
+  private Call.Callback currentCallCallback;
   private TextToSpeech speech;
   private Ringtone ringtone;
 
@@ -38,28 +41,53 @@ public class MurshidInCallService extends InCallService {
   @Override
   public void onCallAdded(Call call) {
     super.onCallAdded(call);
+    if (currentCall != null && currentCallCallback != null) currentCall.unregisterCallback(currentCallCallback);
     currentCall = call;
-    MurshidCallerInfo info = MurshidCallerInfo.from(this, call);
-    boolean incoming = call.getState() == Call.STATE_RINGING;
-    showCallNotification(info, incoming);
-    if (incoming) announceThenRing(info);
-    call.registerCallback(new Call.Callback() {
+    currentCallCallback = new Call.Callback() {
       @Override public void onStateChanged(Call changedCall, int state) {
         if (state == Call.STATE_RINGING) {
           showCallNotification(MurshidCallerInfo.from(MurshidInCallService.this, changedCall), true);
         } else {
           stopRinging();
-          if (state == Call.STATE_DISCONNECTED) clearCall();
+          if (state == Call.STATE_DISCONNECTED) {
+            broadcastCallState(changedCall, state);
+            clearCall();
+          }
           else showCallNotification(MurshidCallerInfo.from(MurshidInCallService.this, changedCall), false);
         }
+        if (state != Call.STATE_DISCONNECTED) broadcastCallState(changedCall, state);
       }
-    });
+    };
+    call.registerCallback(currentCallCallback);
+    MurshidCallerInfo info = MurshidCallerInfo.from(this, call);
+    boolean incoming = call.getState() == Call.STATE_RINGING;
+    showCallNotification(info, incoming);
+    if (incoming) announceThenRing(info);
+    broadcastCallState(call, call.getState());
   }
 
   @Override
   public void onCallRemoved(Call call) {
-    if (currentCall == call) clearCall();
+    if (currentCall == call) {
+      broadcastCallState(call, Call.STATE_DISCONNECTED);
+      clearCall();
+    }
     super.onCallRemoved(call);
+  }
+
+  @Override public void onBringToForeground(boolean showDialpad) {
+    super.onBringToForeground(showDialpad);
+    Call call = currentCall;
+    if (call == null) return;
+    MurshidCallerInfo info = MurshidCallerInfo.from(this, call);
+    String action = call.getState() == Call.STATE_RINGING
+        ? MurshidDialerActivity.ACTION_INCOMING : MurshidDialerActivity.ACTION_ONGOING;
+    try {
+      startActivity(createCallScreenIntent(info, action)
+          .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
+    } catch (RuntimeException ignored) {
+      // The full-screen notification remains the fallback when Android disallows a background launch.
+    }
   }
 
   @Override public void onDestroy() {
@@ -103,19 +131,8 @@ public class MurshidInCallService extends InCallService {
 
   private void showCallNotification(MurshidCallerInfo info, boolean incoming) {
     createChannel();
-    Intent fullScreenIntent = new Intent(this, MurshidDialerActivity.class);
-    fullScreenIntent.setAction(incoming ? MurshidDialerActivity.ACTION_INCOMING : MurshidDialerActivity.ACTION_ONGOING);
-    fullScreenIntent.putExtra(MurshidDialerActivity.EXTRA_CALLER_NAME, info.displayName);
-    fullScreenIntent.putExtra(MurshidDialerActivity.EXTRA_LINE_LABEL, info.lineLabel);
-    fullScreenIntent.putExtra(MurshidDialerActivity.EXTRA_VERIFIED, info.verified);
-    long connectedAt = 0L;
-    if (Build.VERSION.SDK_INT >= 23 && currentCall != null && currentCall.getDetails() != null) {
-      connectedAt = currentCall.getDetails().getConnectTimeMillis();
-    }
-    fullScreenIntent.putExtra(MurshidDialerActivity.EXTRA_CONNECTED_AT,
-        connectedAt > 0L ? connectedAt : System.currentTimeMillis());
-    fullScreenIntent.setData(Uri.parse("tel:" + Uri.encode(info.number)));
-    fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_USER_ACTION | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    Intent fullScreenIntent = createCallScreenIntent(info,
+        incoming ? MurshidDialerActivity.ACTION_INCOMING : MurshidDialerActivity.ACTION_ONGOING);
     int immutable = Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0;
     PendingIntent content = PendingIntent.getActivity(this, NOTIFICATION_ID, fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT | immutable);
     Notification.Builder builder = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this);
@@ -132,7 +149,7 @@ public class MurshidInCallService extends InCallService {
         .setContentIntent(content);
     if (incoming) {
       PendingIntent reject = callActionPendingIntent(ACTION_REJECT, 7002);
-      PendingIntent answer = callActionPendingIntent(ACTION_ANSWER, 7003);
+      PendingIntent answer = callAnswerActivityPendingIntent(info);
       if (Build.VERSION.SDK_INT >= 31) {
         Person caller = new Person.Builder().setName(title).setImportant(true).build();
         builder.setStyle(Notification.CallStyle.forIncomingCall(caller, reject, answer));
@@ -142,6 +159,41 @@ public class MurshidInCallService extends InCallService {
       }
     }
     ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(NOTIFICATION_ID, builder.build());
+  }
+
+  private Intent createCallScreenIntent(MurshidCallerInfo info, String action) {
+    Intent intent = new Intent(this, MurshidDialerActivity.class);
+    intent.setAction(action);
+    intent.putExtra(MurshidDialerActivity.EXTRA_CALLER_NAME, info.displayName);
+    intent.putExtra(MurshidDialerActivity.EXTRA_LINE_LABEL, info.lineLabel);
+    intent.putExtra(MurshidDialerActivity.EXTRA_VERIFIED, info.verified);
+    long connectedAt = 0L;
+    if (Build.VERSION.SDK_INT >= 23 && currentCall != null && currentCall.getDetails() != null) {
+      connectedAt = currentCall.getDetails().getConnectTimeMillis();
+    }
+    intent.putExtra(MurshidDialerActivity.EXTRA_CONNECTED_AT,
+        connectedAt > 0L ? connectedAt : System.currentTimeMillis());
+    intent.setData(Uri.parse("tel:" + Uri.encode(info.number == null ? "" : info.number)));
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_USER_ACTION | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    return intent;
+  }
+
+  private PendingIntent callAnswerActivityPendingIntent(MurshidCallerInfo info) {
+    Intent intent = createCallScreenIntent(info, MurshidDialerActivity.ACTION_ANSWER_FROM_NOTIFICATION);
+    int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+    if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
+    return PendingIntent.getActivity(this, 7003, intent, flags);
+  }
+
+  private void broadcastCallState(Call call, int state) {
+    Intent update = new Intent(ACTION_CALL_STATE_CHANGED);
+    update.setPackage(getPackageName());
+    update.putExtra(EXTRA_CALL_STATE, state);
+    MurshidCallerInfo info = MurshidCallerInfo.from(this, call);
+    update.putExtra(MurshidDialerActivity.EXTRA_CALLER_NAME, info.displayName);
+    update.putExtra(MurshidDialerActivity.EXTRA_LINE_LABEL, info.lineLabel);
+    update.putExtra(MurshidDialerActivity.EXTRA_VERIFIED, info.verified);
+    sendBroadcast(update);
   }
 
   private PendingIntent callActionPendingIntent(String action, int requestCode) {
@@ -195,6 +247,8 @@ public class MurshidInCallService extends InCallService {
 
   private void clearCall() {
     stopRinging();
+    if (currentCall != null && currentCallCallback != null) currentCall.unregisterCallback(currentCallCallback);
+    currentCallCallback = null;
     currentCall = null;
     NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
     if (manager != null) manager.cancel(NOTIFICATION_ID);

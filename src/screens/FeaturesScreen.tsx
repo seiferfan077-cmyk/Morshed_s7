@@ -1,10 +1,13 @@
+import { useAppTheme } from '../theme/ThemeProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SurfaceCard } from '../components/SurfaceCard';
-import { colors, radii, spacing, typography } from '../theme';
+import { radii, spacing, typography, ThemeColors } from '../theme';
 
 export function FeaturesScreen() {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
@@ -67,7 +70,7 @@ export function FeaturesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) { return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.xl },
@@ -90,4 +93,4 @@ const styles = StyleSheet.create({
   cardTitle: { ...typography.label, color: colors.ink },
   cardDetail: { ...typography.body, color: colors.inkMuted, marginTop: 5 },
   sectionTitle: { ...typography.h2, color: colors.ink, marginTop: spacing.xl, marginBottom: spacing.sm },
-});
+}); }

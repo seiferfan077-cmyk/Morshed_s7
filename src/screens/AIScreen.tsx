@@ -1,3 +1,4 @@
+import { useAppTheme } from '../theme/ThemeProvider';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RuqaaText as Text, RuqaaTextInput as TextInput } from '../components/RuqaaText';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +14,7 @@ import { isFirebaseConfigured } from '../services/firebase/firebaseConfig';
 import { assembleContext } from '../services/memory/contextAssembly';
 import { extractMemoryCandidates } from '../services/memory/memoryExtractor';
 import { localMemoryProvider } from '../services/memory/memoryService';
-import { colors, radii, spacing, typography } from '../theme';
+import { radii, spacing, typography, ThemeColors } from '../theme';
 
 const configuredBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
 const hasBackendUrl = Boolean(configuredBaseUrl && !configuredBaseUrl.includes('api.example.com'));
@@ -33,6 +34,8 @@ function titleFromMessage(content: string) {
 }
 
 export function AIScreen({ onOpenMemory }: { onOpenMemory?: () => void } = {}) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   const [userConfig, setUserConfig] = useState<UserAIConfig | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
   const provider = useMemo(() => selectAIProvider(
@@ -137,7 +140,7 @@ export function AIScreen({ onOpenMemory }: { onOpenMemory?: () => void } = {}) {
   </KeyboardAvoidingView>;
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) { return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface, padding: spacing.lg },
   loadingScreen: { flex: 1, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start' }, headerActions: { flexDirection: 'row', gap: spacing.xs },
@@ -149,4 +152,4 @@ const styles = StyleSheet.create({
   bubble: { maxWidth: '86%', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.lg }, assistantBubble: { alignSelf: 'flex-start', backgroundColor: colors.paper, borderBottomLeftRadius: 6 }, userBubble: { alignSelf: 'flex-end', backgroundColor: colors.ink, borderBottomRightRadius: 6 }, bubbleText: { ...typography.body, color: colors.ink }, userBubbleText: { color: colors.paper }, error: { ...typography.body, color: colors.danger, fontSize: 12, marginBottom: spacing.xs },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.line }, input: { flex: 1, maxHeight: 120, minHeight: 46, borderRadius: radii.lg, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, color: colors.ink, paddingHorizontal: spacing.md, paddingTop: 12, paddingBottom: 10, ...typography.body }, sendButton: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.tealDark, alignItems: 'center', justifyContent: 'center' }, disabled: { backgroundColor: colors.inkFaint }, pressed: { opacity: 0.75 },
   modalBackdrop: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(16,33,43,0.42)' }, dismissArea: { flex: 1 }, sidebar: { width: '86%', backgroundColor: colors.surface, padding: spacing.lg, paddingTop: 54 }, sidebarHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }, sidebarEyebrow: { ...typography.label, color: colors.tealDark, letterSpacing: 1 }, sidebarTitle: { ...typography.h1, color: colors.ink, marginTop: 3 }, closeButton: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' }, newConversation: { height: 48, borderRadius: radii.md, marginTop: spacing.lg, backgroundColor: colors.ink, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs }, newConversationText: { ...typography.label, color: colors.paper }, memoryHint: { ...typography.body, color: colors.inkMuted, fontSize: 12, marginTop: spacing.md }, conversationList: { paddingTop: spacing.md, paddingBottom: spacing.xxl, gap: spacing.xs }, conversationItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radii.md }, activeConversation: { backgroundColor: colors.tealSoft }, conversationCopy: { flex: 1 }, conversationTitle: { ...typography.label, color: colors.ink }, conversationMeta: { ...typography.body, color: colors.inkMuted, fontSize: 11, marginTop: 2 },
-});
+}); }

@@ -1,3 +1,4 @@
+import { useAppTheme } from '../theme/ThemeProvider';
 import { useCallback, useState } from 'react';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
@@ -6,7 +7,7 @@ import * as IntentLauncher from 'expo-intent-launcher';
 import { AppState, NativeModules, PermissionsAndroid, Platform, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { ActionButton } from '../components/ActionButton';
 import { SurfaceCard } from '../components/SurfaceCard';
-import { colors, radii, spacing, typography } from '../theme';
+import { radii, spacing, typography, ThemeColors } from '../theme';
 
 type SmsMessage = {
   id: string;
@@ -27,6 +28,8 @@ type ScreenState = 'loading' | 'ready' | 'not-default' | 'permission' | 'unavail
 const smsBridge = NativeModules.MurshidSms as SmsBridge | undefined;
 
 export function MessagesScreen() {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   const isFocused = useIsFocused();
   const [state, setState] = useState<ScreenState>('loading');
   const [messages, setMessages] = useState<SmsMessage[]>([]);
@@ -183,7 +186,7 @@ function formatDate(timestamp: number) {
   }
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) { return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   header: { alignItems: 'flex-start', marginBottom: spacing.sm },
@@ -204,4 +207,4 @@ const styles = StyleSheet.create({
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.teal, marginLeft: spacing.sm },
   messageBody: { ...typography.body, color: colors.inkMuted, marginTop: spacing.md },
   footer: { ...typography.body, color: colors.inkFaint, fontSize: 12, textAlign: 'center', marginTop: spacing.sm },
-});
+}); }

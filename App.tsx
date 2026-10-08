@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 import * as IntentLauncher from 'expo-intent-launcher';
+import * as SystemUI from 'expo-system-ui';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { hasSeenWelcome, WelcomeScreen } from './src/screens/WelcomeScreen';
+import { ThemeProvider, useAppTheme } from './src/theme/ThemeProvider';
 
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({
@@ -33,5 +35,12 @@ export default function App() {
   if (!fontsLoaded && !fontError) return null;
   if (!ready) return <><StatusBar style="light" /><WelcomeScreen onComplete={() => undefined} /></>;
   if (showWelcome) return <><StatusBar style="light" /><WelcomeScreen onComplete={finishWelcome} /></>;
-  return <><StatusBar style="dark" /><AppNavigator /></>;
+  return <ThemeProvider><ThemedApp /></ThemeProvider>;
+}
+
+function ThemedApp() {
+  const { colors, mode, ready } = useAppTheme();
+  useEffect(() => { void SystemUI.setBackgroundColorAsync(colors.surface).catch(() => undefined); }, [colors.surface]);
+  if (!ready) return null;
+  return <View style={{ flex: 1, backgroundColor: colors.surface }}><StatusBar style={mode === 'dark' ? 'light' : 'dark'} /><AppNavigator /></View>;
 }

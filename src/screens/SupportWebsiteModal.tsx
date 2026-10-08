@@ -1,10 +1,11 @@
+import { useAppTheme } from '../theme/ThemeProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import { colors, radii, spacing, typography } from '../theme';
+import { radii, spacing, typography, ThemeColors } from '../theme';
 
 const SUPPORT_URL = 'https://setr-seif-ai.vercel.app/';
 
@@ -14,6 +15,8 @@ type SupportWebsiteModalProps = {
 };
 
 export function SupportWebsiteModal({ visible, onClose }: SupportWebsiteModalProps) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   const webViewRef = useRef<WebView>(null);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -122,7 +125,7 @@ export function SupportWebsiteModal({ visible, onClose }: SupportWebsiteModalPro
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ThemeColors) { return StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface },
   header: {
     minHeight: 66,
@@ -181,4 +184,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.tealSoft,
   },
   pressed: { opacity: 0.72 },
-});
+}); }

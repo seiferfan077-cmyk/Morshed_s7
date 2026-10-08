@@ -228,6 +228,7 @@ module.exports = function withMurshidDialer(config) {
       'MurshidRolePromptActivity.java',
       'MurshidSmsModule.java',
       'MurshidSmsPackage.java',
+      'MurshidThemeModule.java',
       'MurshidSmsReceiver.java',
       'MurshidWapPushReceiver.java',
       'MurshidRespondViaMessageService.java',

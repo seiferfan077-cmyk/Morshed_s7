@@ -5,11 +5,11 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { BrowserScreen } from '../screens/BrowserScreen';
 import { MediaScreen } from '../screens/MediaScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-import { HubScreen } from '../screens/HubScreen';
 import { MurshidAIScreen } from '../screens/MurshidAIScreen';
 import { FeaturesScreen } from '../screens/FeaturesScreen';
 import { MessagesScreen } from '../screens/MessagesScreen';
-import { colors, typography } from '../theme';
+import { typography } from '../theme';
+import { useAppTheme } from '../theme/ThemeProvider';
 
 export type RootTabParamList = {
   الرئيسية: undefined;
@@ -18,13 +18,13 @@ export type RootTabParamList = {
   المعرض: undefined;
   'مرشد AI': undefined;
   المميزات: undefined;
-  Hub: undefined;
   الإعدادات: undefined;
 };
 
 const Tabs = createBottomTabNavigator<RootTabParamList>();
 
 export function AppNavigator() {
+  const { colors } = useAppTheme();
   return (
     <NavigationContainer>
       <Tabs.Navigator
@@ -42,7 +42,6 @@ export function AppNavigator() {
               المعرض: 'images-outline',
               'مرشد AI': 'sparkles-outline',
               المميزات: 'star-outline',
-              Hub: 'git-branch-outline',
               الإعدادات: 'settings-outline',
             };
             return <Ionicons name={icons[route.name]} size={size} color={color} />;
@@ -55,7 +54,6 @@ export function AppNavigator() {
         <Tabs.Screen name="المعرض" component={MediaScreen} />
         <Tabs.Screen name="مرشد AI" component={MurshidAIScreen} />
         <Tabs.Screen name="المميزات" component={FeaturesScreen} />
-        <Tabs.Screen name="Hub" component={HubScreen} options={{ tabBarLabel: 'Hub' }} />
         <Tabs.Screen name="الإعدادات" component={SettingsScreen} />
       </Tabs.Navigator>
     </NavigationContainer>

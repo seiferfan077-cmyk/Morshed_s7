@@ -8,7 +8,7 @@
     },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
     },
@@ -37,7 +37,8 @@
       ],
       "expo-secure-store",
       "expo-video",
-      "./plugins/withMurshidDialer"
+      "./plugins/withMurshidDialer",
+      "expo-image"
     ],
     "extra": {
       "eas": {
