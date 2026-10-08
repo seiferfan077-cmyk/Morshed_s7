@@ -28,10 +28,13 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Install dependencies
         run: npm ci
+      - name: Install log decompression support
+        run: python3 -m pip install --user brotli
       - name: Read EAS build details
         run: |
           eas build:view "${{ inputs.build_id }}" --json > /tmp/eas-view.txt
           python3 - <<'PY'
+          import brotli
           import bz2
           import gzip
           import json
@@ -52,6 +55,7 @@ jobs:
 
           decoded = None
           decoders = [
+              ('brotli', lambda value: brotli.decompress(value)),
               ('gzip', lambda value: gzip.decompress(value)),
               ('zlib', lambda value: zlib.decompress(value)),
               ('deflate-raw', lambda value: zlib.decompress(value, -15)),
