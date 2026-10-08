@@ -26,5 +26,7 @@ jobs:
           eas-version: latest
           packager: npm
           token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install dependencies
+        run: npm ci
       - name: Read EAS build details
         run: eas build:view "${{ inputs.build_id }}" --json
