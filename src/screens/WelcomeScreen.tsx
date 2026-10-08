@@ -1,12 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEvent } from 'expo';
 import { Ionicons } from '@expo/vector-icons';
 import { RuqaaText as Text } from '../components/RuqaaText';
-import { useEffect, useState } from 'react';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { colors, radii, spacing, typography } from '../theme';
 
 const WELCOME_SEEN_KEY = '@murshid/welcome-seen';
+const WELCOME_VIDEO_URL = 'https://drive.google.com/uc?export=download&id=1DQ7qmZU_w83M7bwabfyhhvNfWEu_Ba82';
 type WelcomeStage = 'intro' | 'video';
 
 export async function hasSeenWelcome() {
@@ -120,44 +123,15 @@ export function WelcomeScreen({ onComplete }: { onComplete: () => void }) {
             </ScrollView>
           ) : (
             <ScrollView contentContainerStyle={styles.videoScroll} showsVerticalScrollIndicator={false}>
-              <Animated.View style={[styles.videoContent, { opacity: reveal, transform: [{ translateY: entranceY }] }]}>
-                <View style={styles.videoHeading}>
-                  <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>02</Text><View style={styles.stepBadgeLine} /><Text style={styles.stepCount}>من 02</Text></View>
-                  <Text style={styles.videoTitle}>قبل أن نبدأ،{ '\n' }دعنا نعرّفك بمُرشد.</Text>
-                  <Text style={styles.videoDescription}>سيكون هنا فيديو قصير يريك كيف تصنع مُرشد مساحتك اليومية.</Text>
-                </View>
-
-                <View style={styles.videoCard}>
-                  <View style={styles.videoCardTop}>
-                    <View style={styles.comingSoonBadge}><View style={styles.comingSoonDot} /><Text style={styles.comingSoonText}>قريباً</Text></View>
-                    <Text style={styles.videoLabel}>جولة مُرشد</Text>
-                  </View>
-                  <View style={styles.videoArtwork}>
-                    <Animated.View style={[styles.videoAura, { transform: [{ scale: floatingScale }] }]} />
-                    <View style={styles.videoRing} />
-                    <View style={styles.playButton}>
-                      <Ionicons name="play" size={25} color={colors.ink} style={styles.playIcon} />
-                    </View>
-                    <View style={styles.videoBrandMark}><Ionicons name="sparkles" size={18} color="#A9F1E6" /><Text style={styles.videoBrandText}>مُرشد · S7</Text></View>
-                  </View>
-                  <View style={styles.videoCardFooter}>
-                    <View style={styles.videoProgressTrack}><View style={styles.videoProgressStub} /></View>
-                    <Text style={styles.videoDuration}>فيديو تعريفي</Text>
-                  </View>
-                </View>
-
-                <View style={styles.videoNote}>
-                  <View style={styles.noteIcon}><Ionicons name="link-outline" size={17} color="#9AE7DB" /></View>
-                  <Text style={styles.noteText}>أرسل رابط الفيديو عندما يكون جاهزاً، وسأضعه هنا مكان هذه المعاينة.</Text>
-                </View>
+              <Animated.View style={[styles.videoContent, { opacity: reveal, transform: [{ translateY: entranceY }] }] }>
+                <IntroVideoPlayer onContinue={finishWelcome} />
               </Animated.View>
             </ScrollView>
           )}
         </Animated.View>
 
-        <View style={styles.footer}>
-          {stage === 'intro' ? (
-            <>
+        {stage === 'intro' ? (
+          <View style={styles.footer}>
               <View style={styles.stepIndicator}>
                 <View style={[styles.stepDot, styles.stepDotActive]} /><View style={styles.stepLine} /><View style={styles.stepDot} />
                 <Text style={styles.stepCaption}>خطوة واحدة لتبدأ</Text>
@@ -167,21 +141,86 @@ export function WelcomeScreen({ onComplete }: { onComplete: () => void }) {
                 <Ionicons name="arrow-back" size={18} color={colors.ink} />
               </Pressable>
               <Text style={styles.footerHint}>تجربة بسيطة. مساحة تخصّك.</Text>
-            </>
-          ) : (
-            <>
-              <Pressable accessibilityRole="button" accessibilityLabel="الدخول إلى التطبيق بدون مشاهدة الفيديو" disabled={transitioning} onPress={finishWelcome} style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}>
-                <Text style={styles.primaryButtonText}>دخول مُرشد</Text>
-                <Ionicons name="arrow-back" size={18} color={colors.ink} />
-              </Pressable>
-              <Pressable accessibilityRole="button" disabled={transitioning} onPress={finishWelcome} hitSlop={12} style={styles.skipButton}>
-                <Text style={styles.skipText}>أشاهده لاحقاً</Text>
-              </Pressable>
-            </>
-          )}
-        </View>
+          </View>
+        ) : null}
       </View>
     </SafeAreaView>
+  );
+}
+
+function IntroVideoPlayer({ onContinue }: { onContinue: () => void }) {
+  const player = useVideoPlayer(WELCOME_VIDEO_URL, (videoPlayer) => {
+    videoPlayer.loop = false;
+    videoPlayer.muted = false;
+  });
+  const videoViewRef = useRef<VideoView>(null);
+  const { status } = useEvent(player, 'statusChange', { status: player.status });
+  const isReady = status === 'readyToPlay';
+  const hasError = status === 'error';
+
+  const playFullscreen = () => {
+    if (!isReady) return;
+    player.play();
+    const videoView = videoViewRef.current;
+    if (videoView) void videoView.enterFullscreen().catch(() => undefined);
+  };
+
+  return (
+    <>
+      <View style={styles.videoHeading}>
+        <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>02</Text><View style={styles.stepBadgeLine} /><Text style={styles.stepCount}>من 02</Text></View>
+        <Text style={styles.videoTitle}>قبل أن نبدأ،{ '\n' }دعنا نعرّفك بمُرشد.</Text>
+        <Text style={styles.videoDescription}>جولة قصيرة لتتعرف على مساحتك الجديدة.</Text>
+      </View>
+
+      <View style={styles.videoCard}>
+        <View style={styles.videoCardTop}>
+          <View style={styles.readyBadge}><View style={styles.readyDot} /><Text style={styles.readyText}>فيديو تعريفي</Text></View>
+          <Text style={styles.videoLabel}>جولة مُرشد</Text>
+        </View>
+        <View style={styles.videoFrame}>
+          <VideoView
+            ref={videoViewRef}
+            player={player}
+            style={styles.videoView}
+            contentFit="contain"
+            nativeControls
+            fullscreenOptions={{ enable: true, orientation: 'portrait' }}
+          />
+          {!isReady && !hasError ? (
+            <View pointerEvents="none" style={styles.videoStatusOverlay}>
+              <ActivityIndicator size="small" color="#9AE7DB" />
+              <Text style={styles.videoStatusText}>جارٍ تجهيز الفيديو…</Text>
+            </View>
+          ) : null}
+          {hasError ? (
+            <View pointerEvents="none" style={styles.videoStatusOverlay}>
+              <Ionicons name="cloud-offline-outline" size={23} color="#F4BE5B" />
+              <Text style={styles.videoStatusText}>تعذر تحميل الفيديو. يمكنك الدخول إلى مُرشد والمتابعة لاحقاً.</Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={styles.videoMetaRow}>
+          <Text style={styles.videoDuration}>{isReady ? 'جاهز للمشاهدة' : hasError ? 'تعذر التحميل' : 'اتصال آمن عبر Google Drive'}</Text>
+        </View>
+      </View>
+
+      <View style={styles.videoNote}>
+        <View style={styles.noteIcon}><Ionicons name="scan-outline" size={17} color="#9AE7DB" /></View>
+        <Text style={styles.noteText}>اضغط لمشاهدة الفيديو بملء الشاشة. ويمكنك إغلاق المشغّل للعودة إلى هذه الخطوة.</Text>
+      </View>
+
+      <View style={styles.videoActions}>
+        <Pressable accessibilityRole="button" accessibilityLabel="تشغيل فيديو التعريف بملء الشاشة" disabled={!isReady} onPress={playFullscreen} style={({ pressed }) => [styles.primaryButton, !isReady && styles.buttonDisabled, pressed && isReady && styles.buttonPressed]}>
+          <Text style={styles.primaryButtonText}>{hasError ? 'الفيديو غير متاح الآن' : isReady ? 'مشاهدة بملء الشاشة' : 'جارٍ تجهيز الفيديو'}</Text>
+          {isReady ? <Ionicons name="expand-outline" size={18} color={colors.ink} /> : hasError ? <Ionicons name="alert-circle-outline" size={18} color={colors.ink} /> : <ActivityIndicator size="small" color={colors.ink} />}
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="تخطي الفيديو والدخول إلى التطبيق" onPress={onContinue} hitSlop={10} style={styles.skipButton}>
+          <Text style={styles.skipText}>الدخول إلى مُرشد</Text>
+          <Ionicons name="arrow-back" size={15} color="#9BAEAF" />
+        </Pressable>
+      </View>
+    </>
   );
 }
 
@@ -237,24 +276,20 @@ const styles = StyleSheet.create({
   videoDescription: { ...typography.body, color: '#A9BDBF', textAlign: 'right', fontSize: 13, lineHeight: 21, marginTop: 8, maxWidth: 320 },
   videoCard: { width: '100%', alignSelf: 'center', maxWidth: 400, backgroundColor: '#10272D', borderColor: 'rgba(191,223,217,0.14)', borderWidth: 1, borderRadius: 24, overflow: 'hidden', padding: 13 },
   videoCardTop: { height: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  comingSoonBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(244,190,91,0.1)', borderRadius: radii.pill, paddingVertical: 4, paddingHorizontal: 8 },
-  comingSoonDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#F4BE5B' },
-  comingSoonText: { color: '#F4D69A', fontSize: 9 },
+  readyBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(101,205,188,0.1)', borderRadius: radii.pill, paddingVertical: 4, paddingHorizontal: 8 },
+  readyDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#65CDBC' },
+  readyText: { color: '#A9E4D8', fontSize: 9 },
   videoLabel: { color: '#D9E6E3', fontSize: 11 },
-  videoArtwork: { width: '100%', aspectRatio: 1.72, borderRadius: 16, backgroundColor: '#0A1A20', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  videoAura: { position: 'absolute', width: 160, height: 160, borderRadius: 80, backgroundColor: '#0E554F', opacity: 0.45 },
-  videoRing: { position: 'absolute', width: 124, height: 124, borderRadius: 62, borderWidth: 1, borderColor: 'rgba(154,231,219,0.18)' },
-  playButton: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#9AE7DB', alignItems: 'center', justifyContent: 'center', paddingLeft: 3, shadowColor: '#64E2D0', shadowOpacity: 0.26, shadowRadius: 18, shadowOffset: { width: 0, height: 5 }, elevation: 7 },
-  playIcon: { marginLeft: 2 },
-  videoBrandMark: { position: 'absolute', bottom: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  videoBrandText: { color: '#B7CDCA', fontSize: 10 },
-  videoCardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 11 },
-  videoProgressTrack: { height: 3, flex: 1, borderRadius: 2, backgroundColor: '#294248', overflow: 'hidden', marginRight: 14 },
-  videoProgressStub: { width: '13%', height: '100%', backgroundColor: '#65CDBC' },
+  videoFrame: { width: '100%', aspectRatio: 0.8, maxHeight: 430, borderRadius: 16, backgroundColor: '#050D11', overflow: 'hidden' },
+  videoView: { width: '100%', height: '100%' },
+  videoStatusOverlay: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: spacing.lg, backgroundColor: 'rgba(5,13,17,0.76)' },
+  videoStatusText: { color: '#D2E1DE', fontSize: 11, textAlign: 'center', lineHeight: 18 },
+  videoMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 10 },
   videoDuration: { color: '#809498', fontSize: 9 },
   videoNote: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10, marginTop: 14, paddingHorizontal: 3 },
   noteIcon: { width: 32, height: 32, borderRadius: 11, backgroundColor: 'rgba(154,231,219,0.1)', alignItems: 'center', justifyContent: 'center' },
   noteText: { flex: 1, color: '#A9BDBF', fontSize: 11, lineHeight: 18, textAlign: 'right' },
+  videoActions: { alignItems: 'center', gap: 4, marginTop: 16 },
   footer: { paddingHorizontal: spacing.lg, paddingTop: 8, paddingBottom: 12, alignItems: 'center' },
   stepIndicator: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 13 },
   stepDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#3A5055' },
@@ -263,6 +298,7 @@ const styles = StyleSheet.create({
   stepCaption: { color: '#81969A', fontSize: 10, marginLeft: 3 },
   primaryButton: { width: '100%', maxWidth: 460, minHeight: 54, borderRadius: 18, backgroundColor: '#9AE7DB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   primaryButtonText: { ...typography.label, color: '#0B2729', fontSize: 14 },
+  buttonDisabled: { opacity: 0.68 },
   buttonPressed: { opacity: 0.82, transform: [{ scale: 0.99 }] },
   footerHint: { color: '#70878B', fontSize: 10, marginTop: 11 },
   skipButton: { minHeight: 38, justifyContent: 'center', paddingHorizontal: 16, marginTop: 5 },
