@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { colors, radii, spacing, typography } from '../theme';
 
@@ -28,6 +28,17 @@ export function FeaturesScreen() {
           </View>
         </View>
       </SurfaceCard>
+
+      <Text style={styles.sectionTitle}>الاتصال الهاتفي</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="فتح لوحة الاتصال" onPress={() => { void Linking.openURL('tel:'); }} style={({ pressed }) => [styles.callCard, pressed && styles.pressed]}>
+        <View style={styles.callIcon}><Ionicons name="call-outline" size={28} color={colors.paper} /></View>
+        <View style={styles.callCopy}>
+          <Text style={styles.callTitle}>اتصال مُرشد</Text>
+          <Text style={styles.callDetail}>لوحة أرقام حديثة، اختيار الشريحة، واتصال مباشر من داخل التطبيق.</Text>
+          <Text style={styles.callHint}>اضغط لفتح لوحة الاتصال</Text>
+        </View>
+        <Ionicons name="chevron-forward-outline" size={22} color={colors.tealDark} />
+      </Pressable>
 
       <Text style={styles.sectionTitle}>موجز التحديثات</Text>
       <SurfaceCard>
@@ -68,6 +79,13 @@ const styles = StyleSheet.create({
   iconBox: { width: 42, height: 42, borderRadius: 14, backgroundColor: colors.amberSoft, alignItems: 'center', justifyContent: 'center' },
   updateIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: colors.tealSoft, alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, marginLeft: spacing.sm },
+  callCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.ink, borderRadius: radii.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.ink },
+  callIcon: { width: 54, height: 54, borderRadius: 18, backgroundColor: colors.tealDark, alignItems: 'center', justifyContent: 'center' },
+  callCopy: { flex: 1, marginHorizontal: spacing.sm },
+  callTitle: { ...typography.h2, color: colors.paper, fontSize: 18 },
+  callDetail: { ...typography.body, color: '#c8e3de', fontSize: 12, marginTop: 3 },
+  callHint: { ...typography.label, color: '#7ee1d1', fontSize: 11, marginTop: 8 },
+  pressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
   cardTitle: { ...typography.label, color: colors.ink },
   cardDetail: { ...typography.body, color: colors.inkMuted, marginTop: 5 },
   sectionTitle: { ...typography.h2, color: colors.ink, marginTop: spacing.xl, marginBottom: spacing.sm },
