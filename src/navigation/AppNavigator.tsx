@@ -7,6 +7,7 @@ import { MediaScreen } from '../screens/MediaScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { HubScreen } from '../screens/HubScreen';
 import { MurshidAIScreen } from '../screens/MurshidAIScreen';
+import { FeaturesScreen } from '../screens/FeaturesScreen';
 import { colors, typography } from '../theme';
 
 export type RootTabParamList = {
@@ -14,6 +15,7 @@ export type RootTabParamList = {
   المتصفح: undefined;
   المعرض: undefined;
   'مرشد AI': undefined;
+  المميزات: undefined;
   Hub: undefined;
   الإعدادات: undefined;
 };
@@ -36,6 +38,7 @@ export function AppNavigator() {
               المتصفح: 'compass-outline',
               المعرض: 'images-outline',
               'مرشد AI': 'sparkles-outline',
+              المميزات: 'star-outline',
               Hub: 'git-branch-outline',
               الإعدادات: 'settings-outline',
             };
@@ -47,6 +50,7 @@ export function AppNavigator() {
         <Tabs.Screen name="المتصفح" component={BrowserScreen} />
         <Tabs.Screen name="المعرض" component={MediaScreen} />
         <Tabs.Screen name="مرشد AI" component={MurshidAIScreen} />
+        <Tabs.Screen name="المميزات" component={FeaturesScreen} />
         <Tabs.Screen name="Hub" component={HubScreen} options={{ tabBarLabel: 'Hub' }} />
         <Tabs.Screen name="الإعدادات" component={SettingsScreen} />
       </Tabs.Navigator>
