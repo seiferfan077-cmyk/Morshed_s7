@@ -5,6 +5,7 @@ const { withAndroidManifest, withDangerousMod } = require('@expo/config-plugins'
 const PACKAGE = 'com.murshid.s7';
 const SERVICE_NAME = '.MurshidInCallService';
 const ACTIVITY_NAME = '.MurshidDialerActivity';
+const ROLE_PROMPT_ACTIVITY_NAME = '.MurshidRolePromptActivity';
 
 function ensurePermission(manifest, name) {
   manifest.manifest['uses-permission'] ??= [];
@@ -72,6 +73,39 @@ function ensureInCallService(application) {
   });
 }
 
+function ensureRolePromptActivity(application) {
+  application.activity ??= [];
+  let activity = application.activity.find((entry) => entry.$?.['android:name'] === ROLE_PROMPT_ACTIVITY_NAME);
+  if (!activity) {
+    activity = {
+      $: {
+        'android:name': ROLE_PROMPT_ACTIVITY_NAME,
+        'android:exported': 'true',
+        'android:launchMode': 'singleTop',
+        'android:excludeFromRecents': 'true',
+        'android:theme': '@android:style/Theme.Translucent.NoTitleBar',
+      },
+      'intent-filter': [],
+    };
+    application.activity.push(activity);
+  }
+  activity.$ = {
+    ...activity.$,
+    'android:exported': 'true',
+    'android:launchMode': 'singleTop',
+    'android:excludeFromRecents': 'true',
+    'android:theme': '@android:style/Theme.Translucent.NoTitleBar',
+  };
+  activity['intent-filter'] ??= [];
+  const actionName = 'com.murshid.s7.REQUEST_DEFAULT_DIALER';
+  if (!activity['intent-filter'].some((filter) => filter.action?.some((action) => action.$?.['android:name'] === actionName))) {
+    activity['intent-filter'].push({
+      action: [{ $: { 'android:name': actionName } }],
+      category: [{ $: { 'android:name': 'android.intent.category.DEFAULT' } }],
+    });
+  }
+}
+
 module.exports = function withMurshidDialer(config) {
   config = withAndroidManifest(config, (config) => {
     const manifest = config.modResults;
@@ -84,6 +118,7 @@ module.exports = function withMurshidDialer(config) {
     const application = manifest.manifest.application?.[0];
     if (application) {
       ensureActivity(application, ACTIVITY_NAME);
+      ensureRolePromptActivity(application);
       ensureInCallService(application);
     }
     return config;
@@ -93,7 +128,7 @@ module.exports = function withMurshidDialer(config) {
     const sourceDir = path.join(config.modRequest.projectRoot, 'native', 'android');
     const targetDir = path.join(config.modRequest.platformProjectRoot, 'app', 'src', 'main', 'java', ...PACKAGE.split('.'));
     fs.mkdirSync(targetDir, { recursive: true });
-    for (const filename of ['MurshidCallerInfo.java', 'MurshidDialerActivity.java', 'MurshidInCallService.java']) {
+    for (const filename of ['MurshidCallerInfo.java', 'MurshidDialerActivity.java', 'MurshidInCallService.java', 'MurshidRolePromptActivity.java']) {
       fs.copyFileSync(path.join(sourceDir, filename), path.join(targetDir, filename));
     }
     return config;
