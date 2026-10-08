@@ -48,6 +48,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class MurshidDialerActivity extends Activity {
+  private static volatile boolean callScreenVisible;
   public static final String ACTION_INCOMING = "com.murshid.s7.INCOMING_CALL";
   public static final String ACTION_ONGOING = "com.murshid.s7.ONGOING_CALL";
   public static final String ACTION_OPEN_DIALER = "com.murshid.s7.OPEN_DIALER";
@@ -80,6 +81,8 @@ public class MurshidDialerActivity extends Activity {
   private TextView callDuration;
   private boolean callStateReceiverRegistered;
   private boolean refreshDialPadOnResume;
+  private boolean overlayPermissionRequestPending;
+  private static volatile boolean externalSettingsVisible;
   private Typeface ruqaaRegular;
   private Typeface ruqaaBold;
   private final Runnable callTimer = new Runnable() {
@@ -145,14 +148,27 @@ public class MurshidDialerActivity extends Activity {
 
   @Override protected void onStart() {
     super.onStart();
+    callScreenVisible = true;
     IntentFilter filter = new IntentFilter(MurshidInCallService.ACTION_CALL_STATE_CHANGED);
     if (Build.VERSION.SDK_INT >= 33) registerReceiver(callStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
     else registerReceiver(callStateReceiver, filter);
     callStateReceiverRegistered = true;
+    MurshidInCallService.setCallScreenActivityVisible(true);
   }
 
   @Override protected void onResume() {
     super.onResume();
+    externalSettingsVisible = false;
+    if (overlayPermissionRequestPending) {
+      overlayPermissionRequestPending = false;
+      if (MurshidCallOverlay.hasPermission(this)) {
+        MurshidCallOverlay.setEnabled(this, true);
+        Toast.makeText(this, "تم السماح بالواجهة العائمة وتشغيلها", Toast.LENGTH_LONG).show();
+      } else {
+        Toast.makeText(this, "لم يُمنح إذن الظهور فوق التطبيقات؛ بقيت الواجهة العائمة متوقفة", Toast.LENGTH_LONG).show();
+      }
+      refreshDialPadOnResume = true;
+    }
     if (refreshDialPadOnResume) {
       refreshDialPadOnResume = false;
       renderDialPad(numberInput == null ? "" : numberInput.getText().toString());
@@ -164,8 +180,13 @@ public class MurshidDialerActivity extends Activity {
       unregisterReceiver(callStateReceiver);
       callStateReceiverRegistered = false;
     }
+    callScreenVisible = false;
+    if (!externalSettingsVisible) MurshidInCallService.setCallScreenActivityVisible(false);
     super.onStop();
   }
+
+  public static boolean isCallScreenVisible() { return callScreenVisible; }
+  public static boolean isExternalSettingsVisible() { return externalSettingsVisible; }
 
   @Override protected void onDestroy() {
     callTimerHandler.removeCallbacks(callTimer);
@@ -326,8 +347,22 @@ public class MurshidDialerActivity extends Activity {
       fullScreenButton.setOnClickListener(v -> openFullScreenIntentSettings());
       root.addView(fullScreenButton, marginParams(0, 8, 0, 0));
     }
+    if (!MurshidCallOverlay.hasPermission(this)) {
+      Button overlayPermissionButton = utilityButton("السماح بالظهور فوق التطبيقات");
+      overlayPermissionButton.setOnClickListener(v -> requestCallOverlayAccess());
+      root.addView(overlayPermissionButton, marginParams(0, 10, 0, 0));
+    } else {
+      boolean overlayEnabled = MurshidCallOverlay.isEnabled(this);
+      Button overlayToggle = utilityButton(overlayEnabled
+          ? "إيقاف الواجهة العائمة للمكالمات" : "تفعيل الواجهة العائمة للمكالمات");
+      overlayToggle.setOnClickListener(v -> toggleCallOverlay());
+      root.addView(overlayToggle, marginParams(0, 10, 0, 0));
+    }
+    TextView overlayHint = label("الواجهة العائمة اختيارية وتظهر فوق التطبيقات أثناء رنين الاتصال. يمكنك إيقافها من هنا في أي وقت.", 11, MUTED, Typeface.NORMAL);
+    overlayHint.setGravity(Gravity.CENTER);
+    root.addView(overlayHint, marginParams(0, 5, 0, 0));
 
-    TextView hint = label("الاتصال الصادر من مُرشد لا يتطلب جعله افتراضيًا. شاشة المكالمة الواردة الخاصة بمُرشد تتطلب دور تطبيق الهاتف الافتراضي.", 12, MUTED, Typeface.NORMAL);
+    TextView hint = label("الاتصال الصادر من مُرشد لا يتطلب جعله افتراضيًا. استقبال المكالمات الواردة عبر مُرشد يتطلب دور تطبيق الهاتف الافتراضي.", 12, MUTED, Typeface.NORMAL);
     hint.setGravity(Gravity.CENTER);
     root.addView(hint, marginParams(0, 12, 0, 0));
     scroll.addView(root);
@@ -786,13 +821,44 @@ public class MurshidDialerActivity extends Activity {
   private void openFullScreenIntentSettings() {
     if (Build.VERSION.SDK_INT < 34 || canUseFullScreenIntent()) return;
     try {
+      externalSettingsVisible = true;
+      MurshidInCallService.setCallScreenActivityVisible(true);
       refreshDialPadOnResume = true;
       Intent settings = new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
           Uri.parse("package:" + getPackageName()));
       startActivity(settings);
     } catch (RuntimeException error) {
+      externalSettingsVisible = false;
       Toast.makeText(this, "افتح إعدادات مُرشد ثم فعّل إذن الإشعارات بملء الشاشة", Toast.LENGTH_LONG).show();
     }
+  }
+
+  private void requestCallOverlayAccess() {
+    if (MurshidCallOverlay.hasPermission(this)) {
+      toggleCallOverlay();
+      return;
+    }
+    try {
+      overlayPermissionRequestPending = true;
+      externalSettingsVisible = true;
+      MurshidInCallService.setCallScreenActivityVisible(true);
+      refreshDialPadOnResume = true;
+      Intent settings = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+          Uri.parse("package:" + getPackageName()));
+      startActivity(settings);
+    } catch (RuntimeException error) {
+      overlayPermissionRequestPending = false;
+      externalSettingsVisible = false;
+      refreshDialPadOnResume = false;
+      Toast.makeText(this, "تعذر فتح إعداد إذن الظهور فوق التطبيقات", Toast.LENGTH_LONG).show();
+    }
+  }
+
+  private void toggleCallOverlay() {
+    boolean enabled = !MurshidCallOverlay.isEnabled(this);
+    MurshidCallOverlay.setEnabled(this, enabled);
+    Toast.makeText(this, enabled ? "تم تفعيل الواجهة العائمة للمكالمات" : "تم إيقاف الواجهة العائمة للمكالمات", Toast.LENGTH_SHORT).show();
+    renderDialPad(numberInput == null ? "" : numberInput.getText().toString());
   }
 
   private Button keyButton(String text) {

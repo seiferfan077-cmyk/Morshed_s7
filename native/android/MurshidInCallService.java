@@ -10,6 +10,8 @@ import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 import android.telecom.Call;
 import android.telecom.CallAudioState;
@@ -30,12 +32,20 @@ public class MurshidInCallService extends InCallService {
   private static Call currentCall;
   private static MurshidInCallService activeService;
   private Call.Callback currentCallCallback;
+  private MurshidCallOverlay callOverlay;
+  private boolean incomingCallForOverlay;
+  private boolean callScreenActivityVisible;
+  private final Handler overlayHandler = new Handler(Looper.getMainLooper());
+  private final Runnable refreshOverlayAfterActivity = () -> {
+    if (!callScreenActivityVisible) refreshCallOverlayForCurrent();
+  };
   private TextToSpeech speech;
   private Ringtone ringtone;
 
   @Override public void onCreate() {
     super.onCreate();
     activeService = this;
+    callOverlay = new MurshidCallOverlay(this);
   }
 
   @Override
@@ -56,12 +66,15 @@ public class MurshidInCallService extends InCallService {
           else showCallNotification(MurshidCallerInfo.from(MurshidInCallService.this, changedCall), false);
         }
         if (state != Call.STATE_DISCONNECTED) broadcastCallState(changedCall, state);
+        updateCallOverlay(changedCall, state);
       }
     };
     call.registerCallback(currentCallCallback);
+    incomingCallForOverlay = call.getState() == Call.STATE_RINGING;
     MurshidCallerInfo info = MurshidCallerInfo.from(this, call);
     boolean incoming = call.getState() == Call.STATE_RINGING;
     showCallNotification(info, incoming);
+    updateCallOverlay(call, call.getState());
     if (incoming) announceThenRing(info);
     broadcastCallState(call, call.getState());
   }
@@ -77,6 +90,7 @@ public class MurshidInCallService extends InCallService {
 
   @Override public void onBringToForeground(boolean showDialpad) {
     super.onBringToForeground(showDialpad);
+    if (callOverlay != null) callOverlay.hide();
     Call call = currentCall;
     if (call == null) return;
     MurshidCallerInfo info = MurshidCallerInfo.from(this, call);
@@ -91,6 +105,8 @@ public class MurshidInCallService extends InCallService {
   }
 
   @Override public void onDestroy() {
+    overlayHandler.removeCallbacksAndMessages(null);
+    if (callOverlay != null) callOverlay.hide();
     if (activeService == this) activeService = null;
     super.onDestroy();
   }
@@ -127,6 +143,43 @@ public class MurshidInCallService extends InCallService {
       return call.getDetails().getConnectTimeMillis();
     }
     return 0L;
+  }
+
+  public static void setCallScreenActivityVisible(boolean visible) {
+    MurshidInCallService service = activeService;
+    if (service == null) return;
+    service.overlayHandler.removeCallbacks(service.refreshOverlayAfterActivity);
+    service.callScreenActivityVisible = visible;
+    if (visible) {
+      if (service.callOverlay != null) service.callOverlay.hide();
+    } else {
+      service.overlayHandler.postDelayed(service.refreshOverlayAfterActivity, 350L);
+    }
+  }
+
+  public static void refreshCallOverlay() {
+    MurshidInCallService service = activeService;
+    if (service != null) service.refreshCallOverlayForCurrent();
+  }
+
+  private void refreshCallOverlayForCurrent() {
+    Call call = currentCall;
+    if (call == null) {
+      if (callOverlay != null) callOverlay.hide();
+      return;
+    }
+    updateCallOverlay(call, call.getState());
+  }
+
+  private void updateCallOverlay(Call call, int state) {
+    if (callOverlay == null) return;
+    if (!incomingCallForOverlay || callScreenActivityVisible || MurshidDialerActivity.isCallScreenVisible()
+        || MurshidDialerActivity.isExternalSettingsVisible()
+        || state == Call.STATE_DISCONNECTED) {
+      callOverlay.hide();
+      return;
+    }
+    callOverlay.show(MurshidCallerInfo.from(this, call), state == Call.STATE_RINGING);
   }
 
   private void showCallNotification(MurshidCallerInfo info, boolean incoming) {
@@ -247,6 +300,9 @@ public class MurshidInCallService extends InCallService {
 
   private void clearCall() {
     stopRinging();
+    incomingCallForOverlay = false;
+    overlayHandler.removeCallbacks(refreshOverlayAfterActivity);
+    if (callOverlay != null) callOverlay.hide();
     if (currentCall != null && currentCallCallback != null) currentCall.unregisterCallback(currentCallCallback);
     currentCallCallback = null;
     currentCall = null;
