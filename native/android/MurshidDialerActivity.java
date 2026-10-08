@@ -46,7 +46,6 @@ public class MurshidDialerActivity extends Activity {
     super.onCreate(savedInstanceState);
     Window window = getWindow();
     window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
-    if (android.os.Build.VERSION.SDK_INT >= 27) window.setTurnScreenOn(true);
     render(getIntent());
   }
 
@@ -134,7 +133,10 @@ public class MurshidDialerActivity extends Activity {
     Button clear = utilityButton("مسح الكل");
     clear.setOnClickListener(v -> numberInput.setText(""));
     Button backspace = utilityButton("⌫ حذف");
-    backspace.setOnClickListener(v -> { int length = numberInput.length(); if (length > 0) numberInput.delete(length - 1, length); });
+    backspace.setOnClickListener(v -> {
+      int length = numberInput.length();
+      if (length > 0) numberInput.getText().delete(length - 1, length);
+    });
     utilityRow.addView(clear, new LinearLayout.LayoutParams(0, dp(44), 1));
     utilityRow.addView(backspace, new LinearLayout.LayoutParams(0, dp(44), 1));
     root.addView(utilityRow, marginParams(0, 6, 0, 0));
