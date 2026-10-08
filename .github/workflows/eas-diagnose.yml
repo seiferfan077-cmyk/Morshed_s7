@@ -1,0 +1,27 @@
+name: Diagnose EAS Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: "EAS build ID"
+        required: true
+        default: b56f6f54-93b0-4c36-9e2c-1eac93fa0622
+
+env:
+  EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Set up Expo and EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          packager: npm
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Read EAS build details
+        run: eas build:view "${{ inputs.build_id }}" --json
