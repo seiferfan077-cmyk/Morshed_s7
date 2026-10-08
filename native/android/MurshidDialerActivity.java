@@ -33,8 +33,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 public class MurshidDialerActivity extends Activity {
@@ -79,10 +81,10 @@ public class MurshidDialerActivity extends Activity {
     super.onActivityResult(requestCode, resultCode, data);
     if (requestCode == REQUEST_DIALER_ROLE) {
       if (isDefaultDialer()) {
-        Toast.makeText(this, "أصبح مُرشد تطبيق الهاتف الافتراضي", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "تم تفعيل واجهة مُرشد للمكالمات الواردة والصادرة", Toast.LENGTH_LONG).show();
         renderDialPad(numberInput == null ? "" : numberInput.getText().toString());
       } else {
-        Toast.makeText(this, "لم يتم تغيير تطبيق الهاتف الافتراضي؛ سيبقى الاتصال داخل مُرشد متوقفًا حتى الموافقة", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "بقي التطبيق الافتراضي كما هو؛ ما زالت لوحة مُرشد تتيح بدء المكالمات الصادرة", Toast.LENGTH_LONG).show();
       }
     }
   }
@@ -109,7 +111,7 @@ public class MurshidDialerActivity extends Activity {
     headerCopy.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
     headerCopy.addView(label("MURSHID PHONE", 12, TEAL, Typeface.BOLD));
     headerCopy.addView(label("لوحة الاتصال", 30, INK, Typeface.BOLD));
-    headerCopy.addView(label("اتصل بسهولة واختر الشريحة المناسبة قبل بدء المكالمة.", 14, MUTED, Typeface.NORMAL));
+    headerCopy.addView(label("لوحة مُرشد تعمل دون تعيينها افتراضيًا، مع اختيار شريحة الاتصال.", 14, MUTED, Typeface.NORMAL));
     header.addView(headerCopy);
     TextView icon = label("☎", 28, TEAL, Typeface.BOLD);
     icon.setGravity(Gravity.CENTER);
@@ -187,7 +189,7 @@ public class MurshidDialerActivity extends Activity {
     root.addView(call, marginParams(0, 20, 0, 0));
 
     if (!isDefaultDialer()) {
-      Button roleButton = utilityButton("اجعل مُرشد تطبيق الهاتف الافتراضي");
+      Button roleButton = utilityButton("تفعيل واجهة مُرشد للمكالمات الواردة (اختياري)");
       roleButton.setOnClickListener(v -> requestDialerRole());
       root.addView(roleButton, marginParams(0, 12, 0, 0));
     }
@@ -197,7 +199,7 @@ public class MurshidDialerActivity extends Activity {
       root.addView(notificationButton, marginParams(0, 8, 0, 0));
     }
 
-    TextView hint = label("يمكنك تغيير الشريحة قبل الضغط على اتصال.", 12, MUTED, Typeface.NORMAL);
+    TextView hint = label("الاتصال الصادر من مُرشد لا يتطلب جعله افتراضيًا. شاشة المكالمة الواردة الخاصة بمُرشد تتطلب دور تطبيق الهاتف الافتراضي.", 12, MUTED, Typeface.NORMAL);
     hint.setGravity(Gravity.CENTER);
     root.addView(hint, marginParams(0, 12, 0, 0));
     scroll.addView(root);
@@ -355,7 +357,7 @@ public class MurshidDialerActivity extends Activity {
     LinearLayout root = vertical(22, 24, 22, 28);
     root.addView(label("MURSHID CONTACTS", 12, TEAL, Typeface.BOLD));
     root.addView(label("جهات الاتصال", 28, INK, Typeface.BOLD), marginParams(0, 4, 0, 0));
-    root.addView(label("اختر جهة اتصال محفوظة على الجهاز أو شريحة SIM التي يعرضها النظام.", 13, MUTED, Typeface.NORMAL), marginParams(0, 4, 0, 12));
+    root.addView(label("جهات الهاتف وجهات ADN المقروءة مباشرة من شرائح SIM المتاحة.", 13, MUTED, Typeface.NORMAL), marginParams(0, 4, 0, 12));
     Button back = utilityButton("العودة إلى لوحة الاتصال");
     back.setOnClickListener(v -> renderDialPad(numberInput == null ? "" : numberInput.getText().toString()));
     root.addView(back);
@@ -392,13 +394,16 @@ public class MurshidDialerActivity extends Activity {
           if (number == null || number.trim().isEmpty()) continue;
           String key = MurshidCallerInfo.normalize(number);
           if (!seen.add(key)) continue;
-          contacts.add(new String[] { name == null || name.trim().isEmpty() ? "بدون اسم" : name, number });
+          contacts.add(new String[] { name == null || name.trim().isEmpty() ? "بدون اسم" : name, number, "جهات الهاتف" });
         }
       }
     } catch (SecurityException error) {
       Toast.makeText(this, "اسمح لمُرشد بقراءة جهات الاتصال لعرضها", Toast.LENGTH_LONG).show();
       return;
     }
+    Map<String, Integer> contactIndexes = new HashMap<>();
+    for (int i = 0; i < contacts.size(); i++) contactIndexes.put(MurshidCallerInfo.normalize(contacts.get(i)[1]), i);
+    if (Build.VERSION.SDK_INT >= 31) loadDirectSimContacts(contacts, contactIndexes);
     TextView empty = label("لا توجد جهات اتصال بأرقام هاتف على الجهاز.", 14, MUTED, Typeface.NORMAL);
     empty.setGravity(Gravity.CENTER);
     root.addView(empty, marginParams(0, 16, 0, 0));
@@ -414,6 +419,9 @@ public class MurshidDialerActivity extends Activity {
         TextView phone = label(contact[1], 14, MUTED, Typeface.NORMAL);
         item.addView(name);
         item.addView(phone, marginParams(0, 4, 0, 0));
+        if (contact.length > 2 && contact[2] != null && !contact[2].isEmpty()) {
+          item.addView(label(contact[2], 11, TEAL, Typeface.BOLD), marginParams(0, 5, 0, 0));
+        }
         item.setOnClickListener(v -> {
           renderDialPad(contact[1]);
           numberInput.setText(contact[1]);
@@ -433,6 +441,80 @@ public class MurshidDialerActivity extends Activity {
       @Override public void afterTextChanged(Editable s) { }
     });
     refreshRows.run();
+  }
+
+  private void loadDirectSimContacts(List<String[]> contacts, Map<String, Integer> contactIndexes) {
+    try {
+      List<ContactsContract.SimAccount> simAccounts = ContactsContract.SimContacts.getSimAccounts(getContentResolver());
+      for (ContactsContract.SimAccount simAccount : simAccounts) {
+        if (simAccount.getEfType() != ContactsContract.SimAccount.ADN_EF_TYPE) continue;
+        String accountName = simAccount.getAccountName();
+        String accountType = simAccount.getAccountType();
+        int slotIndex = simAccount.getSimSlotIndex();
+        String simLabel = slotIndex >= 0 ? "SIM " + (slotIndex + 1) : "SIM";
+        List<Long> rawContactIds = new ArrayList<>();
+        try (Cursor rawCursor = getContentResolver().query(
+            ContactsContract.RawContacts.CONTENT_URI,
+            new String[] { ContactsContract.RawContacts._ID },
+            ContactsContract.RawContacts.ACCOUNT_NAME + "=? AND " + ContactsContract.RawContacts.ACCOUNT_TYPE + "=? AND " + ContactsContract.RawContacts.DELETED + "=0",
+            new String[] { accountName, accountType },
+            ContactsContract.RawContacts._ID + " ASC")) {
+          if (rawCursor != null) while (rawCursor.moveToNext()) rawContactIds.add(rawCursor.getLong(0));
+        }
+        if (rawContactIds.isEmpty()) continue;
+
+        StringBuilder placeholders = new StringBuilder();
+        List<String> dataArgs = new ArrayList<>();
+        for (Long rawId : rawContactIds) {
+          if (placeholders.length() > 0) placeholders.append(',');
+          placeholders.append('?');
+          dataArgs.add(String.valueOf(rawId));
+        }
+        placeholders.append(") AND (" + ContactsContract.Data.MIMETYPE + "=? OR " + ContactsContract.Data.MIMETYPE + "=?)");
+        dataArgs.add(ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE);
+        dataArgs.add(ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE);
+        String selection = ContactsContract.Data.RAW_CONTACT_ID + " IN (" + placeholders;
+        Map<Long, String> namesByRawId = new HashMap<>();
+        Map<Long, List<String>> numbersByRawId = new HashMap<>();
+        try (Cursor dataCursor = getContentResolver().query(
+            ContactsContract.Data.CONTENT_URI,
+            new String[] { ContactsContract.Data.RAW_CONTACT_ID, ContactsContract.Data.MIMETYPE, ContactsContract.Data.DATA1 },
+            selection,
+            dataArgs.toArray(new String[0]),
+            ContactsContract.Data.RAW_CONTACT_ID + " ASC")) {
+          if (dataCursor != null) {
+            while (dataCursor.moveToNext()) {
+              long rawId = dataCursor.getLong(0);
+              String mimeType = dataCursor.getString(1);
+              String value = dataCursor.getString(2);
+              if (value == null || value.trim().isEmpty()) continue;
+              if (ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE.equals(mimeType)) {
+                namesByRawId.put(rawId, value);
+              } else if (ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE.equals(mimeType)) {
+                numbersByRawId.computeIfAbsent(rawId, ignored -> new ArrayList<>()).add(value);
+              }
+            }
+          }
+        }
+        for (Map.Entry<Long, List<String>> entry : numbersByRawId.entrySet()) {
+          String name = namesByRawId.get(entry.getKey());
+          if (name == null || name.trim().isEmpty()) name = "بدون اسم";
+          for (String number : entry.getValue()) {
+            String normalized = MurshidCallerInfo.normalize(number);
+            Integer existingIndex = contactIndexes.get(normalized);
+            if (existingIndex != null) {
+              String oldSource = contacts.get(existingIndex)[2];
+              if (!oldSource.contains(simLabel)) contacts.get(existingIndex)[2] = oldSource + " · " + simLabel;
+            } else {
+              contactIndexes.put(normalized, contacts.size());
+              contacts.add(new String[] { name, number, simLabel });
+            }
+          }
+        }
+      }
+    } catch (SecurityException | IllegalArgumentException error) {
+      Toast.makeText(this, "تعذر قراءة سجل SIM مباشرة على هذا الجهاز؛ ستظل جهات الهاتف المتاحة ظاهرة", Toast.LENGTH_LONG).show();
+    }
   }
 
   private boolean isDefaultDialer() {
@@ -482,11 +564,6 @@ public class MurshidDialerActivity extends Activity {
   private void placeCall() {
     String number = numberInput == null ? "" : numberInput.getText().toString().trim();
     if (number.isEmpty()) { Toast.makeText(this, "اكتب رقمًا أولًا", Toast.LENGTH_SHORT).show(); return; }
-    if (!isDefaultDialer()) {
-      Toast.makeText(this, "للاتصال من مُرشد دون فتح تطبيق خارجي، اجعل مُرشد تطبيق الهاتف الافتراضي أولًا", Toast.LENGTH_LONG).show();
-      requestDialerRole();
-      return;
-    }
     if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
       requestPermissions(new String[] { Manifest.permission.CALL_PHONE }, REQUEST_CALL_PHONE);
       return;
@@ -497,7 +574,7 @@ public class MurshidDialerActivity extends Activity {
       if (selectedAccount != null) extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, selectedAccount);
       telecom.placeCall(Uri.parse("tel:" + Uri.encode(number)), extras);
     } catch (SecurityException error) {
-      Toast.makeText(this, "فعّل مُرشد كتطبيق الهاتف الافتراضي وامنحه صلاحية الاتصال", Toast.LENGTH_LONG).show();
+      Toast.makeText(this, "تعذر بدء المكالمة؛ تحقق من صلاحية الاتصال واختيار الشريحة", Toast.LENGTH_LONG).show();
     }
   }
 
