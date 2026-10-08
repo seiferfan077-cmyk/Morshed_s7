@@ -17,6 +17,9 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
       - name: Set up Expo and EAS CLI
         uses: expo/expo-github-action@v8
         with:
