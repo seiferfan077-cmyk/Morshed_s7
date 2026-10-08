@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RuqaaText as Text } from '../components/RuqaaText';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 import { colors, radii, spacing, typography } from '../theme';
 
@@ -15,9 +15,9 @@ export function WelcomeScreen({ onComplete }: { onComplete: () => void }) {
   const [started, setStarted] = useState(false);
   const [typedText, setTypedText] = useState('');
   const [finishing, setFinishing] = useState(false);
-  const reveal = useRef(new Animated.Value(0)).current;
-  const buttonReveal = useRef(new Animated.Value(0)).current;
-  const exit = useRef(new Animated.Value(1)).current;
+  const [reveal] = useState(() => new Animated.Value(0));
+  const [buttonReveal] = useState(() => new Animated.Value(0));
+  const [exit] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
     Animated.parallel([
