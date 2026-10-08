@@ -29,4 +29,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Read EAS build details
-        run: eas build:view "${{ inputs.build_id }}" --json
+        run: |
+          eas build:view "${{ inputs.build_id }}" --json > /tmp/eas-view.txt
+          python3 - <<'PY'
+          import json
+          import urllib.request
+          text = open('/tmp/eas-view.txt', encoding='utf-8').read()
+          data = json.loads(text[text.find('{'):])
+          url = data['logFiles'][0]
+          log = urllib.request.urlopen(url).read().decode('utf-8', errors='replace')
+          lines = log.splitlines()
+          keywords = ('FAILURE', 'What went wrong', 'Execution failed', 'error:', 'Error:', 'Could not', 'A problem occurred')
+          selected = [line for line in lines if any(keyword.lower() in line.lower() for keyword in keywords)]
+          print('\n'.join(selected[-120:]))
+          print('\n--- LAST LOG LINES ---')
+          print('\n'.join(lines[-80:]))
+          PY
