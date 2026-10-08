@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEvent } from 'expo';
+import { useEvent, useEventListener } from 'expo';
 import { Ionicons } from '@expo/vector-icons';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { useEffect, useRef, useState } from 'react';
@@ -22,6 +22,7 @@ export function WelcomeScreen({ onComplete }: { onComplete: () => void }) {
   const [ambient] = useState(() => new Animated.Value(0));
   const [reveal] = useState(() => new Animated.Value(0));
   const [pageOpacity] = useState(() => new Animated.Value(1));
+  const completionStarted = useRef(false);
 
   useEffect(() => {
     const breathing = Animated.loop(Animated.sequence([
@@ -48,15 +49,20 @@ export function WelcomeScreen({ onComplete }: { onComplete: () => void }) {
     });
   };
 
-  const finishWelcome = async () => {
-    if (transitioning) return;
+  const finishWelcome = () => {
+    if (completionStarted.current) return;
+    completionStarted.current = true;
     setTransitioning(true);
-    try {
-      await AsyncStorage.setItem(WELCOME_SEEN_KEY, 'true');
-    } catch {
-      // The welcome must never prevent entry if local storage is unavailable.
-    }
-    onComplete();
+    Animated.timing(pageOpacity, { toValue: 0, duration: 180, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(({ finished }) => {
+      if (!finished) {
+        completionStarted.current = false;
+        setTransitioning(false);
+        return;
+      }
+      // Persist in the background so storage latency never blocks entry to the app.
+      void AsyncStorage.setItem(WELCOME_SEEN_KEY, 'true').catch(() => undefined);
+      onComplete();
+    });
   };
 
   const floatingScale = ambient.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1.045] });
@@ -155,6 +161,15 @@ function IntroVideoPlayer({ onContinue }: { onContinue: () => void }) {
   });
   const videoViewRef = useRef<VideoView>(null);
   const { status } = useEvent(player, 'statusChange', { status: player.status });
+  useEventListener(player, 'playToEnd', () => {
+    const videoView = videoViewRef.current;
+    if (!videoView) {
+      onContinue();
+      return;
+    }
+    // Expo recommends exiting fullscreen from the player event listener on Android.
+    void videoView.exitFullscreen().catch(() => undefined).then(onContinue);
+  });
   const isReady = status === 'readyToPlay';
   const hasError = status === 'error';
 
