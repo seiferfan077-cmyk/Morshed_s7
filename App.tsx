@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as SystemUI from 'expo-system-ui';
+import * as Updates from 'expo-updates';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { AppNavigator } from './src/navigation/AppNavigator';
@@ -29,6 +30,22 @@ export default function App() {
     // Declining the role never blocks the rest of the app.
     void IntentLauncher.startActivityAsync('com.murshid.s7.REQUEST_DEFAULT_ROLES').catch(() => undefined);
   }, [fontsLoaded, fontError, ready, showWelcome]);
+
+  useEffect(() => {
+    if (__DEV__ || Platform.OS !== 'android' || !ready || showWelcome || !Updates.isEnabled) return;
+    let active = true;
+    void (async () => {
+      try {
+        const available = await Updates.checkForUpdateAsync();
+        if (!active || !available.isAvailable) return;
+        await Updates.fetchUpdateAsync();
+        if (active) await Updates.reloadAsync();
+      } catch {
+        // OTA must never prevent the existing embedded bundle from starting.
+      }
+    })();
+    return () => { active = false; };
+  }, [ready, showWelcome]);
 
   const finishWelcome = useCallback(() => setShowWelcome(false), []);
 
