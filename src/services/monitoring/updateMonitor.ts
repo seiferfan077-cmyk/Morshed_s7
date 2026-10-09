@@ -1,4 +1,4 @@
-import { ReleaseStatus } from '../firebase/hubRepository';
+import type { ReleaseStatus } from '../firebase/hubRepository';
 
 export type DeviceUpdateEvent = { releaseId: string; status: 'download_started' | 'downloaded' | 'applied' | 'failed' | 'rolled_back'; runtimeVersion: string; errorCode?: string; createdAt: string; };
 export type ReleaseHealth = { status: ReleaseStatus; applied: number; failed: number; failureRate: number; compatible: boolean; recommendation: 'continue' | 'pause' | 'rollback'; };

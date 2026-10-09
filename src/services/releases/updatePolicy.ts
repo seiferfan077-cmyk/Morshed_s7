@@ -1,4 +1,4 @@
-import { UpdateClass } from '../firebase/hubRepository';
+import type { UpdateClass } from '../firebase/hubRepository';
 
 export type EasChannel = 'development' | 'preview' | 'production';
 export type UpdateDecision = { updateClass: UpdateClass; channel: EasChannel | null; requiresNativeBuild: boolean; reason: string };

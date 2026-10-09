@@ -28,6 +28,7 @@
     "react-native-webview": "13.16.1"
   },
   "devDependencies": {
+    "@types/node": "^22.20.5",
     "@types/react": "~19.2.2",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~57.0.2",
@@ -42,6 +43,7 @@
     "memory:unit": "rm -rf .tmp-memory-test && npx tsc --ignoreConfig --outDir .tmp-memory-test --module commonjs --target es2022 --skipLibCheck src/types/memory.ts src/services/ai/aiService.ts src/services/memory/memoryExtractor.ts src/services/memory/memoryRetrieval.ts src/services/memory/contextAssembly.ts && node tests/memory-intelligence.test.js && rm -rf .tmp-memory-test",
     "memory:integration": "rm -rf .tmp-memory-test && npx tsc --ignoreConfig --outDir .tmp-memory-test --module commonjs --target es2022 --skipLibCheck src/types/memory.ts src/services/ai/aiService.ts src/services/memory/memoryExtractor.ts src/services/memory/memoryRetrieval.ts src/services/memory/contextAssembly.ts src/services/memory/memoryService.ts && node tests/memory-validation.integration.js && rm -rf .tmp-memory-test",
     "ai:test": "rm -rf .tmp-byok-test && ./node_modules/.bin/tsc --ignoreConfig --outDir .tmp-byok-test --module commonjs --target es2022 --skipLibCheck src/types/memory.ts src/services/ai/aiService.ts src/services/ai/byokAIService.ts && node tests/byok.test.js && rm -rf .tmp-byok-test",
+    "ota:test": "rm -rf .tmp-ota-test && ./node_modules/.bin/tsc --ignoreConfig --types node --outDir .tmp-ota-test --module commonjs --target es2022 --skipLibCheck src/services/releases/updatePolicy.ts src/services/monitoring/updateMonitor.ts && node tests/ota-policy.test.js && rm -rf .tmp-ota-test",
     "backend:test": "npm --prefix backend test",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
