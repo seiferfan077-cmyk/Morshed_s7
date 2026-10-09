@@ -5,7 +5,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { BrowserScreen } from '../screens/BrowserScreen';
 import { MediaScreen } from '../screens/MediaScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-import { MurshidAIScreen } from '../screens/MurshidAIScreen';
+import { MemoryScreen } from '../screens/MemoryScreen';
 import { FeaturesScreen } from '../screens/FeaturesScreen';
 import { MessagesScreen } from '../screens/MessagesScreen';
 import { typography } from '../theme';
@@ -16,7 +16,7 @@ export type RootTabParamList = {
   الرسائل: undefined;
   المتصفح: undefined;
   المعرض: undefined;
-  'مرشد AI': undefined;
+  الذاكرة: undefined;
   المميزات: undefined;
   الإعدادات: undefined;
 };
@@ -40,7 +40,7 @@ export function AppNavigator() {
               الرسائل: 'chatbubbles-outline',
               المتصفح: 'compass-outline',
               المعرض: 'images-outline',
-              'مرشد AI': 'sparkles-outline',
+              الذاكرة: 'bookmark-outline',
               المميزات: 'star-outline',
               الإعدادات: 'settings-outline',
             };
@@ -52,7 +52,7 @@ export function AppNavigator() {
         <Tabs.Screen name="الرسائل" component={MessagesScreen} />
         <Tabs.Screen name="المتصفح" component={BrowserScreen} />
         <Tabs.Screen name="المعرض" component={MediaScreen} />
-        <Tabs.Screen name="مرشد AI" component={MurshidAIScreen} />
+        <Tabs.Screen name="الذاكرة" component={MemoryScreen} />
         <Tabs.Screen name="المميزات" component={FeaturesScreen} />
         <Tabs.Screen name="الإعدادات" component={SettingsScreen} />
       </Tabs.Navigator>

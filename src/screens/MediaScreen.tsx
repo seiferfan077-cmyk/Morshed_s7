@@ -37,7 +37,7 @@ function VideoThumbnail({ uri, filename }: { uri: string; filename: string }) {
     const generate = () => {
       if (!active || requested || player.status !== 'readyToPlay') return;
       requested = true;
-      void player.generateThumbnailsAsync([0.1], { maxWidth: 480, maxHeight: 480 })
+      void player.generateThumbnailsAsync([0], { maxWidth: 480, maxHeight: 480 })
         .then(([firstFrame]) => { if (active && firstFrame) setThumbnail(firstFrame); })
         .catch(() => undefined);
     };
