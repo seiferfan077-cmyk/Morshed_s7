@@ -117,7 +117,8 @@ public class MurshidDialerActivity extends Activity {
     super.onCreate(savedInstanceState);
     applyThemePalette();
     Window window = getWindow();
-    window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+    window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+        | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
     if (Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true); }
     render(getIntent());
   }
@@ -245,6 +246,7 @@ public class MurshidDialerActivity extends Activity {
   }
 
   private void renderDialPad(String initialNumber) {
+    restoreNormalWindowMode();
     ScrollView scroll = new ScrollView(this);
     scroll.setBackgroundColor(SURFACE);
     LinearLayout root = vertical(24, 28, 24, 36);
@@ -358,7 +360,7 @@ public class MurshidDialerActivity extends Activity {
       overlayToggle.setOnClickListener(v -> toggleCallOverlay());
       root.addView(overlayToggle, marginParams(0, 10, 0, 0));
     }
-    TextView overlayHint = label("الواجهة العائمة اختيارية وتظهر فوق التطبيقات أثناء رنين الاتصال. يمكنك إيقافها من هنا في أي وقت.", 11, MUTED, Typeface.NORMAL);
+    TextView overlayHint = label("تظهر شاشة المكالمة بملء الشاشة عند ورود اتصال. إذن الظهور فوق التطبيقات يسمح بعرضها فوق التطبيق الحالي، ويمكن إيقاف الطبقة من هنا.", 11, MUTED, Typeface.NORMAL);
     overlayHint.setGravity(Gravity.CENTER);
     root.addView(overlayHint, marginParams(0, 5, 0, 0));
 
@@ -409,138 +411,23 @@ public class MurshidDialerActivity extends Activity {
 
   private void renderCallScreen(String titleText, String detailText, boolean incoming) {
     callTimerHandler.removeCallbacks(callTimer);
-    LinearLayout root = vertical(22, 20, 22, 24);
-    root.setGravity(Gravity.CENTER);
-    root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-        new int[] { Color.rgb(7, 30, 39), Color.rgb(9, 83, 82), Color.rgb(16, 33, 43) }));
-    root.addView(brandHeader(), marginParams(0, 0, 0, 14));
-
-    TextView state = label(incoming ? "اتصال وارد" : "مكالمة جارية", 13, Color.rgb(202, 239, 233), Typeface.BOLD);
-    state.setGravity(Gravity.CENTER);
-    state.setBackground(round(Color.argb(35, 255, 255, 255), 18));
-    state.setPadding(dp(16), dp(8), dp(16), dp(8));
-    root.addView(state);
-
-    LinearLayout card = card();
-    card.setGravity(Gravity.CENTER);
-    card.setPadding(dp(20), dp(22), dp(20), dp(20));
-    ImageView icon = new ImageView(this);
-    icon.setImageResource(com.murshid.s7.R.mipmap.ic_launcher);
-    icon.setBackground(round(Color.WHITE, 22));
-    icon.setPadding(dp(5), dp(5), dp(5), dp(5));
-    card.addView(icon, new LinearLayout.LayoutParams(dp(78), dp(78)));
-
     String callerName = getIntent().getStringExtra(EXTRA_CALLER_NAME);
     String line = getIntent().getStringExtra(EXTRA_LINE_LABEL);
     boolean verified = getIntent().getBooleanExtra(EXTRA_VERIFIED, false);
     Uri callUri = getIntent() == null ? null : getIntent().getData();
     String callerNumber = callUri == null ? "" : callUri.getSchemeSpecificPart();
-    if (callerName == null || callerName.trim().isEmpty()) callerName = callerNumber == null || callerNumber.isEmpty() ? "رقم غير معروف" : callerNumber;
-    TextView caller = label(callerName, 25, INK, Typeface.BOLD);
-    caller.setGravity(Gravity.CENTER);
-    caller.setMaxLines(2);
-    card.addView(caller, marginParams(0, 13, 0, 0));
-    if (callerNumber != null && !callerNumber.isEmpty() && !callerNumber.equals(callerName)) {
-      TextView number = label(callerNumber, 17, MUTED, Typeface.NORMAL);
-      number.setGravity(Gravity.CENTER);
-      card.addView(number, marginParams(0, 4, 0, 0));
+    Window window = getWindow();
+    window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    window.setStatusBarColor(Color.rgb(9, 8, 9));
+    window.setNavigationBarColor(Color.rgb(9, 8, 9));
+    if (Build.VERSION.SDK_INT >= 19) {
+      window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+          | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+          | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+          | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+          | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
-    if (verified) {
-      TextView badge = label("✓ موثق لدى مُرشد", 13, TEAL, Typeface.BOLD);
-      badge.setGravity(Gravity.CENTER);
-      card.addView(badge, marginParams(0, 7, 0, 0));
-    }
-    TextView lineText = label("عبر  ◉  " + (line == null || line.isEmpty() ? "خط الهاتف" : line), 14, MUTED, Typeface.BOLD);
-    lineText.setGravity(Gravity.CENTER);
-    card.addView(lineText, marginParams(0, 10, 0, 0));
-
-    if (incoming) {
-      TextView prompt = label("اسحب يمينًا للرد · يسارًا للرفض", 13, MUTED, Typeface.NORMAL);
-      prompt.setGravity(Gravity.CENTER);
-      card.addView(prompt, marginParams(0, 18, 0, 9));
-      LinearLayout swipeRail = horizontal();
-      swipeRail.setGravity(Gravity.CENTER_VERTICAL);
-      swipeRail.setBackground(round(SURFACE, 28));
-      TextView reject = label("رفض", 14, Color.rgb(190, 65, 68), Typeface.BOLD);
-      TextView swipe = label("↔  اسحب", 15, PAPER, Typeface.BOLD);
-      TextView answer = label("رد  ✓", 14, TEAL, Typeface.BOLD);
-      reject.setGravity(Gravity.CENTER); swipe.setGravity(Gravity.CENTER); answer.setGravity(Gravity.CENTER);
-      swipe.setBackground(round(TEAL, 26));
-      swipeRail.addView(reject, new LinearLayout.LayoutParams(0, dp(50), 1));
-      swipeRail.addView(swipe, new LinearLayout.LayoutParams(dp(104), dp(50)));
-      swipeRail.addView(answer, new LinearLayout.LayoutParams(0, dp(50), 1));
-      swipeRail.setOnTouchListener((v, event) -> {
-        if (event.getAction() == MotionEvent.ACTION_DOWN) { gestureStartX = event.getRawX(); return true; }
-        if (event.getAction() == MotionEvent.ACTION_UP) {
-          float delta = event.getRawX() - gestureStartX;
-          if (delta > dp(65)) sendCallAction(MurshidInCallService.ACTION_ANSWER);
-          else if (delta < -dp(65)) sendCallAction(MurshidInCallService.ACTION_REJECT);
-          else Toast.makeText(this, "اسحب يمينًا للرد أو يسارًا للرفض", Toast.LENGTH_SHORT).show();
-          return true;
-        }
-        return true;
-      });
-      card.addView(swipeRail, new LinearLayout.LayoutParams(-1, dp(50)));
-      Button answerButton = actionButton("الرد على المكالمة", TEAL);
-      answerButton.setOnClickListener(v -> sendCallAction(MurshidInCallService.ACTION_ANSWER));
-      card.addView(answerButton, marginParams(0, 12, 0, 0));
-      Button rejectButton = actionButton("رفض المكالمة", Color.rgb(190, 65, 68));
-      rejectButton.setOnClickListener(v -> sendCallAction(MurshidInCallService.ACTION_REJECT));
-      card.addView(rejectButton, marginParams(0, 7, 0, 0));
-    } else {
-      long connectedAt = MurshidInCallService.getConnectedAtMillis();
-      if (connectedAt <= 0L) connectedAt = getIntent().getLongExtra(EXTRA_CONNECTED_AT, System.currentTimeMillis());
-      callStartedElapsed = SystemClock.elapsedRealtime() - Math.max(0L, System.currentTimeMillis() - connectedAt);
-      TextView waveLabel = label("مؤشر اتصال", 12, MUTED, Typeface.NORMAL);
-      waveLabel.setGravity(Gravity.CENTER);
-      card.addView(waveLabel, marginParams(0, 16, 0, 0));
-      LinearLayout wave = horizontal();
-      wave.setGravity(Gravity.CENTER);
-      int[] heights = { 16, 28, 40, 24, 48, 30, 18, 38, 25, 14, 32 };
-      for (int height : heights) {
-        View bar = new View(this);
-        bar.setBackground(round(TEAL, 8));
-        LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(dp(4), dp(height));
-        barParams.setMargins(dp(3), 0, dp(3), 0);
-        wave.addView(bar, barParams);
-      }
-      card.addView(wave, marginParams(0, 6, 0, 0));
-      TextView note = label("رسم توضيحي فقط — لا يقيس الصوت", 11, MUTED, Typeface.NORMAL);
-      note.setGravity(Gravity.CENTER);
-      card.addView(note, marginParams(0, 5, 0, 0));
-      callDuration = label("00:00:00", 26, INK, Typeface.BOLD);
-      callDuration.setGravity(Gravity.CENTER);
-      card.addView(callDuration, marginParams(0, 12, 0, 0));
-      callTimerHandler.post(callTimer);
-
-      LinearLayout controls = horizontal();
-      controls.setGravity(Gravity.CENTER);
-      Button mute = utilityButton("🎙  كتم");
-      Button speaker = utilityButton("◖))  سماعة");
-      Button record = utilityButton("●  تسجيل");
-      mute.setOnClickListener(v -> {
-        muted = !muted;
-        mute.setText(muted ? "🎙  إلغاء الكتم" : "🎙  كتم");
-        mute.setBackground(round(muted ? SOFT_CORAL : SOFT_TEAL, 16));
-        sendCallControl(MurshidInCallService.ACTION_SET_MUTED, muted);
-      });
-      speaker.setOnClickListener(v -> {
-        speakerEnabled = !speakerEnabled;
-        speaker.setText(speakerEnabled ? "◖))  إيقاف السبيكر" : "◖))  سماعة");
-        speaker.setBackground(round(speakerEnabled ? SOFT_TEAL : SURFACE, 16));
-        sendCallControl(MurshidInCallService.ACTION_SET_SPEAKER, speakerEnabled);
-      });
-      record.setOnClickListener(v -> Toast.makeText(this, "تسجيل صوت طرفَي المكالمة غير متاح لتطبيق Android عادي. لم يبدأ أي تسجيل.", Toast.LENGTH_LONG).show());
-      controls.addView(mute, new LinearLayout.LayoutParams(0, dp(48), 1));
-      controls.addView(speaker, new LinearLayout.LayoutParams(0, dp(48), 1));
-      controls.addView(record, new LinearLayout.LayoutParams(0, dp(48), 1));
-      card.addView(controls, marginParams(0, 18, 0, 0));
-      Button hangup = actionButton("إنهاء المكالمة", Color.rgb(190, 65, 68));
-      hangup.setOnClickListener(v -> sendCallAction(MurshidInCallService.ACTION_HANGUP));
-      card.addView(hangup, marginParams(0, 18, 0, 0));
-    }
-    root.addView(card, new LinearLayout.LayoutParams(-1, -2));
-    setContentView(root);
+    setContentView(new MurshidCallScreenView(this, callerName, callerNumber, line, verified, incoming));
   }
 
   private void sendCallControl(String action, boolean enabled) {
@@ -565,7 +452,14 @@ public class MurshidDialerActivity extends Activity {
     return header;
   }
 
+  private void restoreNormalWindowMode() {
+    Window window = getWindow();
+    window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    if (Build.VERSION.SDK_INT >= 19) window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+  }
+
   private void renderContacts() {
+    restoreNormalWindowMode();
     if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
       requestPermissions(new String[] { Manifest.permission.READ_CONTACTS }, REQUEST_CONTACTS);
       return;

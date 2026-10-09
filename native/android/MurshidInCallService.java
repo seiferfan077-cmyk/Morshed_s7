@@ -31,6 +31,8 @@ public class MurshidInCallService extends InCallService {
   private static final int NOTIFICATION_ID = 7001;
   private static Call currentCall;
   private static MurshidInCallService activeService;
+  private static volatile boolean mutedState;
+  private static volatile boolean speakerEnabledState;
   private Call.Callback currentCallCallback;
   private MurshidCallOverlay callOverlay;
   private boolean incomingCallForOverlay;
@@ -53,6 +55,8 @@ public class MurshidInCallService extends InCallService {
     super.onCallAdded(call);
     if (currentCall != null && currentCallCallback != null) currentCall.unregisterCallback(currentCallCallback);
     currentCall = call;
+    mutedState = false;
+    speakerEnabledState = false;
     currentCallCallback = new Call.Callback() {
       @Override public void onStateChanged(Call changedCall, int state) {
         if (state == Call.STATE_RINGING) {
@@ -86,6 +90,15 @@ public class MurshidInCallService extends InCallService {
       clearCall();
     }
     super.onCallRemoved(call);
+  }
+
+  @Override public void onCallAudioStateChanged(CallAudioState audioState) {
+    super.onCallAudioStateChanged(audioState);
+    if (audioState != null) {
+      mutedState = audioState.isMuted();
+      speakerEnabledState = (audioState.getRoute() & CallAudioState.ROUTE_SPEAKER) != 0;
+      refreshCallOverlayForCurrent();
+    }
   }
 
   @Override public void onBringToForeground(boolean showDialpad) {
@@ -129,8 +142,12 @@ public class MurshidInCallService extends InCallService {
       call.disconnect();
     } else if (ACTION_SET_MUTED.equals(action)) {
       service.setMuted(enabled);
+      mutedState = enabled;
+      service.refreshCallOverlayForCurrent();
     } else if (ACTION_SET_SPEAKER.equals(action)) {
       service.setAudioRoute(enabled ? CallAudioState.ROUTE_SPEAKER : CallAudioState.ROUTE_EARPIECE);
+      speakerEnabledState = enabled;
+      service.refreshCallOverlayForCurrent();
     } else {
       return false;
     }
@@ -144,6 +161,9 @@ public class MurshidInCallService extends InCallService {
     }
     return 0L;
   }
+
+  public static boolean isMuted() { return mutedState; }
+  public static boolean isSpeakerOn() { return speakerEnabledState; }
 
   public static void setCallScreenActivityVisible(boolean visible) {
     MurshidInCallService service = activeService;
@@ -306,6 +326,8 @@ public class MurshidInCallService extends InCallService {
     if (currentCall != null && currentCallCallback != null) currentCall.unregisterCallback(currentCallCallback);
     currentCallCallback = null;
     currentCall = null;
+    mutedState = false;
+    speakerEnabledState = false;
     NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
     if (manager != null) manager.cancel(NOTIFICATION_ID);
   }

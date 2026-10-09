@@ -67,7 +67,7 @@ export function SettingsScreen() {
           <Ionicons name="call-outline" size={21} color={colors.tealDark} />
           <View style={styles.copy}>
             <Text style={styles.title}>تهيئة استقبال المكالمات</Text>
-            <Text style={styles.detail}>عيّن مُرشد كتطبيق الهاتف، ثم فعّل اختياريًا إذن الظهور فوق التطبيقات لواجهة عائمة عند الاتصال</Text>
+          <Text style={styles.detail}>عيّن مُرشد كتطبيق الهاتف؛ تظهر شاشة الاتصال بملء الشاشة، ويمكن منح إذن الظهور فوق التطبيقات لتغطية التطبيق المفتوح أثناء الرنين</Text>
           </View>
           <Ionicons name="chevron-forward" size={17} color={colors.inkFaint} />
         </Pressable>

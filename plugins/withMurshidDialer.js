@@ -226,6 +226,7 @@ module.exports = function withMurshidDialer(config) {
       'MurshidDialerActivity.java',
       'MurshidInCallService.java',
       'MurshidCallOverlay.java',
+      'MurshidCallScreenView.java',
       'MurshidCallActionReceiver.java',
       'MurshidRolePromptActivity.java',
       'MurshidSmsModule.java',
