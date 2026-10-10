@@ -6,6 +6,7 @@ import android.app.NotificationManager;
 import android.app.Person;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.media.AudioManager;
 import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -13,6 +14,9 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.os.VibratorManager;
 import android.speech.tts.TextToSpeech;
 import android.telecom.Call;
 import android.telecom.CallAudioState;
@@ -45,11 +49,18 @@ public class MurshidInCallService extends InCallService {
   };
   private TextToSpeech speech;
   private Ringtone ringtone;
+  private Vibrator callVibrator;
 
   @Override public void onCreate() {
     super.onCreate();
     activeService = this;
     callOverlay = new MurshidCallOverlay(this);
+    if (Build.VERSION.SDK_INT >= 31) {
+      VibratorManager manager = getSystemService(VibratorManager.class);
+      if (manager != null) callVibrator = manager.getDefaultVibrator();
+    } else {
+      callVibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+    }
   }
 
   @Override
@@ -306,11 +317,33 @@ public class MurshidInCallService extends InCallService {
     if (ringtone != null) {
       ringtone.play();
       ringtoneStartedAtElapsedRealtime = SystemClock.elapsedRealtime();
+      startSynchronizedVibration();
+    }
+  }
+
+  private void startSynchronizedVibration() {
+    if (callVibrator == null || !callVibrator.hasVibrator()) return;
+    AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
+    if (audio != null && audio.getRingerMode() == AudioManager.RINGER_MODE_SILENT) return;
+    // Three short taps at 0, 250 and 500 ms, followed by the same 3.39 s quiet
+    // interval used by the visual waveform's four-second ring cycle.
+    long[] timings = { 0L, 110L, 140L, 110L, 140L, 110L, 3390L };
+    try {
+      if (Build.VERSION.SDK_INT >= 26) {
+        callVibrator.vibrate(VibrationEffect.createWaveform(timings, 0));
+      } else {
+        callVibrator.vibrate(timings, 0);
+      }
+    } catch (RuntimeException ignored) {
+      // Vibration is an optional haptic cue; never interrupt call handling if the device blocks it.
     }
   }
 
   private void stopRinging() {
     ringtoneStartedAtElapsedRealtime = 0L;
+    if (callVibrator != null) {
+      try { callVibrator.cancel(); } catch (RuntimeException ignored) { }
+    }
     if (speech != null) { speech.stop(); speech.shutdown(); speech = null; }
     if (ringtone != null) { ringtone.stop(); ringtone = null; }
   }

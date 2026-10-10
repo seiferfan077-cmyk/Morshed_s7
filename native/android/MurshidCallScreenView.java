@@ -411,7 +411,8 @@ public final class MurshidCallScreenView extends LinearLayout {
 
   private final class WaveformView extends View {
     private static final long RING_CYCLE_MS = 4000L;
-    private static final long RING_BURST_MS = 1450L;
+    private static final long[] HAPTIC_PULSE_STARTS_MS = { 0L, 250L, 500L };
+    private static final long HAPTIC_PULSE_DURATION_MS = 110L;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final ValueAnimator animator;
     private final boolean ringing;
@@ -444,12 +445,7 @@ public final class MurshidCallScreenView extends LinearLayout {
       long ringtoneStart = ringing ? MurshidInCallService.getRingtoneStartedAtElapsedRealtime() : 0L;
       long ringElapsed = ringtoneStart > 0L ? Math.max(0L, SystemClock.elapsedRealtime() - ringtoneStart) : 0L;
       long ringPhaseMs = ringElapsed % RING_CYCLE_MS;
-      float burstEnvelope = 0f;
-      if (ringing && ringtoneStart > 0L && ringPhaseMs < RING_BURST_MS) {
-        float attack = Math.min(1f, ringPhaseMs / 110f);
-        float release = Math.min(1f, (RING_BURST_MS - ringPhaseMs) / 230f);
-        burstEnvelope = Math.min(attack, release);
-      }
+      float burstEnvelope = ringing && ringtoneStart > 0L ? hapticPulseEnvelope(ringPhaseMs) : 0f;
       for (int i = 0; i < count; i++) {
         float waveA = (float) Math.abs(Math.sin(phase * 2.6f + i * 0.43f));
         float waveB = (float) Math.abs(Math.sin(phase * 1.27f - i * 0.26f + 0.8f));
@@ -473,6 +469,18 @@ public final class MurshidCallScreenView extends LinearLayout {
         canvas.drawRoundRect(x, centerY - height * 0.5f, x + width, centerY + height * 0.5f,
             width * 0.5f, width * 0.5f, paint);
       }
+    }
+
+    private float hapticPulseEnvelope(long phaseMs) {
+      float envelope = 0f;
+      for (long pulseStart : HAPTIC_PULSE_STARTS_MS) {
+        long pulseElapsed = phaseMs - pulseStart;
+        if (pulseElapsed < 0L || pulseElapsed >= HAPTIC_PULSE_DURATION_MS) continue;
+        float attack = Math.min(1f, pulseElapsed / 22f);
+        float release = Math.min(1f, (HAPTIC_PULSE_DURATION_MS - pulseElapsed) / 45f);
+        envelope = Math.max(envelope, Math.min(attack, release));
+      }
+      return envelope;
     }
   }
 }
