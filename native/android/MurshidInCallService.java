@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.speech.tts.TextToSpeech;
 import android.telecom.Call;
 import android.telecom.CallAudioState;
@@ -33,6 +34,7 @@ public class MurshidInCallService extends InCallService {
   private static MurshidInCallService activeService;
   private static volatile boolean mutedState;
   private static volatile boolean speakerEnabledState;
+  private static volatile long ringtoneStartedAtElapsedRealtime;
   private Call.Callback currentCallCallback;
   private MurshidCallOverlay callOverlay;
   private boolean incomingCallForOverlay;
@@ -164,6 +166,7 @@ public class MurshidInCallService extends InCallService {
 
   public static boolean isMuted() { return mutedState; }
   public static boolean isSpeakerOn() { return speakerEnabledState; }
+  public static long getRingtoneStartedAtElapsedRealtime() { return ringtoneStartedAtElapsedRealtime; }
 
   public static void setCallScreenActivityVisible(boolean visible) {
     MurshidInCallService service = activeService;
@@ -300,10 +303,14 @@ public class MurshidInCallService extends InCallService {
     if (currentCall == null || currentCall.getState() != Call.STATE_RINGING || ringtone != null) return;
     Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
     ringtone = RingtoneManager.getRingtone(this, uri);
-    if (ringtone != null) ringtone.play();
+    if (ringtone != null) {
+      ringtone.play();
+      ringtoneStartedAtElapsedRealtime = SystemClock.elapsedRealtime();
+    }
   }
 
   private void stopRinging() {
+    ringtoneStartedAtElapsedRealtime = 0L;
     if (speech != null) { speech.stop(); speech.shutdown(); speech = null; }
     if (ringtone != null) { ringtone.stop(); ringtone = null; }
   }

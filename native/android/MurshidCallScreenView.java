@@ -10,6 +10,7 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -409,6 +410,8 @@ public final class MurshidCallScreenView extends LinearLayout {
   }
 
   private final class WaveformView extends View {
+    private static final long RING_CYCLE_MS = 4000L;
+    private static final long RING_BURST_MS = 1450L;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final ValueAnimator animator;
     private final boolean ringing;
@@ -418,10 +421,13 @@ public final class MurshidCallScreenView extends LinearLayout {
       super(context);
       this.ringing = ringing;
       paint.setColor(Color.WHITE);
-      animator = ValueAnimator.ofFloat(0f, (float) (Math.PI * 2));
-      animator.setDuration(ringing ? 920L : 1260L);
+      animator = ValueAnimator.ofFloat(0f, 1f);
+      animator.setDuration(32L);
       animator.setRepeatCount(ValueAnimator.INFINITE);
-      animator.addUpdateListener(value -> { phase = (float) value.getAnimatedValue(); invalidate(); });
+      animator.addUpdateListener(value -> {
+        phase = (float) (SystemClock.uptimeMillis() % 10000L) / 10000f * (float) (Math.PI * 2);
+        invalidate();
+      });
     }
 
     @Override protected void onAttachedToWindow() { super.onAttachedToWindow(); if (!animator.isStarted()) animator.start(); }
@@ -435,14 +441,34 @@ public final class MurshidCallScreenView extends LinearLayout {
       float centerY = getHeight() * 0.5f;
       float maxHeight = getHeight() * 0.78f;
       float middle = (count - 1) * 0.5f;
+      long ringtoneStart = ringing ? MurshidInCallService.getRingtoneStartedAtElapsedRealtime() : 0L;
+      long ringElapsed = ringtoneStart > 0L ? Math.max(0L, SystemClock.elapsedRealtime() - ringtoneStart) : 0L;
+      long ringPhaseMs = ringElapsed % RING_CYCLE_MS;
+      float burstEnvelope = 0f;
+      if (ringing && ringtoneStart > 0L && ringPhaseMs < RING_BURST_MS) {
+        float attack = Math.min(1f, ringPhaseMs / 110f);
+        float release = Math.min(1f, (RING_BURST_MS - ringPhaseMs) / 230f);
+        burstEnvelope = Math.min(attack, release);
+      }
       for (int i = 0; i < count; i++) {
-        float waveA = (float) Math.abs(Math.sin(phase * (ringing ? 2.6 : 2.0) + i * 0.43));
-        float waveB = (float) Math.abs(Math.sin(phase * 1.27 - i * 0.26 + 0.8));
+        float waveA = (float) Math.abs(Math.sin(phase * 2.6f + i * 0.43f));
+        float waveB = (float) Math.abs(Math.sin(phase * 1.27f - i * 0.26f + 0.8f));
         float envelope = Math.max(0.22f, 1f - Math.abs(i - middle) / (count * 0.57f));
-        float signal = 0.18f + 0.82f * (waveA * 0.68f + waveB * 0.32f) * envelope;
+        float signal;
+        if (ringing && ringtoneStart > 0L) {
+          float detail = 0.58f + 0.42f * (waveA * 0.68f + waveB * 0.32f);
+          signal = 0.07f + burstEnvelope * detail * envelope;
+        } else if (ringing) {
+          // Caller announcement is spoken before the ringtone begins; keep the visual calm until then.
+          signal = 0.09f + 0.12f * (waveA * 0.68f + waveB * 0.32f) * envelope;
+        } else {
+          signal = 0.18f + 0.82f * (waveA * 0.68f + waveB * 0.32f) * envelope;
+        }
         float height = dp(5) + maxHeight * signal;
         float x = i * cell + (cell - width) * 0.5f;
-        float alpha = 150f + signal * 105f;
+        float alpha = ringing && ringtoneStart > 0L
+            ? 95f + burstEnvelope * 160f
+            : 150f + signal * 105f;
         paint.setAlpha(Math.min(255, (int) alpha));
         canvas.drawRoundRect(x, centerY - height * 0.5f, x + width, centerY + height * 0.5f,
             width * 0.5f, width * 0.5f, paint);
