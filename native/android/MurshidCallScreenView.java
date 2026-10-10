@@ -48,7 +48,8 @@ public final class MurshidCallScreenView extends LinearLayout {
     }
   };
 
-  public MurshidCallScreenView(Context context, String name, String number, String line, boolean verified, boolean incoming) {
+  public MurshidCallScreenView(Context context, String name, String number, String line, String contactType,
+      boolean savedContact, boolean favoriteContact, boolean contactLookupAvailable, boolean verified, boolean incoming) {
     super(context);
     connectedAtMillis = incoming ? 0L : connectedAt();
     setOrientation(VERTICAL);
@@ -106,6 +107,20 @@ public final class MurshidCallScreenView extends LinearLayout {
       details.addView(trusted);
     }
     addView(details, params(MATCH_PARENT, dp(23), 0, dp(4)));
+
+    if (incoming) {
+      String contactSummary = !contactLookupAvailable
+          ? "تعذّر التحقق من جهات الاتصال"
+          : savedContact ? "جهة محفوظة" + (clean(contactType) ? " · " + contactType : "")
+              : "رقم غير محفوظ في جهات الاتصال";
+      int summaryColor = savedContact ? MUTED : Color.rgb(222, 190, 160);
+      TextView contactContext = text(contactSummary, 13, summaryColor, Typeface.NORMAL);
+      addView(contactContext, params(MATCH_PARENT, dp(22), 0, dp(2)));
+      if (favoriteContact) {
+        TextView favorite = text("★  جهة اتصال مفضلة", 12, BURGUNDY_LIGHT, Typeface.BOLD);
+        addView(favorite, params(MATCH_PARENT, dp(19), 0, dp(2)));
+      }
+    }
 
     TextView waveLabel = text(incoming ? "موجة الاتصال" : "صوت المكالمة", 12, MUTED, Typeface.NORMAL);
     addView(waveLabel, params(WRAP_CONTENT, dp(20), 0, 0));

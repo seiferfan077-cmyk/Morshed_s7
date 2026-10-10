@@ -52,7 +52,8 @@ public final class MurshidCallOverlay {
       return;
     }
     removeOverlay();
-    View next = new MurshidCallScreenView(context, info.displayName, info.number, info.lineLabel, info.verified, incoming);
+    View next = new MurshidCallScreenView(context, info.displayName, info.number, info.lineLabel,
+        info.contactType, info.savedContact, info.favorite, info.contactLookupAvailable, info.verified, incoming);
     int windowType = Build.VERSION.SDK_INT >= 26
         ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         : WindowManager.LayoutParams.TYPE_PHONE;

@@ -55,6 +55,10 @@ public class MurshidDialerActivity extends Activity {
   public static final String ACTION_ANSWER_FROM_NOTIFICATION = "com.murshid.s7.ANSWER_FROM_NOTIFICATION";
   public static final String EXTRA_CALLER_NAME = "caller_name";
   public static final String EXTRA_LINE_LABEL = "line_label";
+  public static final String EXTRA_CONTACT_TYPE = "contact_type";
+  public static final String EXTRA_SAVED_CONTACT = "saved_contact";
+  public static final String EXTRA_FAVORITE_CONTACT = "favorite_contact";
+  public static final String EXTRA_CONTACT_LOOKUP_AVAILABLE = "contact_lookup_available";
   public static final String EXTRA_VERIFIED = "verified";
   public static final String EXTRA_CONNECTED_AT = "connected_at";
   private int TEAL;
@@ -105,6 +109,10 @@ public class MurshidDialerActivity extends Activity {
       updated.setAction(state == Call.STATE_RINGING ? ACTION_INCOMING : ACTION_ONGOING);
       updated.putExtra(EXTRA_CALLER_NAME, intent.getStringExtra(EXTRA_CALLER_NAME));
       updated.putExtra(EXTRA_LINE_LABEL, intent.getStringExtra(EXTRA_LINE_LABEL));
+      updated.putExtra(EXTRA_CONTACT_TYPE, intent.getStringExtra(EXTRA_CONTACT_TYPE));
+      updated.putExtra(EXTRA_SAVED_CONTACT, intent.getBooleanExtra(EXTRA_SAVED_CONTACT, false));
+      updated.putExtra(EXTRA_FAVORITE_CONTACT, intent.getBooleanExtra(EXTRA_FAVORITE_CONTACT, false));
+      updated.putExtra(EXTRA_CONTACT_LOOKUP_AVAILABLE, intent.getBooleanExtra(EXTRA_CONTACT_LOOKUP_AVAILABLE, false));
       updated.putExtra(EXTRA_VERIFIED, intent.getBooleanExtra(EXTRA_VERIFIED, false));
       setIntent(updated);
       renderCallScreen(state == Call.STATE_RINGING ? "اتصال وارد إلى مُرشد" : "مكالمة مُرشد جارية",
@@ -413,6 +421,10 @@ public class MurshidDialerActivity extends Activity {
     callTimerHandler.removeCallbacks(callTimer);
     String callerName = getIntent().getStringExtra(EXTRA_CALLER_NAME);
     String line = getIntent().getStringExtra(EXTRA_LINE_LABEL);
+    String contactType = getIntent().getStringExtra(EXTRA_CONTACT_TYPE);
+    boolean savedContact = getIntent().getBooleanExtra(EXTRA_SAVED_CONTACT, false);
+    boolean favoriteContact = getIntent().getBooleanExtra(EXTRA_FAVORITE_CONTACT, false);
+    boolean contactLookupAvailable = getIntent().getBooleanExtra(EXTRA_CONTACT_LOOKUP_AVAILABLE, false);
     boolean verified = getIntent().getBooleanExtra(EXTRA_VERIFIED, false);
     Uri callUri = getIntent() == null ? null : getIntent().getData();
     String callerNumber = callUri == null ? "" : callUri.getSchemeSpecificPart();
@@ -427,7 +439,8 @@ public class MurshidDialerActivity extends Activity {
           | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
           | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
-    setContentView(new MurshidCallScreenView(this, callerName, callerNumber, line, verified, incoming));
+    setContentView(new MurshidCallScreenView(this, callerName, callerNumber, line, contactType,
+        savedContact, favoriteContact, contactLookupAvailable, verified, incoming));
   }
 
   private void sendCallControl(String action, boolean enabled) {

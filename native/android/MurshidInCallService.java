@@ -253,6 +253,10 @@ public class MurshidInCallService extends InCallService {
     intent.setAction(action);
     intent.putExtra(MurshidDialerActivity.EXTRA_CALLER_NAME, info.displayName);
     intent.putExtra(MurshidDialerActivity.EXTRA_LINE_LABEL, info.lineLabel);
+    intent.putExtra(MurshidDialerActivity.EXTRA_CONTACT_TYPE, info.contactType);
+    intent.putExtra(MurshidDialerActivity.EXTRA_SAVED_CONTACT, info.savedContact);
+    intent.putExtra(MurshidDialerActivity.EXTRA_FAVORITE_CONTACT, info.favorite);
+    intent.putExtra(MurshidDialerActivity.EXTRA_CONTACT_LOOKUP_AVAILABLE, info.contactLookupAvailable);
     intent.putExtra(MurshidDialerActivity.EXTRA_VERIFIED, info.verified);
     long connectedAt = 0L;
     if (Build.VERSION.SDK_INT >= 23 && currentCall != null && currentCall.getDetails() != null) {
@@ -279,6 +283,10 @@ public class MurshidInCallService extends InCallService {
     MurshidCallerInfo info = MurshidCallerInfo.from(this, call);
     update.putExtra(MurshidDialerActivity.EXTRA_CALLER_NAME, info.displayName);
     update.putExtra(MurshidDialerActivity.EXTRA_LINE_LABEL, info.lineLabel);
+    update.putExtra(MurshidDialerActivity.EXTRA_CONTACT_TYPE, info.contactType);
+    update.putExtra(MurshidDialerActivity.EXTRA_SAVED_CONTACT, info.savedContact);
+    update.putExtra(MurshidDialerActivity.EXTRA_FAVORITE_CONTACT, info.favorite);
+    update.putExtra(MurshidDialerActivity.EXTRA_CONTACT_LOOKUP_AVAILABLE, info.contactLookupAvailable);
     update.putExtra(MurshidDialerActivity.EXTRA_VERIFIED, info.verified);
     sendBroadcast(update);
   }
