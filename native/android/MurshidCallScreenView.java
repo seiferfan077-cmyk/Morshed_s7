@@ -49,7 +49,8 @@ public final class MurshidCallScreenView extends LinearLayout {
   };
 
   public MurshidCallScreenView(Context context, String name, String number, String line, String contactType,
-      boolean savedContact, boolean favoriteContact, boolean contactLookupAvailable, boolean verified, boolean incoming) {
+      boolean savedContact, boolean favoriteContact, boolean contactLookupAvailable,
+      String recentCallSummary, String recentSmsSummary, boolean verified, boolean incoming) {
     super(context);
     connectedAtMillis = incoming ? 0L : connectedAt();
     setOrientation(VERTICAL);
@@ -120,6 +121,7 @@ public final class MurshidCallScreenView extends LinearLayout {
         TextView favorite = text("★  جهة اتصال مفضلة", 12, BURGUNDY_LIGHT, Typeface.BOLD);
         addView(favorite, params(MATCH_PARENT, dp(19), 0, dp(2)));
       }
+      addRecentActivitySummary(recentCallSummary, recentSmsSummary);
     }
 
     TextView waveLabel = text(incoming ? "موجة الاتصال" : "صوت المكالمة", 12, MUTED, Typeface.NORMAL);
@@ -175,6 +177,25 @@ public final class MurshidCallScreenView extends LinearLayout {
   }
 
   private static boolean clean(String value) { return value != null && !value.trim().isEmpty(); }
+
+  private void addRecentActivitySummary(String calls, String messages) {
+    LinearLayout card = new LinearLayout(getContext());
+    card.setOrientation(VERTICAL);
+    card.setPadding(dp(12), dp(8), dp(12), dp(8));
+    card.setBackground(rounded(Color.argb(150, 31, 22, 21), PANEL_LINE, 14));
+    TextView title = text("نشاط حديث مع هذا الرقم", 12, BURGUNDY_LIGHT, Typeface.BOLD);
+    card.addView(title, params(MATCH_PARENT, dp(18), 0, 0));
+    TextView callsLine = text(clean(calls) ? "☎  " + calls : "☎  لا يتوفر سجل مكالمات", 11, MUTED, Typeface.NORMAL);
+    callsLine.setMaxLines(2);
+    callsLine.setEllipsize(android.text.TextUtils.TruncateAt.END);
+    card.addView(callsLine, params(MATCH_PARENT, WRAP_CONTENT, 0, dp(3)));
+    TextView messagesLine = text(clean(messages) ? "✉  " + messages : "✉  لا توجد بيانات رسائل", 11, MUTED, Typeface.NORMAL);
+    messagesLine.setMaxLines(3);
+    messagesLine.setEllipsize(android.text.TextUtils.TruncateAt.END);
+    card.addView(messagesLine, params(MATCH_PARENT, WRAP_CONTENT, 0, 0));
+    card.setContentDescription("ملخص آخر المكالمات والرسائل من هذا المتصل");
+    addView(card, params(MATCH_PARENT, WRAP_CONTENT, 0, dp(7)));
+  }
 
   private long connectedAt() {
     long value = MurshidInCallService.getConnectedAtMillis();

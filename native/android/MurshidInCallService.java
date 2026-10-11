@@ -257,6 +257,8 @@ public class MurshidInCallService extends InCallService {
     intent.putExtra(MurshidDialerActivity.EXTRA_SAVED_CONTACT, info.savedContact);
     intent.putExtra(MurshidDialerActivity.EXTRA_FAVORITE_CONTACT, info.favorite);
     intent.putExtra(MurshidDialerActivity.EXTRA_CONTACT_LOOKUP_AVAILABLE, info.contactLookupAvailable);
+    intent.putExtra(MurshidDialerActivity.EXTRA_RECENT_CALL_SUMMARY, info.recentCallSummary);
+    intent.putExtra(MurshidDialerActivity.EXTRA_RECENT_SMS_SUMMARY, info.recentSmsSummary);
     intent.putExtra(MurshidDialerActivity.EXTRA_VERIFIED, info.verified);
     long connectedAt = 0L;
     if (Build.VERSION.SDK_INT >= 23 && currentCall != null && currentCall.getDetails() != null) {
@@ -287,6 +289,8 @@ public class MurshidInCallService extends InCallService {
     update.putExtra(MurshidDialerActivity.EXTRA_SAVED_CONTACT, info.savedContact);
     update.putExtra(MurshidDialerActivity.EXTRA_FAVORITE_CONTACT, info.favorite);
     update.putExtra(MurshidDialerActivity.EXTRA_CONTACT_LOOKUP_AVAILABLE, info.contactLookupAvailable);
+    update.putExtra(MurshidDialerActivity.EXTRA_RECENT_CALL_SUMMARY, info.recentCallSummary);
+    update.putExtra(MurshidDialerActivity.EXTRA_RECENT_SMS_SUMMARY, info.recentSmsSummary);
     update.putExtra(MurshidDialerActivity.EXTRA_VERIFIED, info.verified);
     sendBroadcast(update);
   }

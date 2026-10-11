@@ -52,6 +52,7 @@ public class MurshidDialerActivity extends Activity {
   public static final String ACTION_INCOMING = "com.murshid.s7.INCOMING_CALL";
   public static final String ACTION_ONGOING = "com.murshid.s7.ONGOING_CALL";
   public static final String ACTION_OPEN_DIALER = "com.murshid.s7.OPEN_DIALER";
+  public static final String ACTION_REQUEST_CALL_SUMMARY_PERMISSION = "com.murshid.s7.REQUEST_CALL_SUMMARY_PERMISSION";
   public static final String ACTION_ANSWER_FROM_NOTIFICATION = "com.murshid.s7.ANSWER_FROM_NOTIFICATION";
   public static final String EXTRA_CALLER_NAME = "caller_name";
   public static final String EXTRA_LINE_LABEL = "line_label";
@@ -59,6 +60,8 @@ public class MurshidDialerActivity extends Activity {
   public static final String EXTRA_SAVED_CONTACT = "saved_contact";
   public static final String EXTRA_FAVORITE_CONTACT = "favorite_contact";
   public static final String EXTRA_CONTACT_LOOKUP_AVAILABLE = "contact_lookup_available";
+  public static final String EXTRA_RECENT_CALL_SUMMARY = "recent_call_summary";
+  public static final String EXTRA_RECENT_SMS_SUMMARY = "recent_sms_summary";
   public static final String EXTRA_VERIFIED = "verified";
   public static final String EXTRA_CONNECTED_AT = "connected_at";
   private int TEAL;
@@ -75,6 +78,7 @@ public class MurshidDialerActivity extends Activity {
   private static final int REQUEST_CALL_PHONE = 9203;
   private static final int REQUEST_PHONE_STATE = 9204;
   private static final int REQUEST_POST_NOTIFICATIONS = 9205;
+  private static final int REQUEST_CALL_LOG = 9206;
   private EditText numberInput;
   private PhoneAccountHandle selectedAccount;
   private float gestureStartX;
@@ -113,6 +117,8 @@ public class MurshidDialerActivity extends Activity {
       updated.putExtra(EXTRA_SAVED_CONTACT, intent.getBooleanExtra(EXTRA_SAVED_CONTACT, false));
       updated.putExtra(EXTRA_FAVORITE_CONTACT, intent.getBooleanExtra(EXTRA_FAVORITE_CONTACT, false));
       updated.putExtra(EXTRA_CONTACT_LOOKUP_AVAILABLE, intent.getBooleanExtra(EXTRA_CONTACT_LOOKUP_AVAILABLE, false));
+      updated.putExtra(EXTRA_RECENT_CALL_SUMMARY, intent.getStringExtra(EXTRA_RECENT_CALL_SUMMARY));
+      updated.putExtra(EXTRA_RECENT_SMS_SUMMARY, intent.getStringExtra(EXTRA_RECENT_SMS_SUMMARY));
       updated.putExtra(EXTRA_VERIFIED, intent.getBooleanExtra(EXTRA_VERIFIED, false));
       setIntent(updated);
       renderCallScreen(state == Call.STATE_RINGING ? "اتصال وارد إلى مُرشد" : "مكالمة مُرشد جارية",
@@ -223,17 +229,11 @@ public class MurshidDialerActivity extends Activity {
     }
   }
 
-  @Override
-  public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-    if (requestCode == REQUEST_POST_NOTIFICATIONS || requestCode == REQUEST_PHONE_STATE) {
-      renderDialPad(numberInput == null ? "" : numberInput.getText().toString());
-    }
-  }
-
   private void render(Intent intent) {
     String action = intent == null ? null : intent.getAction();
-    if (ACTION_INCOMING.equals(action)) {
+    if (ACTION_REQUEST_CALL_SUMMARY_PERMISSION.equals(action)) {
+      requestCallSummaryPermission();
+    } else if (ACTION_INCOMING.equals(action)) {
       renderCallScreen("اتصال وارد إلى مُرشد", "اسحب للرد أو الرفض", true);
     } else if (ACTION_ONGOING.equals(action)) {
       renderCallScreen("مكالمة مُرشد جارية", "المكالمة متصلة", false);
@@ -425,6 +425,8 @@ public class MurshidDialerActivity extends Activity {
     boolean savedContact = getIntent().getBooleanExtra(EXTRA_SAVED_CONTACT, false);
     boolean favoriteContact = getIntent().getBooleanExtra(EXTRA_FAVORITE_CONTACT, false);
     boolean contactLookupAvailable = getIntent().getBooleanExtra(EXTRA_CONTACT_LOOKUP_AVAILABLE, false);
+    String recentCallSummary = getIntent().getStringExtra(EXTRA_RECENT_CALL_SUMMARY);
+    String recentSmsSummary = getIntent().getStringExtra(EXTRA_RECENT_SMS_SUMMARY);
     boolean verified = getIntent().getBooleanExtra(EXTRA_VERIFIED, false);
     Uri callUri = getIntent() == null ? null : getIntent().getData();
     String callerNumber = callUri == null ? "" : callUri.getSchemeSpecificPart();
@@ -440,7 +442,7 @@ public class MurshidDialerActivity extends Activity {
           | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
     setContentView(new MurshidCallScreenView(this, callerName, callerNumber, line, contactType,
-        savedContact, favoriteContact, contactLookupAvailable, verified, incoming));
+        savedContact, favoriteContact, contactLookupAvailable, recentCallSummary, recentSmsSummary, verified, incoming));
   }
 
   private void sendCallControl(String action, boolean enabled) {
@@ -668,10 +670,28 @@ public class MurshidDialerActivity extends Activity {
     }
   }
 
+  private void requestCallSummaryPermission() {
+    if (checkSelfPermission(Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) {
+      Toast.makeText(this, "إذن سجل المكالمات مفعّل بالفعل", Toast.LENGTH_LONG).show();
+      renderDialPad(numberInput == null ? "" : numberInput.getText().toString());
+      return;
+    }
+    requestPermissions(new String[] { Manifest.permission.READ_CALL_LOG }, REQUEST_CALL_LOG);
+  }
+
   @Override
   public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
     super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-    if (requestCode == REQUEST_CONTACTS) {
+    if (requestCode == REQUEST_POST_NOTIFICATIONS || requestCode == REQUEST_PHONE_STATE) {
+      renderDialPad(numberInput == null ? "" : numberInput.getText().toString());
+    } else if (requestCode == REQUEST_CALL_LOG) {
+      if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+        Toast.makeText(this, "سيظهر ملخص المكالمات السابقة على شاشة الرنين القادمة", Toast.LENGTH_LONG).show();
+      } else {
+        Toast.makeText(this, "لم يُمنح إذن سجل المكالمات؛ ستظل بقية ميزات الاتصال تعمل", Toast.LENGTH_LONG).show();
+      }
+      renderDialPad(numberInput == null ? "" : numberInput.getText().toString());
+    } else if (requestCode == REQUEST_CONTACTS) {
       if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) renderContacts();
       else Toast.makeText(this, "يلزم السماح بجهات الاتصال لعرض الأسماء والأرقام", Toast.LENGTH_LONG).show();
     } else if (requestCode == REQUEST_PHONE_STATE) {

@@ -24,6 +24,17 @@ export function SettingsScreen() {
       Alert.alert('تعذر فتح الإعداد', 'افتح تطبيق مُرشد على Android ثم أعد المحاولة.');
     }
   };
+  const enableCallSummary = async () => {
+    if (Platform.OS !== 'android') {
+      Alert.alert('ملخص النشاط', 'ملخص سجل المكالمات والرسائل على شاشة الرنين متاح في نسخة Android.');
+      return;
+    }
+    try {
+      await IntentLauncher.startActivityAsync('com.murshid.s7.REQUEST_CALL_SUMMARY_PERMISSION');
+    } catch {
+      Alert.alert('تعذر فتح الإعداد', 'افتح مُرشد على Android ثم أعد المحاولة.');
+    }
+  };
 
   return (
     <View style={styles.screen}>
@@ -68,6 +79,19 @@ export function SettingsScreen() {
           <View style={styles.copy}>
             <Text style={styles.title}>تهيئة استقبال المكالمات</Text>
           <Text style={styles.detail}>عيّن مُرشد كتطبيق الهاتف؛ تظهر شاشة الاتصال بملء الشاشة، ويمكن منح إذن الظهور فوق التطبيقات لتغطية التطبيق المفتوح أثناء الرنين</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={17} color={colors.inkFaint} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="تفعيل ملخص آخر المكالمات على شاشة الرنين"
+          onPress={() => void enableCallSummary()}
+          style={({ pressed }) => [styles.row, styles.supportRow, pressed && styles.pressed]}
+        >
+          <Ionicons name="time-outline" size={21} color={colors.tealDark} />
+          <View style={styles.copy}>
+            <Text style={styles.title}>ملخص النشاط على شاشة الرنين</Text>
+            <Text style={styles.detail}>امنح إذن سجل المكالمات اختياريًا لعرض آخر تفاعلات هذا الرقم؛ وتُعرض معاينة SMS فقط عند منح إذن الرسائل. قد تظهر المعاينة على شاشة الاتصال عند القفل. تُعالج البيانات على الجهاز.</Text>
           </View>
           <Ionicons name="chevron-forward" size={17} color={colors.inkFaint} />
         </Pressable>

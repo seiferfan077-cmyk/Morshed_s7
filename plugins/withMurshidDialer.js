@@ -163,6 +163,7 @@ module.exports = function withMurshidDialer(config) {
       'android.permission.CALL_PHONE',
       'android.permission.ANSWER_PHONE_CALLS',
       'android.permission.READ_CONTACTS',
+      'android.permission.READ_CALL_LOG',
       'android.permission.POST_NOTIFICATIONS',
       'android.permission.USE_FULL_SCREEN_INTENT',
       'android.permission.SYSTEM_ALERT_WINDOW',
