@@ -20,7 +20,8 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.murshid.s7"
+      "package": "com.murshid.s7",
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"

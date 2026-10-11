@@ -232,12 +232,29 @@ module.exports = function withMurshidDialer(config) {
       'MurshidRolePromptActivity.java',
       'MurshidSmsModule.java',
       'MurshidSmsPackage.java',
+      'MurshidShortcutModule.java',
       'MurshidThemeModule.java',
       'MurshidSmsReceiver.java',
       'MurshidWapPushReceiver.java',
       'MurshidRespondViaMessageService.java',
     ]) {
       fs.copyFileSync(path.join(sourceDir, filename), path.join(targetDir, filename));
+    }
+    const resourceSourceDir = path.join(sourceDir, 'res');
+    if (fs.existsSync(resourceSourceDir)) {
+      const resourceTargetDir = path.join(config.modRequest.platformProjectRoot, 'app', 'src', 'main', 'res');
+      for (const directory of fs.readdirSync(resourceSourceDir, { withFileTypes: true })) {
+        if (!directory.isDirectory()) continue;
+        const sourceFolder = path.join(resourceSourceDir, directory.name);
+        const targetFolder = path.join(resourceTargetDir, directory.name);
+        fs.mkdirSync(targetFolder, { recursive: true });
+        for (const filename of fs.readdirSync(sourceFolder)) {
+          const sourceFile = path.join(sourceFolder, filename);
+          if (fs.statSync(sourceFile).isFile()) {
+            fs.copyFileSync(sourceFile, path.join(targetFolder, filename));
+          }
+        }
+      }
     }
     return config;
   }]);

@@ -14,7 +14,8 @@ public final class MurshidSmsPackage implements ReactPackage {
   public List<NativeModule> createNativeModules(ReactApplicationContext reactContext) {
     return Arrays.<NativeModule>asList(
         new MurshidSmsModule(reactContext),
-        new MurshidThemeModule(reactContext));
+        new MurshidThemeModule(reactContext),
+        new MurshidShortcutModule(reactContext));
   }
 
   @Override

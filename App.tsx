@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { NativeModules, Platform, View } from 'react-native';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as SystemUI from 'expo-system-ui';
 import * as Updates from 'expo-updates';
@@ -28,7 +28,17 @@ export default function App() {
     if ((!fontsLoaded && !fontError) || !ready || showWelcome || Platform.OS !== 'android') return;
     // The native transparent activity records that the one-time system prompt was shown.
     // Declining the role never blocks the rest of the app.
-    void IntentLauncher.startActivityAsync('com.murshid.s7.REQUEST_DEFAULT_ROLES').catch(() => undefined);
+    let active = true;
+    void (async () => {
+      await IntentLauncher.startActivityAsync('com.murshid.s7.REQUEST_DEFAULT_ROLES').catch(() => undefined);
+      if (!active) return;
+      try {
+        await NativeModules.MurshidShortcutModule?.requestPinShortcut?.();
+      } catch {
+        // Pinned shortcuts are optional and unsupported launchers must not block startup.
+      }
+    })();
+    return () => { active = false; };
   }, [fontsLoaded, fontError, ready, showWelcome]);
 
   useEffect(() => {
