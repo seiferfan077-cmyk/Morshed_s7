@@ -445,6 +445,7 @@ public class MurshidDialerActivity extends Activity {
         savedContact, favoriteContact, contactLookupAvailable, recentCallSummary, recentSmsSummary, verified, incoming));
   }
 
+  public void showCallDialPad() { renderDialPad(numberInput == null ? "" : numberInput.getText().toString()); }
   private void sendCallControl(String action, boolean enabled) {
     if (!MurshidInCallService.dispatchAction(action, enabled)) {
       Toast.makeText(this, "تعذر التحكم بالمكالمة؛ أعد فتح شاشة الاتصال", Toast.LENGTH_SHORT).show();

@@ -15,6 +15,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -43,7 +44,7 @@ public final class MurshidCallScreenView extends LinearLayout {
     @Override public void run() {
       if (durationText == null) return;
       long elapsed = Math.max(0L, System.currentTimeMillis() - connectedAtMillis) / 1000L;
-      durationText.setText(String.format(Locale.ROOT, "%02d:%02d", elapsed / 60L, elapsed % 60L));
+      durationText.setText(String.format(Locale.ROOT, "%02d:%02d:%02d", elapsed / 3600L, (elapsed / 60L) % 60L, elapsed % 60L));
       timerHandler.postDelayed(this, 1000L);
     }
   };
@@ -55,127 +56,97 @@ public final class MurshidCallScreenView extends LinearLayout {
     connectedAtMillis = incoming ? 0L : connectedAt();
     setOrientation(VERTICAL);
     setGravity(Gravity.CENTER_HORIZONTAL);
-    setPadding(dp(26), dp(22), dp(26), dp(22));
+    setPadding(dp(18), dp(10), dp(18), dp(12));
     setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-        new int[] { BACKGROUND_TOP, Color.rgb(19, 13, 14), BACKGROUND_BOTTOM }));
+        new int[] { Color.rgb(6, 49, 55), Color.rgb(5, 34, 39), Color.rgb(4, 24, 28) }));
     setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
 
     String safeNumber = clean(number) ? number : "رقم غير معروف";
-    String safeName = clean(name) ? name : safeNumber;
-    String safeLine = clean(line) ? line : "خط الهاتف";
+    String safeName = clean(name) ? name : "اسم الشخص";
+    String safeLine = clean(line) ? line : "SIM";
 
-    TextView brand = text("مُرشد", 23, WHITE, Typeface.BOLD);
-    brand.setContentDescription("تطبيق مُرشد للمكالمات");
-    addView(brand, params(WRAP_CONTENT, dp(31), 0, 0));
-    TextView tagline = text(incoming ? "اتصال وارد الآن" : "مكالمة مُرشد جارية", 13, MUTED, Typeface.NORMAL);
-    addView(tagline, params(WRAP_CONTENT, dp(24), 0, dp(7)));
+    LinearLayout header = new LinearLayout(context);
+    header.setOrientation(VERTICAL);
+    header.setGravity(Gravity.CENTER_HORIZONTAL);
+    ImageView logo = new ImageView(context);
+    logo.setImageResource(com.murshid.s7.R.mipmap.ic_launcher);
+    logo.setBackground(rounded(Color.rgb(219, 240, 241), Color.TRANSPARENT, 18));
+    logo.setPadding(dp(5), dp(5), dp(5), dp(5));
+    header.addView(logo, params(dp(64), dp(64), 0, 0));
+    TextView brand = text("مُرشد", 31, Color.rgb(220, 244, 245), Typeface.BOLD);
+    header.addView(brand, params(WRAP_CONTENT, dp(35), 0, 0));
+    TextView verifiedBadge = text("✓", 16, Color.WHITE, Typeface.BOLD);
+    verifiedBadge.setBackground(oval(Color.rgb(43, 115, 155), Color.TRANSPARENT));
+    header.addView(verifiedBadge, params(dp(27), dp(27), 0, dp(2)));
+    addView(header, params(WRAP_CONTENT, dp(128), 0, 0));
 
-    TextView status = text(incoming ? "الرد أو الرفض الآن" : "متصل عبر " + safeLine, 14, WHITE, Typeface.BOLD);
-    status.setBackground(rounded(Color.argb(38, 255, 255, 255), PANEL_LINE, 20));
-    status.setPadding(dp(16), dp(7), dp(16), dp(7));
-    status.setGravity(Gravity.CENTER);
-    addView(status, params(WRAP_CONTENT, WRAP_CONTENT, 0, dp(12)));
-
-    FrameLayout avatar = new FrameLayout(context);
-    GradientDrawable avatarGlow = oval(Color.argb(26, 210, 61, 83), Color.argb(110, 210, 61, 83));
-    avatar.setBackground(avatarGlow);
-    avatar.setElevation(dp(8));
-    FrameLayout.LayoutParams personParams = new FrameLayout.LayoutParams(dp(76), dp(76), Gravity.CENTER);
-    View person = new PersonIconView(context);
-    person.setContentDescription("أيقونة شخص المتصل");
-    avatar.addView(person, personParams);
-    addView(avatar, params(dp(108), dp(108), 0, dp(10)));
-
-    TextView callerName = text(safeName, 29, WHITE, Typeface.BOLD);
-    callerName.setGravity(Gravity.CENTER);
+    TextView callerName = text("( " + safeName + " )", 32, Color.rgb(222, 55, 52), Typeface.BOLD);
     callerName.setMaxLines(2);
-    addView(callerName, params(MATCH_PARENT, WRAP_CONTENT, 0, dp(3)));
+    addView(callerName, params(MATCH_PARENT, dp(47), 0, 0));
+    TextView sim = text("يتم الاتصال عليك من الشريحة " + safeLine, 18, Color.rgb(194, 166, 119), Typeface.BOLD);
+    addView(sim, params(MATCH_PARENT, dp(31), 0, 0));
 
-    if (!safeNumber.equals(safeName)) {
-      TextView callerNumber = text(safeNumber, 17, MUTED, Typeface.NORMAL);
-      callerNumber.setTextDirection(View.TEXT_DIRECTION_LTR);
-      callerNumber.setGravity(Gravity.CENTER);
-      callerNumber.setMaxLines(1);
-      addView(callerNumber, params(MATCH_PARENT, WRAP_CONTENT, 0, dp(4)));
-    }
+    LinearLayout statusRow = new LinearLayout(context);
+    statusRow.setGravity(Gravity.CENTER);
+    TextView status = text(incoming ? "اتصال وارد الآن" : "بيكلمك دلوقتي", 25, Color.WHITE, Typeface.BOLD);
+    statusRow.addView(status, params(WRAP_CONTENT, dp(39), 0, 0));
+    View dot = new View(context);
+    dot.setBackground(oval(Color.rgb(55, 203, 118), Color.TRANSPARENT));
+    statusRow.addView(dot, params(dp(15), dp(15), dp(8), dp(1)));
+    TextView phone = text("⌕", 30, Color.rgb(174, 195, 194), Typeface.NORMAL);
+    statusRow.addView(phone, params(dp(34), dp(39), dp(3), 0));
+    addView(statusRow, params(MATCH_PARENT, dp(43), 0, 0));
 
-    LinearLayout details = new LinearLayout(context);
-    details.setGravity(Gravity.CENTER);
-    TextView sim = text("◉  " + safeLine, 13, MUTED, Typeface.NORMAL);
-    details.addView(sim);
-    if (verified) {
-      TextView trusted = text("   ✓ موثق", 13, BURGUNDY_LIGHT, Typeface.BOLD);
-      details.addView(trusted);
-    }
-    addView(details, params(MATCH_PARENT, dp(23), 0, dp(4)));
-
-    if (incoming) {
-      String contactSummary = !contactLookupAvailable
-          ? "تعذّر التحقق من جهات الاتصال"
-          : savedContact ? "جهة محفوظة" + (clean(contactType) ? " · " + contactType : "")
-              : "رقم غير محفوظ في جهات الاتصال";
-      int summaryColor = savedContact ? MUTED : Color.rgb(222, 190, 160);
-      TextView contactContext = text(contactSummary, 13, summaryColor, Typeface.NORMAL);
-      addView(contactContext, params(MATCH_PARENT, dp(22), 0, dp(2)));
-      if (favoriteContact) {
-        TextView favorite = text("★  جهة اتصال مفضلة", 12, BURGUNDY_LIGHT, Typeface.BOLD);
-        addView(favorite, params(MATCH_PARENT, dp(19), 0, dp(2)));
-      }
-      addRecentActivitySummary(recentCallSummary, recentSmsSummary);
-    }
-
-    TextView waveLabel = text(incoming ? "موجة الاتصال" : "صوت المكالمة", 12, MUTED, Typeface.NORMAL);
-    addView(waveLabel, params(WRAP_CONTENT, dp(20), 0, 0));
+    FrameLayout avatarStage = new FrameLayout(context);
+    avatarStage.setBackground(oval(Color.argb(26, 92, 177, 207), Color.argb(115, 128, 219, 232)));
+    avatarStage.setPadding(dp(24), dp(24), dp(24), dp(24));
+    PersonIconView person = new PersonIconView(context);
+    person.setContentDescription("صورة افتراضية للمتصل");
+    avatarStage.addView(person, new FrameLayout.LayoutParams(dp(112), dp(112), Gravity.CENTER));
     WaveformView waveform = new WaveformView(context, incoming);
-    waveform.setContentDescription("موجة متحركة لحالة المكالمة");
-    addView(waveform, params(MATCH_PARENT, dp(56), 0, dp(5)));
+    waveform.setContentDescription("موجات صوت المكالمة");
+    addView(avatarStage, params(MATCH_PARENT, dp(168), 0, 0));
+    addView(waveform, params(MATCH_PARENT, dp(46), 0, dp(1)));
+
+    TextView counterLabel = text(incoming ? "بانتظار الرد" : "عداد ساعات", 20, Color.rgb(179, 191, 190), Typeface.BOLD);
+    addView(counterLabel, params(WRAP_CONTENT, dp(29), 0, 0));
+    durationText = text("00:00:00", 31, Color.WHITE, Typeface.NORMAL);
+    durationText.setContentDescription("مدة المكالمة");
+    addView(durationText, params(WRAP_CONTENT, dp(43), 0, dp(2)));
+
+    LinearLayout firstRow = new LinearLayout(context);
+    firstRow.setGravity(Gravity.CENTER);
+    firstRow.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+    firstRow.addView(action("◖))", "مكبر الصوت", Color.rgb(45, 55, 60), Color.WHITE, false, () -> {
+      boolean next = !MurshidInCallService.isSpeakerOn();
+      dispatch(MurshidInCallService.ACTION_SET_SPEAKER, next);
+    }), params(0, dp(98), dp(4), 0, 1));
+    firstRow.addView(action("?▣", "فيس تايم", Color.rgb(45, 55, 60), Color.WHITE, false,
+        () -> Toast.makeText(getContext(), "فيس تايم غير متاح عبر شبكة الهاتف", Toast.LENGTH_SHORT).show()), params(0, dp(98), dp(4), 0, 1));
+    firstRow.addView(action("♩/", "كتم الصوت", Color.rgb(45, 55, 60), Color.WHITE, false, () -> {
+      boolean next = !MurshidInCallService.isMuted();
+      dispatch(MurshidInCallService.ACTION_SET_MUTED, next);
+    }), params(0, dp(98), dp(4), 0, 1));
+    addView(firstRow, params(MATCH_PARENT, dp(100), 0, 0));
+
+    LinearLayout secondRow = new LinearLayout(context);
+    secondRow.setGravity(Gravity.CENTER);
+    secondRow.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+    secondRow.addView(action("•••", "المزيد", Color.rgb(45, 55, 60), Color.WHITE, false,
+        () -> Toast.makeText(getContext(), "المزيد من خيارات المكالمة قريبًا", Toast.LENGTH_SHORT).show()), params(0, dp(98), dp(4), 0, 1));
+    secondRow.addView(action("☎", "إنهاء المكالمة", Color.rgb(184, 22, 29), Color.WHITE, true,
+        () -> dispatch(MurshidInCallService.ACTION_HANGUP)), params(0, dp(98), dp(4), 0, 1));
+    secondRow.addView(action("⠿", "لوحة المفاتيح", Color.rgb(45, 55, 60), Color.WHITE, false,
+        () -> ((MurshidDialerActivity) getContext()).showCallDialPad()), params(0, dp(98), dp(4), 0, 1));
+    addView(secondRow, params(MATCH_PARENT, dp(100), 0, 0));
 
     if (incoming) {
-      TextView prompt = text("اسحب للرد أو الرفض، أو استخدم الأزرار", 13, MUTED, Typeface.NORMAL);
-      addView(prompt, params(MATCH_PARENT, dp(23), 0, dp(7)));
-
-      LinearLayout swipeRows = new LinearLayout(context);
-      swipeRows.setOrientation(VERTICAL);
-      swipeRows.setGravity(Gravity.CENTER_HORIZONTAL);
-      SwipeRail answerRail = new SwipeRail(context, true);
-      SwipeRail rejectRail = new SwipeRail(context, false);
-      swipeRows.addView(answerRail, params(MATCH_PARENT, dp(52), 0, dp(7)));
-      swipeRows.addView(rejectRail, params(MATCH_PARENT, dp(52), 0, 0));
-      addView(swipeRows, params(MATCH_PARENT, WRAP_CONTENT, 0, dp(10)));
-
-      LinearLayout buttons = new LinearLayout(context);
-      buttons.setGravity(Gravity.CENTER);
-      buttons.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-      buttons.addView(action("☎", "رد", BURGUNDY, BURGUNDY_LIGHT, false, () -> dispatch(MurshidInCallService.ACTION_ANSWER)),
-          params(dp(108), dp(96), dp(10), 0));
-      buttons.addView(action("☎", "رفض", GREEN, Color.rgb(70, 202, 145), true, () -> dispatch(MurshidInCallService.ACTION_REJECT)),
-          params(dp(108), dp(96), dp(10), 0));
-      addView(buttons, params(WRAP_CONTENT, dp(96), 0, 0));
-    } else {
-      durationText = text("00:00", 26, WHITE, Typeface.BOLD);
-      durationText.setContentDescription("مدة المكالمة");
-      addView(durationText, params(WRAP_CONTENT, dp(38), 0, dp(12)));
-
-      LinearLayout controls = new LinearLayout(context);
-      controls.setGravity(Gravity.CENTER);
-      controls.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-      controls.addView(control("🎙", "كتم", MurshidInCallService.isMuted(), () -> {
-        boolean next = !MurshidInCallService.isMuted();
-        dispatch(MurshidInCallService.ACTION_SET_MUTED, next);
-      }), params(0, dp(92), dp(3), 0, 1));
-      controls.addView(control("◖))", "مكبر الصوت", MurshidInCallService.isSpeakerOn(), () -> {
-        boolean next = !MurshidInCallService.isSpeakerOn();
-        dispatch(MurshidInCallService.ACTION_SET_SPEAKER, next);
-      }), params(0, dp(92), dp(3), 0, 1));
-      controls.addView(control("☎", "إنهاء", false, () -> dispatch(MurshidInCallService.ACTION_HANGUP)),
-          params(0, dp(92), dp(3), 0, 1));
-      addView(controls, params(MATCH_PARENT, dp(92), 0, 0));
+      TextView prompt = text("اسحب يمينًا للرد أو يسارًا للرفض", 12, Color.rgb(171, 194, 193), Typeface.NORMAL);
+      addView(prompt, params(MATCH_PARENT, dp(22), 0, 0));
     }
-
-    TextView footer = text("اتصالك عبر مُرشد", 11, Color.rgb(143, 126, 122), Typeface.NORMAL);
+    TextView footer = text(verified ? "✓ جهة موثقة لدى مُرشد" : "اتصالك عبر مُرشد", 11, Color.rgb(150, 195, 193), Typeface.NORMAL);
     addView(footer, params(WRAP_CONTENT, dp(20), 0, 0));
   }
-
   private static boolean clean(String value) { return value != null && !value.trim().isEmpty(); }
 
   private void addRecentActivitySummary(String calls, String messages) {
@@ -417,31 +388,13 @@ public final class MurshidCallScreenView extends LinearLayout {
       super.onDraw(canvas);
       float cx = getWidth() * 0.5f;
       float cy = getHeight() * 0.5f + dp(3) * (float) Math.sin(phase * 2f);
-      paint.setColor(WHITE);
+      paint.setColor(Color.rgb(78, 139, 190));
       paint.setStyle(Paint.Style.FILL);
-      canvas.drawCircle(cx + dp(2), cy - dp(22), dp(7), paint);
-      paint.setStyle(Paint.Style.STROKE);
-      paint.setStrokeWidth(dp(5));
-      paint.setStrokeCap(Paint.Cap.ROUND);
-      paint.setStrokeJoin(Paint.Join.ROUND);
+      canvas.drawCircle(cx, cy - dp(22), dp(22), paint);
       Path body = new Path();
-      body.moveTo(cx + dp(2), cy - dp(13));
-      body.quadTo(cx - dp(1), cy - dp(4), cx, cy + dp(5));
+      body.moveTo(cx - dp(42), cy + dp(45));
+      body.cubicTo(cx - dp(39), cy + dp(3), cx + dp(39), cy + dp(3), cx + dp(42), cy + dp(45));
       canvas.drawPath(body, paint);
-      float swing = (float) Math.sin(phase) * dp(8);
-      Path arms = new Path();
-      arms.moveTo(cx + dp(1), cy - dp(8));
-      arms.lineTo(cx - dp(10), cy - dp(1) + swing * 0.35f);
-      arms.moveTo(cx + dp(1), cy - dp(8));
-      arms.lineTo(cx + dp(12), cy - dp(2) - swing * 0.35f);
-      canvas.drawPath(arms, paint);
-      Path legs = new Path();
-      legs.moveTo(cx, cy + dp(5));
-      legs.lineTo(cx - dp(9) - swing, cy + dp(22));
-      legs.moveTo(cx, cy + dp(5));
-      legs.lineTo(cx + dp(10) + swing, cy + dp(20));
-      canvas.drawPath(legs, paint);
-      paint.setStyle(Paint.Style.FILL);
     }
   }
 
