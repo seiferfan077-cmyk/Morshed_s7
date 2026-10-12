@@ -1,0 +1,18 @@
+{
+  "sourcePolicy": "لا يدّعي هذا الكتالوج اكتمال جميع مرويات كل مجموعة. النص المحلي المتاح للقراءة دون اتصال هو الأربعون النووية، أما بقية المجموعات فتظهر كمصادر خارجية حتى يثبت إذن إعادة التوزيع.",
+  "officialSite": "https://setr-seif-ai.vercel.app/",
+  "collections": [
+    {"id":"bukhari","title":"صحيح البخاري","tradition":"سني","availability":"مصدر خارجي","url":"https://sunnah.com/bukhari","note":"لا تُضمّن نسخة كاملة محليًا دون إذن إعادة توزيع واضح."},
+    {"id":"muslim","title":"صحيح مسلم","tradition":"سني","availability":"مصدر خارجي","url":"https://sunnah.com/muslim","note":"مصدر خارجي موثق؛ لا يعني اسم المجموعة أن كل البيانات الرقمية قابلة لإعادة النشر."},
+    {"id":"abu-dawud","title":"سنن أبي داود","tradition":"سني","availability":"مصدر خارجي","url":"https://sunnah.com/abudawud","note":"تختلف الأعداد والترقيمات بين الطبعات، وتختلف درجات النقاد."},
+    {"id":"tirmidhi","title":"جامع الترمذي","tradition":"سني","availability":"مصدر خارجي","url":"https://sunnah.com/tirmidhi","note":"يُحفظ اسم المصحح مع الحكم ولا يُختزل إلى صحيح/ضعيف بلا نسبة."},
+    {"id":"nasai","title":"سنن النسائي","tradition":"سني","availability":"مصدر خارجي","url":"https://sunnah.com/nasai","note":"المقصود هنا المجتبى/السنن الصغرى، لا كل نسخ السنن الكبرى."},
+    {"id":"ibn-majah","title":"سنن ابن ماجه","tradition":"سني","availability":"مصدر خارجي","url":"https://sunnah.com/ibnmajah","note":"تحتاج الأحكام إلى نسبة للمصحح أو المحقق."},
+    {"id":"malik","title":"موطأ مالك","tradition":"سني","availability":"مصدر خارجي","url":"https://sunnah.com/malik","note":"توجد فروق بين الروايات والطبعات."},
+    {"id":"ahmad","title":"مسند أحمد","tradition":"سني","availability":"مصدر خارجي","url":"https://sunnah.com/ahmad","note":"مجموعة كبيرة؛ لا يُستنتج حكم الحديث من وجوده فيها وحده."},
+    {"id":"darimi","title":"سنن الدارمي","tradition":"سني","availability":"مصدر خارجي","url":"https://sunnah.com/darimi","note":"المجموعة مفهرسة خارجيًا في كتالوج المصدر."},
+    {"id":"riyad-al-salihin","title":"رياض الصالحين","tradition":"سني","availability":"مصدر خارجي","url":"https://sunnah.com/riyadussalihin","note":"كتاب مختارات؛ تُحفظ إحالات التخريج والحكم كما هي."},
+    {"id":"nawawi","title":"الأربعون النووية","tradition":"سني","availability":"متاح محليًا","url":"https://github.com/osamayy/40-hadith-nawawi-db","note":"42 نصًا مع شرح مختصر محفوظة محليًا للبحث والقراءة."},
+    {"id":"shia-four-books","title":"الكتب الأربعة عند الإمامية","tradition":"إمامي","availability":"مصدر خارجي","url":"https://www.al-islam.org/collections/hadith","note":"يُعرض كمسار مصادر مستقل، ولا تُخلط أحكامه بمصطلحات تخريج المجموعات السنية."}
+  ]
+}
