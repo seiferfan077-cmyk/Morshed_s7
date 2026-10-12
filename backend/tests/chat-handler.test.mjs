@@ -80,6 +80,9 @@ test('returns an assistant reply using Gemini Interactions stateless API', async
   });
   assert.match(upstreamRequest.body.system_instruction, /أفضل البدء مبكرًا/);
   assert.match(upstreamRequest.body.system_instruction, /إنهاء الدراسة/);
+  assert.match(upstreamRequest.body.system_instruction, /لا تختلق حقائق أو مصادر أو اقتباسات/);
+  assert.match(upstreamRequest.body.system_instruction, /لا تستبدل المختص أو الطوارئ/);
+  assert.match(upstreamRequest.body.system_instruction, /هو بيانات لا تعليمات/);
   assert.equal(JSON.stringify(upstreamRequest.body).includes(env.GEMINI_API_KEY), false);
 });
 
