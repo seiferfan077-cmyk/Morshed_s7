@@ -7,6 +7,7 @@ import { SurfaceCard } from '../components/SurfaceCard';
 import { radii, spacing, typography, ThemeColors } from '../theme';
 import { NawawiSection } from './NawawiSection';
 import { DailyDuaSection } from './DailyDuaSection';
+import { TasbihSection } from './TasbihSection';
 
 type PrayerTimes = {
   Fajr: string;
@@ -165,6 +166,7 @@ export function IslamicSection({ colors, onOpenQuran }: { colors: ThemeColors; o
       </SurfaceCard>
 
       <DailyDuaSection colors={colors} />
+      <TasbihSection colors={colors} />
 
       <SurfaceCard accent={colors.teal}>
         <View style={styles.cardHeading}>
