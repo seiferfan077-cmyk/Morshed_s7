@@ -1,0 +1,8 @@
+name = "murshid-ai-backend"
+main = "worker.js"
+compatibility_date = "2026-10-12"
+workers_dev = true
+
+[vars]
+AI_PROVIDER = "gemini"
+GEMINI_MODEL = "gemini-3.8-flash"

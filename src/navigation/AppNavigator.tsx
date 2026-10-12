@@ -8,11 +8,13 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { MemoryScreen } from '../screens/MemoryScreen';
 import { FeaturesScreen } from '../screens/FeaturesScreen';
 import { MessagesScreen } from '../screens/MessagesScreen';
+import { MurshidAIScreen } from '../screens/MurshidAIScreen';
 import { typography } from '../theme';
 import { useAppTheme } from '../theme/ThemeProvider';
 
 export type RootTabParamList = {
   الرئيسية: undefined;
+  'مُرشد AI': undefined;
   الرسائل: undefined;
   المتصفح: undefined;
   المعرض: undefined;
@@ -28,27 +30,33 @@ export function AppNavigator() {
   return (
     <NavigationContainer>
       <Tabs.Navigator
-        screenOptions={({ route }) => ({
-          headerShown: false,
-          tabBarActiveTintColor: colors.tealDark,
-          tabBarInactiveTintColor: colors.inkFaint,
-          tabBarLabelStyle: { ...typography.label, fontSize: 11, marginBottom: 5 },
-          tabBarStyle: { height: 72, paddingTop: 8, borderTopColor: colors.line, backgroundColor: colors.paper },
-          tabBarIcon: ({ color, size }) => {
-            const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
-              الرئيسية: 'grid-outline',
-              الرسائل: 'chatbubbles-outline',
-              المتصفح: 'compass-outline',
-              المعرض: 'images-outline',
-              الذاكرة: 'bookmark-outline',
-              المميزات: 'star-outline',
-              الإعدادات: 'settings-outline',
-            };
-            return <Ionicons name={icons[route.name]} size={size} color={color} />;
-          },
-        })}
+        screenOptions={({ route }) => {
+          const isMurshidAI = route.name === 'مُرشد AI';
+          return {
+            headerShown: false,
+            tabBarHideOnKeyboard: true,
+            tabBarActiveTintColor: isMurshidAI ? '#56D8C9' : colors.tealDark,
+            tabBarInactiveTintColor: isMurshidAI ? '#71808A' : colors.inkFaint,
+            tabBarLabelStyle: { ...typography.label, fontSize: 11, marginBottom: 5 },
+            tabBarStyle: { height: 72, paddingTop: 8, borderTopColor: isMurshidAI ? '#26313A' : colors.line, backgroundColor: isMurshidAI ? '#080B0F' : colors.paper },
+            tabBarIcon: ({ color, size }) => {
+              const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
+                الرئيسية: 'grid-outline',
+                'مُرشد AI': 'sparkles-outline',
+                الرسائل: 'chatbubbles-outline',
+                المتصفح: 'compass-outline',
+                المعرض: 'images-outline',
+                الذاكرة: 'bookmark-outline',
+                المميزات: 'star-outline',
+                الإعدادات: 'settings-outline',
+              };
+              return <Ionicons name={icons[route.name]} size={size} color={color} />;
+            },
+          };
+        }}
       >
         <Tabs.Screen name="الرئيسية" component={HomeScreen} />
+        <Tabs.Screen name="مُرشد AI" component={MurshidAIScreen} />
         <Tabs.Screen name="الرسائل" component={MessagesScreen} />
         <Tabs.Screen name="المتصفح" component={BrowserScreen} />
         <Tabs.Screen name="المعرض" component={MediaScreen} />
