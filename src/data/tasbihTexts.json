@@ -1,0 +1,2706 @@
+{
+  "sourceCounts": [
+    {
+      "sourceId": "provided-1",
+      "count": 121
+    },
+    {
+      "sourceId": "provided-2",
+      "count": 60
+    },
+    {
+      "sourceId": "provided-3",
+      "count": 85
+    },
+    {
+      "sourceId": "provided-chat",
+      "count": 86
+    }
+  ],
+  "categories": [
+    {
+      "id": "provided-1-01",
+      "label": "أذكار بعد الصلاة المفروضة",
+      "note": "تتضمن القائمة تكرار الاستغفار ثلاثًا. أما بقية الأذكار فلها صيغ وأعداد متعددة؛ لا يفرض التطبيق عددًا شرعيًا. هدف العداد (١٠٬٠٠٠) شخصي.",
+      "sourceNote": "النصوص والأعداد كما وردت من المستخدم؛ يلزم الرجوع إلى التخريج قبل نسبتها تفصيلًا."
+    },
+    {
+      "id": "provided-1-02",
+      "label": "أدعية قرآنية إضافية",
+      "sourceNote": "مجموعة قرآنية كما وردت في القائمة؛ يرجى مطابقة كل نص وموضعه قبل النشر."
+    },
+    {
+      "id": "provided-1-03",
+      "label": "أذكار وأدعية عند الخوف والقلق",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-1-04",
+      "label": "أدعية الأنبياء والصالحين",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-1-05",
+      "label": "من دعاء آدم عليه السلام",
+      "sourceNote": "مجموعة قرآنية كما وردت في القائمة؛ يرجى مطابقة كل نص وموضعه قبل النشر."
+    },
+    {
+      "id": "provided-1-06",
+      "label": "من دعاء نوح عليه السلام",
+      "sourceNote": "مجموعة قرآنية كما وردت في القائمة؛ يرجى مطابقة كل نص وموضعه قبل النشر."
+    },
+    {
+      "id": "provided-1-07",
+      "label": "من دعاء إبراهيم عليه السلام",
+      "sourceNote": "مجموعة قرآنية كما وردت في القائمة؛ يرجى مطابقة كل نص وموضعه قبل النشر."
+    },
+    {
+      "id": "provided-1-08",
+      "label": "من دعاء موسى عليه السلام",
+      "sourceNote": "مجموعة قرآنية كما وردت في القائمة؛ يرجى مطابقة كل نص وموضعه قبل النشر."
+    },
+    {
+      "id": "provided-1-09",
+      "label": "من دعاء أيوب عليه السلام",
+      "sourceNote": "مجموعة قرآنية كما وردت في القائمة؛ يرجى مطابقة كل نص وموضعه قبل النشر."
+    },
+    {
+      "id": "provided-1-10",
+      "label": "من دعاء يونس عليه السلام",
+      "sourceNote": "مجموعة قرآنية كما وردت في القائمة؛ يرجى مطابقة كل نص وموضعه قبل النشر."
+    },
+    {
+      "id": "provided-1-11",
+      "label": "من دعاء زكريا عليه السلام",
+      "sourceNote": "مجموعة قرآنية كما وردت في القائمة؛ يرجى مطابقة كل نص وموضعه قبل النشر."
+    },
+    {
+      "id": "provided-1-12",
+      "label": "من دعاء سليمان عليه السلام",
+      "sourceNote": "مجموعة قرآنية كما وردت في القائمة؛ يرجى مطابقة كل نص وموضعه قبل النشر."
+    },
+    {
+      "id": "provided-1-13",
+      "label": "من دعاء المؤمنين",
+      "sourceNote": "مجموعة قرآنية كما وردت في القائمة؛ يرجى مطابقة كل نص وموضعه قبل النشر."
+    },
+    {
+      "id": "provided-1-14",
+      "label": "أذكار الوضوء والطهارة",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-1-15",
+      "label": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-2-01",
+      "label": "أدعية الهداية والصلاح",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-2-02",
+      "label": "أدعية العافية والحفظ",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-2-03",
+      "label": "أدعية الهم والكرب",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-2-04",
+      "label": "أدعية الرزق والبركة",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-2-05",
+      "label": "أدعية المغفرة",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-2-06",
+      "label": "أدعية جامعة",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-3-01",
+      "label": "للتوفيق في الدراسة",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-3-02",
+      "label": "للراحة والطمأنينة",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-3-03",
+      "label": "للأهل والوالدين",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-3-04",
+      "label": "للشفاء والعافية",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-3-05",
+      "label": "للرزق والعمل",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-3-06",
+      "label": "للزواج والأسرة والصلاح",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-3-07",
+      "label": "للتوبة وترك المعاصي",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-3-08",
+      "label": "للناس جميعًا",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-chat-01",
+      "label": "أدعية الاستفتاح",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-chat-02",
+      "label": "أذكار الركوع",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-chat-03",
+      "label": "أذكار الرفع من الركوع",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-chat-04",
+      "label": "أذكار السجود",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-chat-05",
+      "label": "الدعاء بين السجدتين",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-chat-06",
+      "label": "أدعية قبل السلام",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-chat-07",
+      "label": "ذكر الله وشكره",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-chat-08",
+      "label": "أدعية الثبات وحسن الخلق",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-chat-09",
+      "label": "أدعية الستر والعفو",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-chat-10",
+      "label": "أدعية الفرج والتيسير",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-chat-11",
+      "label": "أدعية المحبة والألفة",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "provided-chat-12",
+      "label": "أدعية الآخرة",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    },
+    {
+      "id": "legacy-basics",
+      "label": "أذكار أساسية",
+      "sourceNote": "نصوص واردة في القوائم المرسلة؛ لا تُنسب تلقائيًا إلى حديث نبوي."
+    }
+  ],
+  "items": [
+    {
+      "id": "istighfar",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "أستغفر الله.",
+      "sourceListNumber": 1
+    },
+    {
+      "id": "provided-1-01-002",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "أستغفر الله.",
+      "sourceListNumber": 2
+    },
+    {
+      "id": "provided-1-01-003",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "أستغفر الله.",
+      "sourceListNumber": 3
+    },
+    {
+      "id": "provided-1-01-004",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "اللهم أنت السلام ومنك السلام تباركت يا ذا الجلال والإكرام.",
+      "sourceListNumber": 4
+    },
+    {
+      "id": "subhanAllah",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "سبحان الله.",
+      "sourceListNumber": 5
+    },
+    {
+      "id": "alhamdulillah",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "الحمد لله.",
+      "sourceListNumber": 6
+    },
+    {
+      "id": "allahuAkbar",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "الله أكبر.",
+      "sourceListNumber": 7
+    },
+    {
+      "id": "provided-1-01-008",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير.",
+      "sourceListNumber": 8
+    },
+    {
+      "id": "provided-1-01-009",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "اللهم لا مانع لما أعطيت ولا معطي لما منعت ولا ينفع ذا الجد منك الجد.",
+      "sourceListNumber": 9
+    },
+    {
+      "id": "provided-1-01-010",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير، لا حول ولا قوة إلا بالله، لا إله إلا الله ولا نعبد إلا إياه، له النعمة وله الفضل وله الثناء الحسن، لا إله إلا الله مخلصين له الدين ولو كره الكافرون.",
+      "sourceListNumber": 10
+    },
+    {
+      "id": "provided-1-01-011",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "اللهم أعني على ذكرك وشكرك وحسن عبادتك.",
+      "sourceListNumber": 11
+    },
+    {
+      "id": "provided-1-01-012",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "سبحان الله والحمد لله والله أكبر.",
+      "sourceListNumber": 12
+    },
+    {
+      "id": "provided-1-01-013",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "اللهم إني أسألك العفو والعافية.",
+      "sourceListNumber": 13
+    },
+    {
+      "id": "provided-1-01-014",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "قراءة آية الكرسي.",
+      "sourceListNumber": 14
+    },
+    {
+      "id": "provided-1-01-015",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "قراءة سورة الإخلاص.",
+      "sourceListNumber": 15
+    },
+    {
+      "id": "provided-1-01-016",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "قراءة سورة الفلق.",
+      "sourceListNumber": 16
+    },
+    {
+      "id": "provided-1-01-017",
+      "categoryId": "provided-1-01",
+      "category": "أذكار بعد الصلاة المفروضة",
+      "text": "قراءة سورة الناس.",
+      "sourceListNumber": 17
+    },
+    {
+      "id": "provided-1-02-001",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا أفرغ علينا صبرًا وثبت أقدامنا وانصرنا على القوم الكافرين.",
+      "sourceListNumber": 1
+    },
+    {
+      "id": "provided-1-02-002",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا لا تجعلنا فتنة للذين كفروا واغفر لنا ربنا إنك أنت العزيز الحكيم.",
+      "sourceListNumber": 2
+    },
+    {
+      "id": "provided-1-02-003",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا عليك توكلنا وإليك أنبنا وإليك المصير.",
+      "sourceListNumber": 3
+    },
+    {
+      "id": "provided-1-02-004",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا لا تجعلنا فتنة للقوم الظالمين.",
+      "sourceListNumber": 4
+    },
+    {
+      "id": "provided-1-02-005",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا افتح بيننا وبين قومنا بالحق وأنت خير الفاتحين.",
+      "sourceListNumber": 5
+    },
+    {
+      "id": "provided-1-02-006",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا لا تزغ قلوبنا بعد إذ هديتنا وهب لنا من لدنك رحمة إنك أنت الوهاب.",
+      "sourceListNumber": 6
+    },
+    {
+      "id": "provided-1-02-007",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا إننا آمنا فاغفر لنا ذنوبنا وقنا عذاب النار.",
+      "sourceListNumber": 7
+    },
+    {
+      "id": "provided-1-02-008",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا آمنا بما أنزلت واتبعنا الرسول فاكتبنا مع الشاهدين.",
+      "sourceListNumber": 8
+    },
+    {
+      "id": "provided-1-02-009",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا أتمم لنا نورنا واغفر لنا إنك على كل شيء قدير.",
+      "sourceListNumber": 9
+    },
+    {
+      "id": "provided-1-02-010",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا هب لنا من أزواجنا وذرياتنا قرة أعين واجعلنا للمتقين إمامًا.",
+      "sourceListNumber": 10
+    },
+    {
+      "id": "provided-1-02-011",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا اصرف عنا عذاب جهنم إن عذابها كان غرامًا.",
+      "sourceListNumber": 11
+    },
+    {
+      "id": "provided-1-02-012",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا إننا آمنا فاغفر لنا وارحمنا وأنت خير الراحمين.",
+      "sourceListNumber": 12
+    },
+    {
+      "id": "provided-1-02-013",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا اغفر لنا ولإخواننا الذين سبقونا بالإيمان.",
+      "sourceListNumber": 13
+    },
+    {
+      "id": "provided-1-02-014",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا إنك رؤوف رحيم.",
+      "sourceListNumber": 14
+    },
+    {
+      "id": "provided-1-02-015",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا عليك توكلنا وإليك أنبنا وإليك المصير.",
+      "sourceListNumber": 15
+    },
+    {
+      "id": "provided-1-02-016",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا آتنا من لدنك رحمة وهيئ لنا من أمرنا رشدًا.",
+      "sourceListNumber": 16
+    },
+    {
+      "id": "provided-1-02-017",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا لا تجعلنا مع القوم الظالمين.",
+      "sourceListNumber": 17
+    },
+    {
+      "id": "provided-1-02-018",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا اغفر لي ولوالدي وللمؤمنين يوم يقوم الحساب.",
+      "sourceListNumber": 18
+    },
+    {
+      "id": "provided-1-02-019",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "رب اجعلني مقيم الصلاة ومن ذريتي ربنا وتقبل دعاء.",
+      "sourceListNumber": 19
+    },
+    {
+      "id": "provided-1-02-020",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا تقبل منا إنك أنت السميع العليم.",
+      "sourceListNumber": 20
+    },
+    {
+      "id": "provided-1-02-021",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا ظلمنا أنفسنا وإن لم تغفر لنا وترحمنا لنكونن من الخاسرين.",
+      "sourceListNumber": 21
+    },
+    {
+      "id": "provided-1-02-022",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "رب إني أعوذ بك أن أسألك ما ليس لي به علم.",
+      "sourceListNumber": 22
+    },
+    {
+      "id": "provided-1-02-023",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا أفرغ علينا صبرًا وتوفنا مسلمين.",
+      "sourceListNumber": 23
+    },
+    {
+      "id": "provided-1-02-024",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا إننا سمعنا مناديًا ينادي للإيمان أن آمنوا بربكم فآمنا.",
+      "sourceListNumber": 24
+    },
+    {
+      "id": "provided-1-02-025",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا فاغفر لنا ذنوبنا وكفر عنا سيئاتنا وتوفنا مع الأبرار.",
+      "sourceListNumber": 25
+    },
+    {
+      "id": "provided-1-02-026",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا وآتنا ما وعدتنا على رسلك ولا تخزنا يوم القيامة إنك لا تخلف الميعاد.",
+      "sourceListNumber": 26
+    },
+    {
+      "id": "provided-1-02-027",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا إنك من تدخل النار فقد أخزيته وما للظالمين من أنصار.",
+      "sourceListNumber": 27
+    },
+    {
+      "id": "provided-1-02-028",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا آمنا فاكتبنا مع الشاهدين.",
+      "sourceListNumber": 28
+    },
+    {
+      "id": "provided-1-02-029",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا ظلمنا أنفسنا وإن لم تغفر لنا وترحمنا لنكونن من الخاسرين.",
+      "sourceListNumber": 29
+    },
+    {
+      "id": "provided-1-02-030",
+      "categoryId": "provided-1-02",
+      "category": "أدعية قرآنية إضافية",
+      "text": "ربنا آتنا في الدنيا حسنة وفي الآخرة حسنة وقنا عذاب النار.",
+      "sourceListNumber": 30
+    },
+    {
+      "id": "provided-1-03-001",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "أعوذ بالله من الشيطان الرجيم.",
+      "sourceListNumber": 1
+    },
+    {
+      "id": "provided-1-03-002",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "حسبنا الله ونعم الوكيل.",
+      "sourceListNumber": 2
+    },
+    {
+      "id": "provided-1-03-003",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "لا حول ولا قوة إلا بالله.",
+      "sourceListNumber": 3
+    },
+    {
+      "id": "provided-1-03-004",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "يا حي يا قيوم برحمتك أستغيث.",
+      "sourceListNumber": 4
+    },
+    {
+      "id": "provided-1-03-005",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم إني أعوذ بك من الهم والحزن.",
+      "sourceListNumber": 5
+    },
+    {
+      "id": "provided-1-03-006",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم إني أسألك الأمن والطمأنينة.",
+      "sourceListNumber": 6
+    },
+    {
+      "id": "provided-1-03-007",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم ارزقني السكينة والثبات.",
+      "sourceListNumber": 7
+    },
+    {
+      "id": "provided-1-03-008",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم اكفني ما أهمني.",
+      "sourceListNumber": 8
+    },
+    {
+      "id": "provided-1-03-009",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم إني فوضت أمري إليك.",
+      "sourceListNumber": 9
+    },
+    {
+      "id": "provided-1-03-010",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم احفظني من كل سوء.",
+      "sourceListNumber": 10
+    },
+    {
+      "id": "provided-1-03-011",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم إني أعوذ بك من شر نفسي.",
+      "sourceListNumber": 11
+    },
+    {
+      "id": "provided-1-03-012",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم اجعل قلبي مطمئنًا بذكرك.",
+      "sourceListNumber": 12
+    },
+    {
+      "id": "provided-1-03-013",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم ارزقني حسن الظن بك والتوكل عليك.",
+      "sourceListNumber": 13
+    },
+    {
+      "id": "provided-1-03-014",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم إني أسألك الصبر واليقين.",
+      "sourceListNumber": 14
+    },
+    {
+      "id": "provided-1-03-015",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم فرّج همي ويسّر أمري.",
+      "sourceListNumber": 15
+    },
+    {
+      "id": "provided-1-03-016",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم لا تجعل خوفي يمنعني من فعل الخير.",
+      "sourceListNumber": 16
+    },
+    {
+      "id": "provided-1-03-017",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم قوّ قلبي بالإيمان.",
+      "sourceListNumber": 17
+    },
+    {
+      "id": "provided-1-03-018",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم ارزقني الشجاعة في الحق والحكمة في التصرف.",
+      "sourceListNumber": 18
+    },
+    {
+      "id": "provided-1-03-019",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم إني أسألك السلامة من كل شر.",
+      "sourceListNumber": 19
+    },
+    {
+      "id": "provided-1-03-020",
+      "categoryId": "provided-1-03",
+      "category": "أذكار وأدعية عند الخوف والقلق",
+      "text": "اللهم اجعل لي من كل ضيق مخرجًا ومن كل هم فرجًا.",
+      "sourceListNumber": 20
+    },
+    {
+      "id": "provided-1-05-001",
+      "categoryId": "provided-1-05",
+      "category": "من دعاء آدم عليه السلام",
+      "text": "ربنا ظلمنا أنفسنا وإن لم تغفر لنا وترحمنا لنكونن من الخاسرين.",
+      "sourceListNumber": 1
+    },
+    {
+      "id": "provided-1-06-001",
+      "categoryId": "provided-1-06",
+      "category": "من دعاء نوح عليه السلام",
+      "text": "رب اغفر لي ولوالدي ولمن دخل بيتي مؤمنًا وللمؤمنين والمؤمنات.",
+      "sourceListNumber": 2
+    },
+    {
+      "id": "provided-1-06-002",
+      "categoryId": "provided-1-06",
+      "category": "من دعاء نوح عليه السلام",
+      "text": "رب إني أعوذ بك أن أسألك ما ليس لي به علم.",
+      "sourceListNumber": 3
+    },
+    {
+      "id": "provided-1-07-001",
+      "categoryId": "provided-1-07",
+      "category": "من دعاء إبراهيم عليه السلام",
+      "text": "رب اجعلني مقيم الصلاة ومن ذريتي ربنا وتقبل دعاء.",
+      "sourceListNumber": 4
+    },
+    {
+      "id": "provided-1-07-002",
+      "categoryId": "provided-1-07",
+      "category": "من دعاء إبراهيم عليه السلام",
+      "text": "ربنا اغفر لي ولوالدي وللمؤمنين يوم يقوم الحساب.",
+      "sourceListNumber": 5
+    },
+    {
+      "id": "provided-1-07-003",
+      "categoryId": "provided-1-07",
+      "category": "من دعاء إبراهيم عليه السلام",
+      "text": "رب هب لي من الصالحين.",
+      "sourceListNumber": 6
+    },
+    {
+      "id": "provided-1-07-004",
+      "categoryId": "provided-1-07",
+      "category": "من دعاء إبراهيم عليه السلام",
+      "text": "رب اجعل هذا البلد آمنًا.",
+      "sourceListNumber": 7
+    },
+    {
+      "id": "provided-1-07-005",
+      "categoryId": "provided-1-07",
+      "category": "من دعاء إبراهيم عليه السلام",
+      "text": "ربنا وتقبل دعاء.",
+      "sourceListNumber": 8
+    },
+    {
+      "id": "provided-1-08-001",
+      "categoryId": "provided-1-08",
+      "category": "من دعاء موسى عليه السلام",
+      "text": "رب اشرح لي صدري ويسر لي أمري.",
+      "sourceListNumber": 9
+    },
+    {
+      "id": "provided-1-08-002",
+      "categoryId": "provided-1-08",
+      "category": "من دعاء موسى عليه السلام",
+      "text": "رب إني لما أنزلت إلي من خير فقير.",
+      "sourceListNumber": 10
+    },
+    {
+      "id": "provided-1-08-003",
+      "categoryId": "provided-1-08",
+      "category": "من دعاء موسى عليه السلام",
+      "text": "رب إني ظلمت نفسي فاغفر لي.",
+      "sourceListNumber": 11
+    },
+    {
+      "id": "provided-1-08-004",
+      "categoryId": "provided-1-08",
+      "category": "من دعاء موسى عليه السلام",
+      "text": "رب إني أعوذ بك أن أسألك ما ليس لي به علم.",
+      "sourceListNumber": 12
+    },
+    {
+      "id": "provided-1-09-001",
+      "categoryId": "provided-1-09",
+      "category": "من دعاء أيوب عليه السلام",
+      "text": "أني مسني الضر وأنت أرحم الراحمين.",
+      "sourceListNumber": 13
+    },
+    {
+      "id": "provided-1-10-001",
+      "categoryId": "provided-1-10",
+      "category": "من دعاء يونس عليه السلام",
+      "text": "لا إله إلا أنت سبحانك إني كنت من الظالمين.",
+      "sourceListNumber": 14
+    },
+    {
+      "id": "provided-1-11-001",
+      "categoryId": "provided-1-11",
+      "category": "من دعاء زكريا عليه السلام",
+      "text": "رب لا تذرني فردًا وأنت خير الوارثين.",
+      "sourceListNumber": 15
+    },
+    {
+      "id": "provided-1-11-002",
+      "categoryId": "provided-1-11",
+      "category": "من دعاء زكريا عليه السلام",
+      "text": "رب هب لي من لدنك ذرية طيبة إنك سميع الدعاء.",
+      "sourceListNumber": 16
+    },
+    {
+      "id": "provided-1-12-001",
+      "categoryId": "provided-1-12",
+      "category": "من دعاء سليمان عليه السلام",
+      "text": "رب أوزعني أن أشكر نعمتك التي أنعمت علي وعلى والدي وأن أعمل صالحًا ترضاه.",
+      "sourceListNumber": 17
+    },
+    {
+      "id": "provided-1-12-002",
+      "categoryId": "provided-1-12",
+      "category": "من دعاء سليمان عليه السلام",
+      "text": "رب اغفر لي وهب لي ملكًا لا ينبغي لأحد من بعدي إنك أنت الوهاب.",
+      "sourceListNumber": 18
+    },
+    {
+      "id": "provided-1-13-001",
+      "categoryId": "provided-1-13",
+      "category": "من دعاء المؤمنين",
+      "text": "ربنا آمنا فاغفر لنا وارحمنا وأنت خير الراحمين.",
+      "sourceListNumber": 19
+    },
+    {
+      "id": "provided-1-13-002",
+      "categoryId": "provided-1-13",
+      "category": "من دعاء المؤمنين",
+      "text": "ربنا أفرغ علينا صبرًا وثبت أقدامنا.",
+      "sourceListNumber": 20
+    },
+    {
+      "id": "provided-1-14-001",
+      "categoryId": "provided-1-14",
+      "category": "أذكار الوضوء والطهارة",
+      "text": "بسم الله.",
+      "sourceListNumber": 1
+    },
+    {
+      "id": "provided-1-14-002",
+      "categoryId": "provided-1-14",
+      "category": "أذكار الوضوء والطهارة",
+      "text": "أشهد أن لا إله إلا الله وحده لا شريك له، وأشهد أن محمدًا عبده ورسوله.",
+      "sourceListNumber": 2
+    },
+    {
+      "id": "provided-1-14-003",
+      "categoryId": "provided-1-14",
+      "category": "أذكار الوضوء والطهارة",
+      "text": "اللهم اجعلني من التوابين واجعلني من المتطهرين.",
+      "sourceListNumber": 3
+    },
+    {
+      "id": "provided-1-14-004",
+      "categoryId": "provided-1-14",
+      "category": "أذكار الوضوء والطهارة",
+      "text": "سبحانك اللهم وبحمدك، أشهد أن لا إله إلا أنت، أستغفرك وأتوب إليك.",
+      "sourceListNumber": 4
+    },
+    {
+      "id": "provided-1-15-001",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم ارزقني قلبًا سليمًا.",
+      "sourceListNumber": 1
+    },
+    {
+      "id": "provided-1-15-002",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم أصلح لي ديني الذي هو عصمة أمري.",
+      "sourceListNumber": 2
+    },
+    {
+      "id": "provided-1-15-003",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم أصلح لي دنياي التي فيها معاشي.",
+      "sourceListNumber": 3
+    },
+    {
+      "id": "provided-1-15-004",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم أصلح لي آخرتي التي إليها معادي.",
+      "sourceListNumber": 4
+    },
+    {
+      "id": "provided-1-15-005",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم اجعل الحياة زيادة لي في كل خير.",
+      "sourceListNumber": 5
+    },
+    {
+      "id": "provided-1-15-006",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم اجعل الموت راحة لي من كل شر.",
+      "sourceListNumber": 6
+    },
+    {
+      "id": "provided-1-15-007",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم إني أسألك الهدى والتقى والعفاف والغنى.",
+      "sourceListNumber": 7
+    },
+    {
+      "id": "provided-1-15-008",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم إني أسألك الثبات في الأمر.",
+      "sourceListNumber": 8
+    },
+    {
+      "id": "provided-1-15-009",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم ارزقني العزيمة على الرشد.",
+      "sourceListNumber": 9
+    },
+    {
+      "id": "provided-1-15-010",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم ارزقني شكر نعمتك وحسن عبادتك.",
+      "sourceListNumber": 10
+    },
+    {
+      "id": "provided-1-15-011",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم ارزقني لسانًا صادقًا وقلبًا سليمًا.",
+      "sourceListNumber": 11
+    },
+    {
+      "id": "provided-1-15-012",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم اجعل عملي خالصًا لوجهك الكريم.",
+      "sourceListNumber": 12
+    },
+    {
+      "id": "provided-1-15-013",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم بارك لي في أهلي ومالي وعملي.",
+      "sourceListNumber": 13
+    },
+    {
+      "id": "provided-1-15-014",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم اجعلني نافعًا لعبادك.",
+      "sourceListNumber": 14
+    },
+    {
+      "id": "provided-1-15-015",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم أعني على قضاء حوائج الناس.",
+      "sourceListNumber": 15
+    },
+    {
+      "id": "provided-1-15-016",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم ارزقني الصدق والأمانة.",
+      "sourceListNumber": 16
+    },
+    {
+      "id": "provided-1-15-017",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم جنبني الظلم والعدوان.",
+      "sourceListNumber": 17
+    },
+    {
+      "id": "provided-1-15-018",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم ارزقني العفو عند المقدرة.",
+      "sourceListNumber": 18
+    },
+    {
+      "id": "provided-1-15-019",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم اجعلني ممن يستمعون القول فيتبعون أحسنه.",
+      "sourceListNumber": 19
+    },
+    {
+      "id": "provided-1-15-020",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم ارزقني الحكمة والبصيرة.",
+      "sourceListNumber": 20
+    },
+    {
+      "id": "provided-1-15-021",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم اجعل القرآن حجة لي لا علي.",
+      "sourceListNumber": 21
+    },
+    {
+      "id": "provided-1-15-022",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم ارزقني تدبر كتابك والعمل به.",
+      "sourceListNumber": 22
+    },
+    {
+      "id": "provided-1-15-023",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم اجعلني من أهل الذكر والشكر.",
+      "sourceListNumber": 23
+    },
+    {
+      "id": "provided-1-15-024",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم ارزقني حب الخير للناس.",
+      "sourceListNumber": 24
+    },
+    {
+      "id": "provided-1-15-025",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم اجعلني من المحسنين.",
+      "sourceListNumber": 25
+    },
+    {
+      "id": "provided-1-15-026",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم ارزقني حسن الظن بك.",
+      "sourceListNumber": 26
+    },
+    {
+      "id": "provided-1-15-027",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم اجعلني من المتوكلين عليك.",
+      "sourceListNumber": 27
+    },
+    {
+      "id": "provided-1-15-028",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم اهدني لما اختلف فيه من الحق بإذنك.",
+      "sourceListNumber": 28
+    },
+    {
+      "id": "provided-1-15-029",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم ارزقني التواضع والرحمة.",
+      "sourceListNumber": 29
+    },
+    {
+      "id": "provided-1-15-030",
+      "categoryId": "provided-1-15",
+      "category": "أدعية عامة إضافية للحفظ داخل السبحة",
+      "text": "اللهم تقبل دعائي واغفر تقصيري.",
+      "sourceListNumber": 30
+    },
+    {
+      "id": "provided-2-01-001",
+      "categoryId": "provided-2-01",
+      "category": "أدعية الهداية والصلاح",
+      "text": "اللهم إني أسألك الهدى والتقى والعفاف والغنى.",
+      "sourceListNumber": 1
+    },
+    {
+      "id": "provided-2-01-002",
+      "categoryId": "provided-2-01",
+      "category": "أدعية الهداية والصلاح",
+      "text": "اللهم أعني على ذكرك وشكرك وحسن عبادتك.",
+      "sourceListNumber": 2
+    },
+    {
+      "id": "provided-2-01-003",
+      "categoryId": "provided-2-01",
+      "category": "أدعية الهداية والصلاح",
+      "text": "يا مقلب القلوب، ثبت قلبي على دينك.",
+      "sourceListNumber": 3
+    },
+    {
+      "id": "provided-2-01-004",
+      "categoryId": "provided-2-01",
+      "category": "أدعية الهداية والصلاح",
+      "text": "اللهم مصرف القلوب، صرف قلوبنا على طاعتك.",
+      "sourceListNumber": 4
+    },
+    {
+      "id": "provided-2-01-005",
+      "categoryId": "provided-2-01",
+      "category": "أدعية الهداية والصلاح",
+      "text": "اللهم إني أسألك الهدى والسداد.",
+      "sourceListNumber": 5
+    },
+    {
+      "id": "provided-2-01-006",
+      "categoryId": "provided-2-01",
+      "category": "أدعية الهداية والصلاح",
+      "text": "اللهم إني أسألك فعل الخيرات وترك المنكرات وحب المساكين.",
+      "sourceListNumber": 6
+    },
+    {
+      "id": "provided-2-01-007",
+      "categoryId": "provided-2-01",
+      "category": "أدعية الهداية والصلاح",
+      "text": "اللهم إني أسألك حبك وحب من يحبك وحب عمل يقربني إلى حبك.",
+      "sourceListNumber": 7
+    },
+    {
+      "id": "provided-2-01-008",
+      "categoryId": "provided-2-01",
+      "category": "أدعية الهداية والصلاح",
+      "text": "اللهم آت نفسي تقواها وزكها أنت خير من زكاها أنت وليها ومولاها.",
+      "sourceListNumber": 8
+    },
+    {
+      "id": "provided-2-01-009",
+      "categoryId": "provided-2-01",
+      "category": "أدعية الهداية والصلاح",
+      "text": "اللهم إني أعوذ بك من قلب لا يخشع ومن دعاء لا يسمع ومن نفس لا تشبع ومن علم لا ينفع.",
+      "sourceListNumber": 9
+    },
+    {
+      "id": "provided-2-01-010",
+      "categoryId": "provided-2-01",
+      "category": "أدعية الهداية والصلاح",
+      "text": "اللهم اجعل القرآن ربيع قلبي ونور صدري وجلاء حزني وذهاب همي.",
+      "sourceListNumber": 10
+    },
+    {
+      "id": "provided-2-02-001",
+      "categoryId": "provided-2-02",
+      "category": "أدعية العافية والحفظ",
+      "text": "اللهم إني أسألك العفو والعافية في الدنيا والآخرة.",
+      "sourceListNumber": 11
+    },
+    {
+      "id": "provided-2-02-002",
+      "categoryId": "provided-2-02",
+      "category": "أدعية العافية والحفظ",
+      "text": "اللهم إني أسألك العفو والعافية في ديني ودنياي وأهلي ومالي.",
+      "sourceListNumber": 12
+    },
+    {
+      "id": "provided-2-02-003",
+      "categoryId": "provided-2-02",
+      "category": "أدعية العافية والحفظ",
+      "text": "اللهم استر عوراتي وآمن روعاتي.",
+      "sourceListNumber": 13
+    },
+    {
+      "id": "provided-2-02-004",
+      "categoryId": "provided-2-02",
+      "category": "أدعية العافية والحفظ",
+      "text": "اللهم احفظني من بين يدي ومن خلفي وعن يميني وعن شمالي ومن فوقي.",
+      "sourceListNumber": 14
+    },
+    {
+      "id": "provided-2-02-005",
+      "categoryId": "provided-2-02",
+      "category": "أدعية العافية والحفظ",
+      "text": "أعوذ بكلمات الله التامات من شر ما خلق.",
+      "sourceListNumber": 15
+    },
+    {
+      "id": "provided-2-02-006",
+      "categoryId": "provided-2-02",
+      "category": "أدعية العافية والحفظ",
+      "text": "بسم الله الذي لا يضر مع اسمه شيء في الأرض ولا في السماء وهو السميع العليم.",
+      "sourceListNumber": 16
+    },
+    {
+      "id": "provided-2-02-007",
+      "categoryId": "provided-2-02",
+      "category": "أدعية العافية والحفظ",
+      "text": "اللهم إني أسألك السلامة من كل إثم والغنيمة من كل بر والفوز بالجنة والنجاة من النار.",
+      "sourceListNumber": 17
+    },
+    {
+      "id": "provided-2-02-008",
+      "categoryId": "provided-2-02",
+      "category": "أدعية العافية والحفظ",
+      "text": "اللهم إني أسألك العفو والعافية والمعافاة الدائمة في الدين والدنيا والآخرة.",
+      "sourceListNumber": 18
+    },
+    {
+      "id": "provided-2-02-009",
+      "categoryId": "provided-2-02",
+      "category": "أدعية العافية والحفظ",
+      "text": "اللهم إني أعوذ بك من زوال نعمتك وتحول عافيتك وفجاءة نقمتك وجميع سخطك.",
+      "sourceListNumber": 19
+    },
+    {
+      "id": "provided-2-02-010",
+      "categoryId": "provided-2-02",
+      "category": "أدعية العافية والحفظ",
+      "text": "اللهم إني أعوذ بك من شر نفسي ومن شر الشيطان وشركه.",
+      "sourceListNumber": 20
+    },
+    {
+      "id": "provided-2-03-001",
+      "categoryId": "provided-2-03",
+      "category": "أدعية الهم والكرب",
+      "text": "يا حي يا قيوم برحمتك أستغيث، أصلح لي شأني كله ولا تكلني إلى نفسي طرفة عين.",
+      "sourceListNumber": 21
+    },
+    {
+      "id": "provided-2-03-002",
+      "categoryId": "provided-2-03",
+      "category": "أدعية الهم والكرب",
+      "text": "اللهم إني أعوذ بك من الهم والحزن والعجز والكسل والبخل والجبن وضلع الدين وغلبة الرجال.",
+      "sourceListNumber": 22
+    },
+    {
+      "id": "provided-2-03-003",
+      "categoryId": "provided-2-03",
+      "category": "أدعية الهم والكرب",
+      "text": "لا إله إلا أنت سبحانك إني كنت من الظالمين.",
+      "sourceListNumber": 23
+    },
+    {
+      "id": "provided-2-03-004",
+      "categoryId": "provided-2-03",
+      "category": "أدعية الهم والكرب",
+      "text": "اللهم رحمتك أرجو فلا تكلني إلى نفسي طرفة عين وأصلح لي شأني كله.",
+      "sourceListNumber": 24
+    },
+    {
+      "id": "provided-2-03-005",
+      "categoryId": "provided-2-03",
+      "category": "أدعية الهم والكرب",
+      "text": "حسبي الله لا إله إلا هو عليه توكلت وهو رب العرش العظيم.",
+      "sourceListNumber": 25
+    },
+    {
+      "id": "provided-2-03-006",
+      "categoryId": "provided-2-03",
+      "category": "أدعية الهم والكرب",
+      "text": "اللهم إني أسألك فرجًا قريبًا وصبرًا جميلًا، مع الإقرار بأن هذه صيغة دعاء عامة وليست نصًا نبويًا محددًا.",
+      "sourceListNumber": 26
+    },
+    {
+      "id": "provided-2-03-007",
+      "categoryId": "provided-2-03",
+      "category": "أدعية الهم والكرب",
+      "text": "اللهم إني أسألك أن تشرح صدري وتيسر أمري.",
+      "sourceListNumber": 27
+    },
+    {
+      "id": "provided-2-03-008",
+      "categoryId": "provided-2-03",
+      "category": "أدعية الهم والكرب",
+      "text": "اللهم إني أعوذ بك من العجز والكسل.",
+      "sourceListNumber": 28
+    },
+    {
+      "id": "provided-2-03-009",
+      "categoryId": "provided-2-03",
+      "category": "أدعية الهم والكرب",
+      "text": "اللهم اجعل لي من أمري يسرًا.",
+      "sourceListNumber": 29
+    },
+    {
+      "id": "provided-2-03-010",
+      "categoryId": "provided-2-03",
+      "category": "أدعية الهم والكرب",
+      "text": "اللهم إني توكلت عليك وأنت رب العرش العظيم.",
+      "sourceListNumber": 30
+    },
+    {
+      "id": "provided-2-04-001",
+      "categoryId": "provided-2-04",
+      "category": "أدعية الرزق والبركة",
+      "text": "اللهم إني أسألك علمًا نافعًا ورزقًا طيبًا وعملًا متقبلًا.",
+      "sourceListNumber": 31
+    },
+    {
+      "id": "provided-2-04-002",
+      "categoryId": "provided-2-04",
+      "category": "أدعية الرزق والبركة",
+      "text": "اللهم اكفني بحلالك عن حرامك وأغنني بفضلك عمن سواك.",
+      "sourceListNumber": 32
+    },
+    {
+      "id": "provided-2-04-003",
+      "categoryId": "provided-2-04",
+      "category": "أدعية الرزق والبركة",
+      "text": "اللهم بارك لي فيما رزقتني.",
+      "sourceListNumber": 33
+    },
+    {
+      "id": "provided-2-04-004",
+      "categoryId": "provided-2-04",
+      "category": "أدعية الرزق والبركة",
+      "text": "اللهم ارزقني رزقًا حلالًا طيبًا مباركًا فيه.",
+      "sourceListNumber": 34
+    },
+    {
+      "id": "provided-2-04-005",
+      "categoryId": "provided-2-04",
+      "category": "أدعية الرزق والبركة",
+      "text": "اللهم إني أسألك من فضلك ورحمتك.",
+      "sourceListNumber": 35
+    },
+    {
+      "id": "provided-2-04-006",
+      "categoryId": "provided-2-04",
+      "category": "أدعية الرزق والبركة",
+      "text": "اللهم ارزقني القناعة والرضا بما قسمت لي.",
+      "sourceListNumber": 36
+    },
+    {
+      "id": "provided-2-04-007",
+      "categoryId": "provided-2-04",
+      "category": "أدعية الرزق والبركة",
+      "text": "اللهم إني أعوذ بك من الفقر والقلة والذلة.",
+      "sourceListNumber": 37
+    },
+    {
+      "id": "provided-2-04-008",
+      "categoryId": "provided-2-04",
+      "category": "أدعية الرزق والبركة",
+      "text": "اللهم اقض عني الدين وأغنني من الفقر.",
+      "sourceListNumber": 38
+    },
+    {
+      "id": "provided-2-04-009",
+      "categoryId": "provided-2-04",
+      "category": "أدعية الرزق والبركة",
+      "text": "اللهم بارك لي في وقتي وعملي وعمري.",
+      "sourceListNumber": 39
+    },
+    {
+      "id": "provided-2-04-010",
+      "categoryId": "provided-2-04",
+      "category": "أدعية الرزق والبركة",
+      "text": "اللهم اجعل رزقي عونًا لي على طاعتك.",
+      "sourceListNumber": 40
+    },
+    {
+      "id": "provided-2-05-001",
+      "categoryId": "provided-2-05",
+      "category": "أدعية المغفرة",
+      "text": "اللهم إنك عفو تحب العفو فاعف عني.",
+      "sourceListNumber": 41
+    },
+    {
+      "id": "provided-2-05-002",
+      "categoryId": "provided-2-05",
+      "category": "أدعية المغفرة",
+      "text": "رب اغفر لي وتب علي إنك أنت التواب الرحيم.",
+      "sourceListNumber": 42
+    },
+    {
+      "id": "provided-2-05-003",
+      "categoryId": "provided-2-05",
+      "category": "أدعية المغفرة",
+      "text": "اللهم اغفر لي وارحمني واهدني وعافني وارزقني.",
+      "sourceListNumber": 43
+    },
+    {
+      "id": "provided-2-05-004",
+      "categoryId": "provided-2-05",
+      "category": "أدعية المغفرة",
+      "text": "اللهم اغفر لي خطيئتي وجهلي وإسرافي في أمري وما أنت أعلم به مني.",
+      "sourceListNumber": 44
+    },
+    {
+      "id": "provided-2-05-005",
+      "categoryId": "provided-2-05",
+      "category": "أدعية المغفرة",
+      "text": "اللهم اغفر لي ما قدمت وما أخرت وما أسررت وما أعلنت.",
+      "sourceListNumber": 45
+    },
+    {
+      "id": "provided-2-05-006",
+      "categoryId": "provided-2-05",
+      "category": "أدعية المغفرة",
+      "text": "اللهم إني أعوذ بك من شر ما عملت ومن شر ما لم أعمل.",
+      "sourceListNumber": 46
+    },
+    {
+      "id": "provided-2-05-007",
+      "categoryId": "provided-2-05",
+      "category": "أدعية المغفرة",
+      "text": "اللهم اغفر للمؤمنين والمؤمنات والمسلمين والمسلمات الأحياء منهم والأموات.",
+      "sourceListNumber": 47
+    },
+    {
+      "id": "provided-2-05-008",
+      "categoryId": "provided-2-05",
+      "category": "أدعية المغفرة",
+      "text": "سيد الاستغفار: اللهم أنت ربي لا إله إلا أنت، خلقتني وأنا عبدك، وأنا على عهدك ووعدك ما استطعت، أعوذ بك من شر ما صنعت، أبوء لك بنعمتك علي، وأبوء بذنبي، فاغفر لي فإنه لا يغفر الذنوب إلا أنت.",
+      "sourceListNumber": 48
+    },
+    {
+      "id": "provided-2-06-001",
+      "categoryId": "provided-2-06",
+      "category": "أدعية جامعة",
+      "text": "اللهم إني أسألك الجنة وأعوذ بك من النار.",
+      "sourceListNumber": 49
+    },
+    {
+      "id": "provided-2-06-002",
+      "categoryId": "provided-2-06",
+      "category": "أدعية جامعة",
+      "text": "اللهم إني أسألك العفو والعافية.",
+      "sourceListNumber": 50
+    },
+    {
+      "id": "provided-2-06-003",
+      "categoryId": "provided-2-06",
+      "category": "أدعية جامعة",
+      "text": "اللهم إني أسألك الثبات في الأمر والعزيمة على الرشد.",
+      "sourceListNumber": 51
+    },
+    {
+      "id": "provided-2-06-004",
+      "categoryId": "provided-2-06",
+      "category": "أدعية جامعة",
+      "text": "اللهم أحسن عاقبتنا في الأمور كلها وأجرنا من خزي الدنيا وعذاب الآخرة.",
+      "sourceListNumber": 52
+    },
+    {
+      "id": "provided-2-06-005",
+      "categoryId": "provided-2-06",
+      "category": "أدعية جامعة",
+      "text": "اللهم إني أسألك من الخير كله عاجله وآجله ما علمت منه وما لم أعلم.",
+      "sourceListNumber": 53
+    },
+    {
+      "id": "provided-2-06-006",
+      "categoryId": "provided-2-06",
+      "category": "أدعية جامعة",
+      "text": "وأعوذ بك من الشر كله عاجله وآجله ما علمت منه وما لم أعلم.",
+      "sourceListNumber": 54
+    },
+    {
+      "id": "provided-2-06-007",
+      "categoryId": "provided-2-06",
+      "category": "أدعية جامعة",
+      "text": "اللهم إني أسألك من خير ما سألك منه عبدك ونبيك.",
+      "sourceListNumber": 55
+    },
+    {
+      "id": "provided-2-06-008",
+      "categoryId": "provided-2-06",
+      "category": "أدعية جامعة",
+      "text": "وأعوذ بك من شر ما استعاذ منه عبدك ونبيك.",
+      "sourceListNumber": 56
+    },
+    {
+      "id": "provided-2-06-009",
+      "categoryId": "provided-2-06",
+      "category": "أدعية جامعة",
+      "text": "اللهم إني أسألك الجنة وما قرب إليها من قول أو عمل.",
+      "sourceListNumber": 57
+    },
+    {
+      "id": "provided-2-06-010",
+      "categoryId": "provided-2-06",
+      "category": "أدعية جامعة",
+      "text": "وأعوذ بك من النار وما قرب إليها من قول أو عمل.",
+      "sourceListNumber": 58
+    },
+    {
+      "id": "provided-2-06-011",
+      "categoryId": "provided-2-06",
+      "category": "أدعية جامعة",
+      "text": "اللهم اجعل كل قضاء قضيته لي خيرًا.",
+      "sourceListNumber": 59
+    },
+    {
+      "id": "provided-2-06-012",
+      "categoryId": "provided-2-06",
+      "category": "أدعية جامعة",
+      "text": "اللهم أعني على طاعتك وذكرك وشكرك وحسن عبادتك.",
+      "sourceListNumber": 60
+    },
+    {
+      "id": "provided-3-01-001",
+      "categoryId": "provided-3-01",
+      "category": "للتوفيق في الدراسة",
+      "text": "اللهم افتح علي فتوح العارفين، وارزقني فهم النبيين وحفظ المرسلين.",
+      "sourceListNumber": 1
+    },
+    {
+      "id": "provided-3-01-002",
+      "categoryId": "provided-3-01",
+      "category": "للتوفيق في الدراسة",
+      "text": "اللهم علمني ما ينفعني وانفعني بما علمتني وزدني علمًا.",
+      "sourceListNumber": 2
+    },
+    {
+      "id": "provided-3-01-003",
+      "categoryId": "provided-3-01",
+      "category": "للتوفيق في الدراسة",
+      "text": "اللهم ارزقني التركيز والفهم وسرعة الاستيعاب.",
+      "sourceListNumber": 3
+    },
+    {
+      "id": "provided-3-01-004",
+      "categoryId": "provided-3-01",
+      "category": "للتوفيق في الدراسة",
+      "text": "اللهم بارك لي في وقتي واجعل جهدي مثمرًا.",
+      "sourceListNumber": 4
+    },
+    {
+      "id": "provided-3-01-005",
+      "categoryId": "provided-3-01",
+      "category": "للتوفيق في الدراسة",
+      "text": "اللهم وفقني في امتحاناتي واكتب لي الخير.",
+      "sourceListNumber": 5
+    },
+    {
+      "id": "provided-3-01-006",
+      "categoryId": "provided-3-01",
+      "category": "للتوفيق في الدراسة",
+      "text": "اللهم أبعد عني التشتت والكسل وارزقني الهمة.",
+      "sourceListNumber": 6
+    },
+    {
+      "id": "provided-3-01-007",
+      "categoryId": "provided-3-01",
+      "category": "للتوفيق في الدراسة",
+      "text": "اللهم اجعل علمي نافعًا لي وللناس.",
+      "sourceListNumber": 7
+    },
+    {
+      "id": "provided-3-01-008",
+      "categoryId": "provided-3-01",
+      "category": "للتوفيق في الدراسة",
+      "text": "اللهم ارزقني النجاح مع التواضع والشكر.",
+      "sourceListNumber": 8
+    },
+    {
+      "id": "provided-3-01-009",
+      "categoryId": "provided-3-01",
+      "category": "للتوفيق في الدراسة",
+      "text": "اللهم ذكرني ما نسيت وعلمني ما جهلت.",
+      "sourceListNumber": 9
+    },
+    {
+      "id": "provided-3-01-010",
+      "categoryId": "provided-3-01",
+      "category": "للتوفيق في الدراسة",
+      "text": "اللهم اجعل طلب العلم طريقًا إلى رضاك.",
+      "sourceListNumber": 10
+    },
+    {
+      "id": "provided-3-02-001",
+      "categoryId": "provided-3-02",
+      "category": "للراحة والطمأنينة",
+      "text": "اللهم أنزل على قلبي السكينة والطمأنينة.",
+      "sourceListNumber": 11
+    },
+    {
+      "id": "provided-3-02-002",
+      "categoryId": "provided-3-02",
+      "category": "للراحة والطمأنينة",
+      "text": "اللهم أذهب عني الحزن والقلق.",
+      "sourceListNumber": 12
+    },
+    {
+      "id": "provided-3-02-003",
+      "categoryId": "provided-3-02",
+      "category": "للراحة والطمأنينة",
+      "text": "اللهم ارزقني راحة القلب وسلامة الصدر.",
+      "sourceListNumber": 13
+    },
+    {
+      "id": "provided-3-02-004",
+      "categoryId": "provided-3-02",
+      "category": "للراحة والطمأنينة",
+      "text": "اللهم اجعلني ممن إذا ابتلي صبر وإذا أعطي شكر وإذا أذنب استغفر.",
+      "sourceListNumber": 14
+    },
+    {
+      "id": "provided-3-02-005",
+      "categoryId": "provided-3-02",
+      "category": "للراحة والطمأنينة",
+      "text": "اللهم ارزقني حسن الظن بك.",
+      "sourceListNumber": 15
+    },
+    {
+      "id": "provided-3-02-006",
+      "categoryId": "provided-3-02",
+      "category": "للراحة والطمأنينة",
+      "text": "اللهم املأ قلبي إيمانًا ويقينًا ورضًا.",
+      "sourceListNumber": 16
+    },
+    {
+      "id": "provided-3-02-007",
+      "categoryId": "provided-3-02",
+      "category": "للراحة والطمأنينة",
+      "text": "اللهم أعني على تجاوز الصعوبات بحكمة وصبر.",
+      "sourceListNumber": 17
+    },
+    {
+      "id": "provided-3-02-008",
+      "categoryId": "provided-3-02",
+      "category": "للراحة والطمأنينة",
+      "text": "اللهم اجعل لي في كل أمر خيرًا.",
+      "sourceListNumber": 18
+    },
+    {
+      "id": "provided-3-02-009",
+      "categoryId": "provided-3-02",
+      "category": "للراحة والطمأنينة",
+      "text": "اللهم ارزقني نفسًا مطمئنة وقلبًا شاكرًا.",
+      "sourceListNumber": 19
+    },
+    {
+      "id": "provided-3-02-010",
+      "categoryId": "provided-3-02",
+      "category": "للراحة والطمأنينة",
+      "text": "اللهم لا تجعل الدنيا أكبر همي.",
+      "sourceListNumber": 20
+    },
+    {
+      "id": "provided-3-03-001",
+      "categoryId": "provided-3-03",
+      "category": "للأهل والوالدين",
+      "text": "اللهم احفظ والدي وأهلي من كل سوء.",
+      "sourceListNumber": 21
+    },
+    {
+      "id": "provided-3-03-002",
+      "categoryId": "provided-3-03",
+      "category": "للأهل والوالدين",
+      "text": "اللهم ارزق والدي الصحة والعافية.",
+      "sourceListNumber": 22
+    },
+    {
+      "id": "provided-3-03-003",
+      "categoryId": "provided-3-03",
+      "category": "للأهل والوالدين",
+      "text": "اللهم ارحم والدي كما ربياني صغيرًا.",
+      "sourceListNumber": 23
+    },
+    {
+      "id": "provided-3-03-004",
+      "categoryId": "provided-3-03",
+      "category": "للأهل والوالدين",
+      "text": "اللهم بارك في أعمار أهلي وأعمالهم.",
+      "sourceListNumber": 24
+    },
+    {
+      "id": "provided-3-03-005",
+      "categoryId": "provided-3-03",
+      "category": "للأهل والوالدين",
+      "text": "اللهم أصلح ذات بيننا وألّف بين قلوبنا.",
+      "sourceListNumber": 25
+    },
+    {
+      "id": "provided-3-03-006",
+      "categoryId": "provided-3-03",
+      "category": "للأهل والوالدين",
+      "text": "اللهم اجعل بيتنا بيت سكينة ورحمة ومودة.",
+      "sourceListNumber": 26
+    },
+    {
+      "id": "provided-3-03-007",
+      "categoryId": "provided-3-03",
+      "category": "للأهل والوالدين",
+      "text": "اللهم ارزق أهلي من الخير أوسعه.",
+      "sourceListNumber": 27
+    },
+    {
+      "id": "provided-3-03-008",
+      "categoryId": "provided-3-03",
+      "category": "للأهل والوالدين",
+      "text": "اللهم اشف مرضانا وارحم موتانا.",
+      "sourceListNumber": 28
+    },
+    {
+      "id": "provided-3-03-009",
+      "categoryId": "provided-3-03",
+      "category": "للأهل والوالدين",
+      "text": "اللهم اجمعنا دائمًا على الخير والطاعة.",
+      "sourceListNumber": 29
+    },
+    {
+      "id": "provided-3-03-010",
+      "categoryId": "provided-3-03",
+      "category": "للأهل والوالدين",
+      "text": "اللهم اجعلني بارًا بوالدي ومحسنًا إلى أهلي.",
+      "sourceListNumber": 30
+    },
+    {
+      "id": "provided-3-04-001",
+      "categoryId": "provided-3-04",
+      "category": "للشفاء والعافية",
+      "text": "اللهم رب الناس أذهب البأس، اشف أنت الشافي، لا شفاء إلا شفاؤك، شفاء لا يغادر سقمًا.",
+      "sourceListNumber": 31
+    },
+    {
+      "id": "provided-3-04-002",
+      "categoryId": "provided-3-04",
+      "category": "للشفاء والعافية",
+      "text": "أسأل الله العظيم رب العرش العظيم أن يشفيني.",
+      "sourceListNumber": 32
+    },
+    {
+      "id": "provided-3-04-003",
+      "categoryId": "provided-3-04",
+      "category": "للشفاء والعافية",
+      "text": "اللهم ارزقني تمام العافية.",
+      "sourceListNumber": 33
+    },
+    {
+      "id": "provided-3-04-004",
+      "categoryId": "provided-3-04",
+      "category": "للشفاء والعافية",
+      "text": "اللهم خفف عن كل مريض ألمه.",
+      "sourceListNumber": 34
+    },
+    {
+      "id": "provided-3-04-005",
+      "categoryId": "provided-3-04",
+      "category": "للشفاء والعافية",
+      "text": "اللهم اشف مرضى المسلمين شفاءً تامًا.",
+      "sourceListNumber": 35
+    },
+    {
+      "id": "provided-3-04-006",
+      "categoryId": "provided-3-04",
+      "category": "للشفاء والعافية",
+      "text": "اللهم ألبس المرضى ثوب الصحة والعافية.",
+      "sourceListNumber": 36
+    },
+    {
+      "id": "provided-3-04-007",
+      "categoryId": "provided-3-04",
+      "category": "للشفاء والعافية",
+      "text": "اللهم ارزق المريض الصبر والسكينة.",
+      "sourceListNumber": 37
+    },
+    {
+      "id": "provided-3-04-008",
+      "categoryId": "provided-3-04",
+      "category": "للشفاء والعافية",
+      "text": "اللهم اجعل ما أصابنا تكفيرًا للسيئات ورفعةً في الدرجات.",
+      "sourceListNumber": 38
+    },
+    {
+      "id": "provided-3-04-009",
+      "categoryId": "provided-3-04",
+      "category": "للشفاء والعافية",
+      "text": "اللهم احفظ أجسادنا وأرواحنا من كل سوء.",
+      "sourceListNumber": 39
+    },
+    {
+      "id": "provided-3-04-010",
+      "categoryId": "provided-3-04",
+      "category": "للشفاء والعافية",
+      "text": "اللهم ارزقنا الصحة التي تعيننا على طاعتك.",
+      "sourceListNumber": 40
+    },
+    {
+      "id": "provided-3-05-001",
+      "categoryId": "provided-3-05",
+      "category": "للرزق والعمل",
+      "text": "اللهم افتح لي أبواب رزقك الحلال.",
+      "sourceListNumber": 41
+    },
+    {
+      "id": "provided-3-05-002",
+      "categoryId": "provided-3-05",
+      "category": "للرزق والعمل",
+      "text": "اللهم بارك لي في سعيي واجعل عملي نافعًا.",
+      "sourceListNumber": 42
+    },
+    {
+      "id": "provided-3-05-003",
+      "categoryId": "provided-3-05",
+      "category": "للرزق والعمل",
+      "text": "اللهم ارزقني عملًا طيبًا ورزقًا مباركًا.",
+      "sourceListNumber": 43
+    },
+    {
+      "id": "provided-3-05-004",
+      "categoryId": "provided-3-05",
+      "category": "للرزق والعمل",
+      "text": "اللهم اجعلني أمينًا صادقًا في عملي.",
+      "sourceListNumber": 44
+    },
+    {
+      "id": "provided-3-05-005",
+      "categoryId": "provided-3-05",
+      "category": "للرزق والعمل",
+      "text": "اللهم اكفني بحلالك عن حرامك.",
+      "sourceListNumber": 45
+    },
+    {
+      "id": "provided-3-05-006",
+      "categoryId": "provided-3-05",
+      "category": "للرزق والعمل",
+      "text": "اللهم ارزقني الحكمة في تدبير أموري.",
+      "sourceListNumber": 46
+    },
+    {
+      "id": "provided-3-05-007",
+      "categoryId": "provided-3-05",
+      "category": "للرزق والعمل",
+      "text": "اللهم بارك لي في مالي ووقتي وجهدي.",
+      "sourceListNumber": 47
+    },
+    {
+      "id": "provided-3-05-008",
+      "categoryId": "provided-3-05",
+      "category": "للرزق والعمل",
+      "text": "اللهم ارزقني القناعة وراحة البال.",
+      "sourceListNumber": 48
+    },
+    {
+      "id": "provided-3-05-009",
+      "categoryId": "provided-3-05",
+      "category": "للرزق والعمل",
+      "text": "اللهم ارزقني من حيث لا أحتسب.",
+      "sourceListNumber": 49
+    },
+    {
+      "id": "provided-3-05-010",
+      "categoryId": "provided-3-05",
+      "category": "للرزق والعمل",
+      "text": "اللهم اجعل رزقي سببًا في الخير والإحسان.",
+      "sourceListNumber": 50
+    },
+    {
+      "id": "provided-3-06-001",
+      "categoryId": "provided-3-06",
+      "category": "للزواج والأسرة والصلاح",
+      "text": "ربنا هب لنا من أزواجنا وذرياتنا قرة أعين واجعلنا للمتقين إمامًا.",
+      "sourceListNumber": 51
+    },
+    {
+      "id": "provided-3-06-002",
+      "categoryId": "provided-3-06",
+      "category": "للزواج والأسرة والصلاح",
+      "text": "اللهم ارزقني حسن الخلق وصدق النية.",
+      "sourceListNumber": 52
+    },
+    {
+      "id": "provided-3-06-003",
+      "categoryId": "provided-3-06",
+      "category": "للزواج والأسرة والصلاح",
+      "text": "اللهم ارزقني علاقة قائمة على الاحترام والرحمة والتقوى.",
+      "sourceListNumber": 53
+    },
+    {
+      "id": "provided-3-06-004",
+      "categoryId": "provided-3-06",
+      "category": "للزواج والأسرة والصلاح",
+      "text": "اللهم أصلح قلبي وأصلح لي شأني كله.",
+      "sourceListNumber": 54
+    },
+    {
+      "id": "provided-3-06-005",
+      "categoryId": "provided-3-06",
+      "category": "للزواج والأسرة والصلاح",
+      "text": "اللهم ارزقني القدرة على الوفاء بالعهود والحقوق.",
+      "sourceListNumber": 55
+    },
+    {
+      "id": "provided-3-06-006",
+      "categoryId": "provided-3-06",
+      "category": "للزواج والأسرة والصلاح",
+      "text": "اللهم اجعلني سببًا في سعادة من حولي.",
+      "sourceListNumber": 56
+    },
+    {
+      "id": "provided-3-06-007",
+      "categoryId": "provided-3-06",
+      "category": "للزواج والأسرة والصلاح",
+      "text": "اللهم ارزقني بيتًا عامرًا بالمودة والرحمة.",
+      "sourceListNumber": 57
+    },
+    {
+      "id": "provided-3-06-008",
+      "categoryId": "provided-3-06",
+      "category": "للزواج والأسرة والصلاح",
+      "text": "اللهم ارزقني حسن الاختيار وحسن المعاملة.",
+      "sourceListNumber": 58
+    },
+    {
+      "id": "provided-3-06-009",
+      "categoryId": "provided-3-06",
+      "category": "للزواج والأسرة والصلاح",
+      "text": "اللهم أبعد عني الظلم وسوء الخلق.",
+      "sourceListNumber": 59
+    },
+    {
+      "id": "provided-3-06-010",
+      "categoryId": "provided-3-06",
+      "category": "للزواج والأسرة والصلاح",
+      "text": "اللهم اجعلني من أهل الصلاح والإحسان.",
+      "sourceListNumber": 60
+    },
+    {
+      "id": "provided-3-07-001",
+      "categoryId": "provided-3-07",
+      "category": "للتوبة وترك المعاصي",
+      "text": "اللهم أعني على غض بصري وحفظ لساني.",
+      "sourceListNumber": 61
+    },
+    {
+      "id": "provided-3-07-002",
+      "categoryId": "provided-3-07",
+      "category": "للتوبة وترك المعاصي",
+      "text": "اللهم طهر قلبي واحفظ جوارحي.",
+      "sourceListNumber": 62
+    },
+    {
+      "id": "provided-3-07-003",
+      "categoryId": "provided-3-07",
+      "category": "للتوبة وترك المعاصي",
+      "text": "اللهم ارزقني قوةً على مقاومة الهوى.",
+      "sourceListNumber": 63
+    },
+    {
+      "id": "provided-3-07-004",
+      "categoryId": "provided-3-07",
+      "category": "للتوبة وترك المعاصي",
+      "text": "اللهم حبب إلي الإيمان وزينه في قلبي.",
+      "sourceListNumber": 64
+    },
+    {
+      "id": "provided-3-07-005",
+      "categoryId": "provided-3-07",
+      "category": "للتوبة وترك المعاصي",
+      "text": "اللهم كره إلي الكفر والفسوق والعصيان.",
+      "sourceListNumber": 65
+    },
+    {
+      "id": "provided-3-07-006",
+      "categoryId": "provided-3-07",
+      "category": "للتوبة وترك المعاصي",
+      "text": "اللهم ارزقني صحبة صالحة تعينني على الخير.",
+      "sourceListNumber": 66
+    },
+    {
+      "id": "provided-3-07-007",
+      "categoryId": "provided-3-07",
+      "category": "للتوبة وترك المعاصي",
+      "text": "اللهم اجعل سريرتي خيرًا من علانيتي.",
+      "sourceListNumber": 67
+    },
+    {
+      "id": "provided-3-07-008",
+      "categoryId": "provided-3-07",
+      "category": "للتوبة وترك المعاصي",
+      "text": "اللهم ارزقني الإخلاص في القول والعمل.",
+      "sourceListNumber": 68
+    },
+    {
+      "id": "provided-3-07-009",
+      "categoryId": "provided-3-07",
+      "category": "للتوبة وترك المعاصي",
+      "text": "اللهم اجعل توبتي صادقةً مقبولة.",
+      "sourceListNumber": 69
+    },
+    {
+      "id": "provided-3-07-010",
+      "categoryId": "provided-3-07",
+      "category": "للتوبة وترك المعاصي",
+      "text": "اللهم ثبتني على طاعتك حتى ألقاك.",
+      "sourceListNumber": 70
+    },
+    {
+      "id": "provided-3-08-001",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم فرج هم المهمومين ونفس كرب المكروبين.",
+      "sourceListNumber": 71
+    },
+    {
+      "id": "provided-3-08-002",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم اقض الدين عن المدينين.",
+      "sourceListNumber": 72
+    },
+    {
+      "id": "provided-3-08-003",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم أطعم الجائعين وآو المحتاجين.",
+      "sourceListNumber": 73
+    },
+    {
+      "id": "provided-3-08-004",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم احفظ الأطفال وكبار السن والضعفاء.",
+      "sourceListNumber": 74
+    },
+    {
+      "id": "provided-3-08-005",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم اهد شباب المسلمين إلى ما تحب وترضى.",
+      "sourceListNumber": 75
+    },
+    {
+      "id": "provided-3-08-006",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم أصلح أحوال المسلمين.",
+      "sourceListNumber": 76
+    },
+    {
+      "id": "provided-3-08-007",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم اجمع قلوب الناس على الحق والرحمة.",
+      "sourceListNumber": 77
+    },
+    {
+      "id": "provided-3-08-008",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم انشر السلام والأمان بين الناس.",
+      "sourceListNumber": 78
+    },
+    {
+      "id": "provided-3-08-009",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم ارزق الفقراء والمحتاجين من واسع فضلك.",
+      "sourceListNumber": 79
+    },
+    {
+      "id": "provided-3-08-010",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم ارحم المستضعفين في كل مكان.",
+      "sourceListNumber": 80
+    },
+    {
+      "id": "provided-3-08-011",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم اجعلنا مفاتيح للخير مغاليق للشر.",
+      "sourceListNumber": 81
+    },
+    {
+      "id": "provided-3-08-012",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم ارزقنا حسن الخاتمة.",
+      "sourceListNumber": 82
+    },
+    {
+      "id": "provided-3-08-013",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم ثبتنا عند السؤال.",
+      "sourceListNumber": 83
+    },
+    {
+      "id": "provided-3-08-014",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم اغفر لنا ولوالدينا وللمؤمنين والمؤمنات.",
+      "sourceListNumber": 84
+    },
+    {
+      "id": "provided-3-08-015",
+      "categoryId": "provided-3-08",
+      "category": "للناس جميعًا",
+      "text": "اللهم اجعل آخر كلامنا من الدنيا شهادة أن لا إله إلا الله وأن محمدًا رسول الله.",
+      "sourceListNumber": 85
+    },
+    {
+      "id": "provided-chat-01-001",
+      "categoryId": "provided-chat-01",
+      "category": "أدعية الاستفتاح",
+      "text": "وجهت وجهي للذي فطر السماوات والأرض حنيفًا وما أنا من المشركين.",
+      "sourceListNumber": 1
+    },
+    {
+      "id": "provided-chat-01-002",
+      "categoryId": "provided-chat-01",
+      "category": "أدعية الاستفتاح",
+      "text": "إن صلاتي ونسكي ومحياي ومماتي لله رب العالمين لا شريك له وبذلك أمرت وأنا من المسلمين.",
+      "sourceListNumber": 2
+    },
+    {
+      "id": "provided-chat-01-003",
+      "categoryId": "provided-chat-01",
+      "category": "أدعية الاستفتاح",
+      "text": "اللهم أنت الملك لا إله إلا أنت أنت ربي وأنا عبدك ظلمت نفسي واعترفت بذنبي فاغفر لي ذنوبي جميعًا.",
+      "sourceListNumber": 3
+    },
+    {
+      "id": "provided-chat-01-004",
+      "categoryId": "provided-chat-01",
+      "category": "أدعية الاستفتاح",
+      "text": "واهدني لأحسن الأخلاق لا يهدي لأحسنها إلا أنت واصرف عني سيئها لا يصرف عني سيئها إلا أنت.",
+      "sourceListNumber": 4
+    },
+    {
+      "id": "provided-chat-01-005",
+      "categoryId": "provided-chat-01",
+      "category": "أدعية الاستفتاح",
+      "text": "لبيك وسعديك والخير كله في يديك والشر ليس إليك أنا بك وإليك تباركت وتعاليت أستغفرك وأتوب إليك.",
+      "sourceListNumber": 5
+    },
+    {
+      "id": "provided-chat-02-001",
+      "categoryId": "provided-chat-02",
+      "category": "أذكار الركوع",
+      "text": "سبحان ربي العظيم.",
+      "sourceListNumber": 6
+    },
+    {
+      "id": "provided-chat-02-002",
+      "categoryId": "provided-chat-02",
+      "category": "أذكار الركوع",
+      "text": "سبحانك اللهم ربنا وبحمدك اللهم اغفر لي.",
+      "sourceListNumber": 7
+    },
+    {
+      "id": "provided-chat-02-003",
+      "categoryId": "provided-chat-02",
+      "category": "أذكار الركوع",
+      "text": "اللهم لك ركعت وبك آمنت ولك أسلمت خشع لك سمعي وبصري ومخي وعظمي وعصبي.",
+      "sourceListNumber": 8
+    },
+    {
+      "id": "provided-chat-02-004",
+      "categoryId": "provided-chat-02",
+      "category": "أذكار الركوع",
+      "text": "سبوح قدوس رب الملائكة والروح.",
+      "sourceListNumber": 9
+    },
+    {
+      "id": "provided-chat-02-005",
+      "categoryId": "provided-chat-02",
+      "category": "أذكار الركوع",
+      "text": "سبحان ذي الجبروت والملكوت والكبرياء والعظمة.",
+      "sourceListNumber": 10
+    },
+    {
+      "id": "provided-chat-03-001",
+      "categoryId": "provided-chat-03",
+      "category": "أذكار الرفع من الركوع",
+      "text": "سمع الله لمن حمده.",
+      "sourceListNumber": 11
+    },
+    {
+      "id": "provided-chat-03-002",
+      "categoryId": "provided-chat-03",
+      "category": "أذكار الرفع من الركوع",
+      "text": "ربنا ولك الحمد.",
+      "sourceListNumber": 12
+    },
+    {
+      "id": "provided-chat-03-003",
+      "categoryId": "provided-chat-03",
+      "category": "أذكار الرفع من الركوع",
+      "text": "ربنا ولك الحمد حمدًا كثيرًا طيبًا مباركًا فيه.",
+      "sourceListNumber": 13
+    },
+    {
+      "id": "provided-chat-03-004",
+      "categoryId": "provided-chat-03",
+      "category": "أذكار الرفع من الركوع",
+      "text": "اللهم ربنا لك الحمد ملء السماوات وملء الأرض وملء ما بينهما وملء ما شئت من شيء بعد.",
+      "sourceListNumber": 14
+    },
+    {
+      "id": "provided-chat-04-001",
+      "categoryId": "provided-chat-04",
+      "category": "أذكار السجود",
+      "text": "سبحان ربي الأعلى.",
+      "sourceListNumber": 15
+    },
+    {
+      "id": "provided-chat-04-002",
+      "categoryId": "provided-chat-04",
+      "category": "أذكار السجود",
+      "text": "سبحانك اللهم ربنا وبحمدك اللهم اغفر لي.",
+      "sourceListNumber": 16
+    },
+    {
+      "id": "provided-chat-04-003",
+      "categoryId": "provided-chat-04",
+      "category": "أذكار السجود",
+      "text": "اللهم لك سجدت وبك آمنت ولك أسلمت سجد وجهي للذي خلقه وصوره وشق سمعه وبصره تبارك الله أحسن الخالقين.",
+      "sourceListNumber": 17
+    },
+    {
+      "id": "provided-chat-04-004",
+      "categoryId": "provided-chat-04",
+      "category": "أذكار السجود",
+      "text": "سبوح قدوس رب الملائكة والروح.",
+      "sourceListNumber": 18
+    },
+    {
+      "id": "provided-chat-04-005",
+      "categoryId": "provided-chat-04",
+      "category": "أذكار السجود",
+      "text": "اللهم اغفر لي ذنبي كله دقه وجله وأوله وآخره وعلانيته وسره.",
+      "sourceListNumber": 19
+    },
+    {
+      "id": "provided-chat-04-006",
+      "categoryId": "provided-chat-04",
+      "category": "أذكار السجود",
+      "text": "اللهم إني أعوذ برضاك من سخطك وبمعافاتك من عقوبتك وأعوذ بك منك لا أحصي ثناء عليك أنت كما أثنيت على نفسك.",
+      "sourceListNumber": 20
+    },
+    {
+      "id": "provided-chat-05-001",
+      "categoryId": "provided-chat-05",
+      "category": "الدعاء بين السجدتين",
+      "text": "رب اغفر لي رب اغفر لي.",
+      "sourceListNumber": 21
+    },
+    {
+      "id": "provided-chat-05-002",
+      "categoryId": "provided-chat-05",
+      "category": "الدعاء بين السجدتين",
+      "text": "اللهم اغفر لي وارحمني واهدني وعافني وارزقني.",
+      "sourceListNumber": 22
+    },
+    {
+      "id": "provided-chat-05-003",
+      "categoryId": "provided-chat-05",
+      "category": "الدعاء بين السجدتين",
+      "text": "اللهم اجبرني وارفعني واهدني وعافني وارزقني.",
+      "sourceListNumber": 23
+    },
+    {
+      "id": "provided-chat-06-001",
+      "categoryId": "provided-chat-06",
+      "category": "أدعية قبل السلام",
+      "text": "اللهم اغفر لي ما قدمت وما أخرت وما أسررت وما أعلنت وما أسرفت وما أنت أعلم به مني أنت المقدم وأنت المؤخر لا إله إلا أنت.",
+      "sourceListNumber": 24
+    },
+    {
+      "id": "provided-chat-06-002",
+      "categoryId": "provided-chat-06",
+      "category": "أدعية قبل السلام",
+      "text": "اللهم أعني على ذكرك وشكرك وحسن عبادتك.",
+      "sourceListNumber": 25
+    },
+    {
+      "id": "provided-chat-06-003",
+      "categoryId": "provided-chat-06",
+      "category": "أدعية قبل السلام",
+      "text": "اللهم إني أعوذ بك من عذاب جهنم ومن عذاب القبر ومن فتنة المحيا والممات ومن شر فتنة المسيح الدجال.",
+      "sourceListNumber": 26
+    },
+    {
+      "id": "provided-chat-07-001",
+      "categoryId": "provided-chat-07",
+      "category": "ذكر الله وشكره",
+      "text": "يا رب لك الحمد حتى ترضى.",
+      "sourceListNumber": 1
+    },
+    {
+      "id": "provided-chat-07-002",
+      "categoryId": "provided-chat-07",
+      "category": "ذكر الله وشكره",
+      "text": "اللهم لك الحمد على ما أعطيت وعلى ما منعت.",
+      "sourceListNumber": 2
+    },
+    {
+      "id": "provided-chat-07-003",
+      "categoryId": "provided-chat-07",
+      "category": "ذكر الله وشكره",
+      "text": "اللهم اجعلني شاكرًا لنعمك.",
+      "sourceListNumber": 3
+    },
+    {
+      "id": "provided-chat-07-004",
+      "categoryId": "provided-chat-07",
+      "category": "ذكر الله وشكره",
+      "text": "اللهم أوزعني أن أشكر نعمتك التي أنعمت علي وعلى والدي.",
+      "sourceListNumber": 4
+    },
+    {
+      "id": "provided-chat-07-005",
+      "categoryId": "provided-chat-07",
+      "category": "ذكر الله وشكره",
+      "text": "لك الحمد يا رب على لطفك الخفي.",
+      "sourceListNumber": 5
+    },
+    {
+      "id": "provided-chat-07-006",
+      "categoryId": "provided-chat-07",
+      "category": "ذكر الله وشكره",
+      "text": "سبحانك يا ربنا وبحمدك.",
+      "sourceListNumber": 6
+    },
+    {
+      "id": "provided-chat-07-007",
+      "categoryId": "provided-chat-07",
+      "category": "ذكر الله وشكره",
+      "text": "اللهم اجعل ذكرك أحب إلي من كل شيء.",
+      "sourceListNumber": 7
+    },
+    {
+      "id": "provided-chat-07-008",
+      "categoryId": "provided-chat-07",
+      "category": "ذكر الله وشكره",
+      "text": "اللهم ارزقني قلبًا شاكرًا ولسانًا ذاكرًا.",
+      "sourceListNumber": 8
+    },
+    {
+      "id": "provided-chat-07-009",
+      "categoryId": "provided-chat-07",
+      "category": "ذكر الله وشكره",
+      "text": "اللهم أعني على دوام الحمد والشكر.",
+      "sourceListNumber": 9
+    },
+    {
+      "id": "provided-chat-07-010",
+      "categoryId": "provided-chat-07",
+      "category": "ذكر الله وشكره",
+      "text": "يا رب لك الحمد في الأولى والآخرة.",
+      "sourceListNumber": 10
+    },
+    {
+      "id": "provided-chat-08-001",
+      "categoryId": "provided-chat-08",
+      "category": "أدعية الثبات وحسن الخلق",
+      "text": "اللهم اهدني وسددني.",
+      "sourceListNumber": 11
+    },
+    {
+      "id": "provided-chat-08-002",
+      "categoryId": "provided-chat-08",
+      "category": "أدعية الثبات وحسن الخلق",
+      "text": "اللهم اهدني لأحسن الأخلاق لا يهدي لأحسنها إلا أنت.",
+      "sourceListNumber": 12
+    },
+    {
+      "id": "provided-chat-08-003",
+      "categoryId": "provided-chat-08",
+      "category": "أدعية الثبات وحسن الخلق",
+      "text": "اللهم اصرف عني سيئ الأخلاق لا يصرف عني سيئها إلا أنت.",
+      "sourceListNumber": 13
+    },
+    {
+      "id": "provided-chat-08-004",
+      "categoryId": "provided-chat-08",
+      "category": "أدعية الثبات وحسن الخلق",
+      "text": "اللهم اهد قلبي وسدد لساني.",
+      "sourceListNumber": 14
+    },
+    {
+      "id": "provided-chat-08-005",
+      "categoryId": "provided-chat-08",
+      "category": "أدعية الثبات وحسن الخلق",
+      "text": "اللهم طهر قلبي من النفاق وعملي من الرياء ولساني من الكذب وعيني من الخيانة.",
+      "sourceListNumber": 15
+    },
+    {
+      "id": "provided-chat-08-006",
+      "categoryId": "provided-chat-08",
+      "category": "أدعية الثبات وحسن الخلق",
+      "text": "اللهم ارزقني الصدق والإخلاص.",
+      "sourceListNumber": 16
+    },
+    {
+      "id": "provided-chat-08-007",
+      "categoryId": "provided-chat-08",
+      "category": "أدعية الثبات وحسن الخلق",
+      "text": "اللهم اجعلني متواضعًا للحق.",
+      "sourceListNumber": 17
+    },
+    {
+      "id": "provided-chat-08-008",
+      "categoryId": "provided-chat-08",
+      "category": "أدعية الثبات وحسن الخلق",
+      "text": "اللهم ارزقني حلمًا عند الغضب.",
+      "sourceListNumber": 18
+    },
+    {
+      "id": "provided-chat-08-009",
+      "categoryId": "provided-chat-08",
+      "category": "أدعية الثبات وحسن الخلق",
+      "text": "اللهم اجعلني ممن يصلحون ولا يفسدون.",
+      "sourceListNumber": 19
+    },
+    {
+      "id": "provided-chat-08-010",
+      "categoryId": "provided-chat-08",
+      "category": "أدعية الثبات وحسن الخلق",
+      "text": "اللهم ارزقني حسن المعاملة ولين الكلام.",
+      "sourceListNumber": 20
+    },
+    {
+      "id": "provided-chat-09-001",
+      "categoryId": "provided-chat-09",
+      "category": "أدعية الستر والعفو",
+      "text": "اللهم استرني فوق الأرض وتحت الأرض ويوم العرض عليك.",
+      "sourceListNumber": 21
+    },
+    {
+      "id": "provided-chat-09-002",
+      "categoryId": "provided-chat-09",
+      "category": "أدعية الستر والعفو",
+      "text": "اللهم اعف عني واعف عن والدي.",
+      "sourceListNumber": 22
+    },
+    {
+      "id": "provided-chat-09-003",
+      "categoryId": "provided-chat-09",
+      "category": "أدعية الستر والعفو",
+      "text": "اللهم استر عيوبي واغفر ذنوبي.",
+      "sourceListNumber": 23
+    },
+    {
+      "id": "provided-chat-09-004",
+      "categoryId": "provided-chat-09",
+      "category": "أدعية الستر والعفو",
+      "text": "اللهم لا تفضحني يوم القيامة.",
+      "sourceListNumber": 24
+    },
+    {
+      "id": "provided-chat-09-005",
+      "categoryId": "provided-chat-09",
+      "category": "أدعية الستر والعفو",
+      "text": "اللهم ارزقني الستر والعفاف.",
+      "sourceListNumber": 25
+    },
+    {
+      "id": "provided-chat-09-006",
+      "categoryId": "provided-chat-09",
+      "category": "أدعية الستر والعفو",
+      "text": "اللهم تجاوز عن تقصيري.",
+      "sourceListNumber": 26
+    },
+    {
+      "id": "provided-chat-09-007",
+      "categoryId": "provided-chat-09",
+      "category": "أدعية الستر والعفو",
+      "text": "اللهم اغفر لي ما لا يعلمون واجعلني خيرًا مما يظنون.",
+      "sourceListNumber": 27
+    },
+    {
+      "id": "provided-chat-09-008",
+      "categoryId": "provided-chat-09",
+      "category": "أدعية الستر والعفو",
+      "text": "اللهم أصلح علانيتي وسريرتي.",
+      "sourceListNumber": 28
+    },
+    {
+      "id": "provided-chat-09-009",
+      "categoryId": "provided-chat-09",
+      "category": "أدعية الستر والعفو",
+      "text": "اللهم ارزقني حسن الخاتمة.",
+      "sourceListNumber": 29
+    },
+    {
+      "id": "provided-chat-09-010",
+      "categoryId": "provided-chat-09",
+      "category": "أدعية الستر والعفو",
+      "text": "اللهم اجعلني من عبادك المقبولين.",
+      "sourceListNumber": 30
+    },
+    {
+      "id": "provided-chat-10-001",
+      "categoryId": "provided-chat-10",
+      "category": "أدعية الفرج والتيسير",
+      "text": "اللهم يسر لي أمري واشرح لي صدري.",
+      "sourceListNumber": 31
+    },
+    {
+      "id": "provided-chat-10-002",
+      "categoryId": "provided-chat-10",
+      "category": "أدعية الفرج والتيسير",
+      "text": "اللهم افتح لي أبواب الخير.",
+      "sourceListNumber": 32
+    },
+    {
+      "id": "provided-chat-10-003",
+      "categoryId": "provided-chat-10",
+      "category": "أدعية الفرج والتيسير",
+      "text": "اللهم اختر لي ولا تخيرني لنفسي.",
+      "sourceListNumber": 33
+    },
+    {
+      "id": "provided-chat-10-004",
+      "categoryId": "provided-chat-10",
+      "category": "أدعية الفرج والتيسير",
+      "text": "اللهم قدر لي الخير حيث كان ثم أرضني به.",
+      "sourceListNumber": 34
+    },
+    {
+      "id": "provided-chat-10-005",
+      "categoryId": "provided-chat-10",
+      "category": "أدعية الفرج والتيسير",
+      "text": "اللهم اجعل بعد العسر يسرًا وبعد الضيق فرجًا.",
+      "sourceListNumber": 35
+    },
+    {
+      "id": "provided-chat-10-006",
+      "categoryId": "provided-chat-10",
+      "category": "أدعية الفرج والتيسير",
+      "text": "اللهم ألهمني الصواب في القول والعمل.",
+      "sourceListNumber": 36
+    },
+    {
+      "id": "provided-chat-10-007",
+      "categoryId": "provided-chat-10",
+      "category": "أدعية الفرج والتيسير",
+      "text": "اللهم ارزقني الحكمة وحسن التدبير.",
+      "sourceListNumber": 37
+    },
+    {
+      "id": "provided-chat-10-008",
+      "categoryId": "provided-chat-10",
+      "category": "أدعية الفرج والتيسير",
+      "text": "اللهم لا تجعل الصعوبات سببًا في يأس قلبي.",
+      "sourceListNumber": 38
+    },
+    {
+      "id": "provided-chat-10-009",
+      "categoryId": "provided-chat-10",
+      "category": "أدعية الفرج والتيسير",
+      "text": "اللهم ارزقني صبرًا جميلًا وأملًا صادقًا.",
+      "sourceListNumber": 39
+    },
+    {
+      "id": "provided-chat-10-010",
+      "categoryId": "provided-chat-10",
+      "category": "أدعية الفرج والتيسير",
+      "text": "اللهم اجعل لي من كل ضيق مخرجًا ومن كل هم فرجًا.",
+      "sourceListNumber": 40
+    },
+    {
+      "id": "provided-chat-11-001",
+      "categoryId": "provided-chat-11",
+      "category": "أدعية المحبة والألفة",
+      "text": "اللهم ألّف بين قلوبنا وأصلح ذات بيننا.",
+      "sourceListNumber": 41
+    },
+    {
+      "id": "provided-chat-11-002",
+      "categoryId": "provided-chat-11",
+      "category": "أدعية المحبة والألفة",
+      "text": "اللهم ارزقنا الرحمة وحسن الظن.",
+      "sourceListNumber": 42
+    },
+    {
+      "id": "provided-chat-11-003",
+      "categoryId": "provided-chat-11",
+      "category": "أدعية المحبة والألفة",
+      "text": "اللهم طهر قلوبنا من الحقد والحسد.",
+      "sourceListNumber": 43
+    },
+    {
+      "id": "provided-chat-11-004",
+      "categoryId": "provided-chat-11",
+      "category": "أدعية المحبة والألفة",
+      "text": "اللهم ارزقنا العفو عند المقدرة.",
+      "sourceListNumber": 44
+    },
+    {
+      "id": "provided-chat-11-005",
+      "categoryId": "provided-chat-11",
+      "category": "أدعية المحبة والألفة",
+      "text": "اللهم اجعلنا ممن يعفون ويصفحون.",
+      "sourceListNumber": 45
+    },
+    {
+      "id": "provided-chat-11-006",
+      "categoryId": "provided-chat-11",
+      "category": "أدعية المحبة والألفة",
+      "text": "اللهم ارزقنا صحبة صالحة.",
+      "sourceListNumber": 46
+    },
+    {
+      "id": "provided-chat-11-007",
+      "categoryId": "provided-chat-11",
+      "category": "أدعية المحبة والألفة",
+      "text": "اللهم اجعل كلامنا طيبًا وأعمالنا صالحة.",
+      "sourceListNumber": 47
+    },
+    {
+      "id": "provided-chat-11-008",
+      "categoryId": "provided-chat-11",
+      "category": "أدعية المحبة والألفة",
+      "text": "اللهم اجعلنا سببًا في جبر الخواطر.",
+      "sourceListNumber": 48
+    },
+    {
+      "id": "provided-chat-11-009",
+      "categoryId": "provided-chat-11",
+      "category": "أدعية المحبة والألفة",
+      "text": "اللهم ارزقنا الوفاء والإحسان.",
+      "sourceListNumber": 49
+    },
+    {
+      "id": "provided-chat-11-010",
+      "categoryId": "provided-chat-11",
+      "category": "أدعية المحبة والألفة",
+      "text": "اللهم اجمعنا على طاعتك ومحبتك.",
+      "sourceListNumber": 50
+    },
+    {
+      "id": "provided-chat-12-001",
+      "categoryId": "provided-chat-12",
+      "category": "أدعية الآخرة",
+      "text": "اللهم إني أسألك الجنة وما قرب إليها من قول وعمل.",
+      "sourceListNumber": 51
+    },
+    {
+      "id": "provided-chat-12-002",
+      "categoryId": "provided-chat-12",
+      "category": "أدعية الآخرة",
+      "text": "اللهم أجرنا من النار.",
+      "sourceListNumber": 52
+    },
+    {
+      "id": "provided-chat-12-003",
+      "categoryId": "provided-chat-12",
+      "category": "أدعية الآخرة",
+      "text": "اللهم هون علينا سكرات الموت.",
+      "sourceListNumber": 53
+    },
+    {
+      "id": "provided-chat-12-004",
+      "categoryId": "provided-chat-12",
+      "category": "أدعية الآخرة",
+      "text": "اللهم ثبتنا بالقول الثابت في الحياة الدنيا وفي الآخرة.",
+      "sourceListNumber": 54
+    },
+    {
+      "id": "provided-chat-12-005",
+      "categoryId": "provided-chat-12",
+      "category": "أدعية الآخرة",
+      "text": "اللهم اجعل قبورنا روضة من رياض الجنة.",
+      "sourceListNumber": 55
+    },
+    {
+      "id": "provided-chat-12-006",
+      "categoryId": "provided-chat-12",
+      "category": "أدعية الآخرة",
+      "text": "اللهم اجعل حسابنا يسيرًا.",
+      "sourceListNumber": 56
+    },
+    {
+      "id": "provided-chat-12-007",
+      "categoryId": "provided-chat-12",
+      "category": "أدعية الآخرة",
+      "text": "اللهم آتنا كتابنا بيميننا.",
+      "sourceListNumber": 57
+    },
+    {
+      "id": "provided-chat-12-008",
+      "categoryId": "provided-chat-12",
+      "category": "أدعية الآخرة",
+      "text": "اللهم اسقنا من حوض نبيك شربة هنيئة.",
+      "sourceListNumber": 58
+    },
+    {
+      "id": "provided-chat-12-009",
+      "categoryId": "provided-chat-12",
+      "category": "أدعية الآخرة",
+      "text": "اللهم ارزقنا مرافقة النبيين والصديقين والشهداء والصالحين.",
+      "sourceListNumber": 59
+    },
+    {
+      "id": "provided-chat-12-010",
+      "categoryId": "provided-chat-12",
+      "category": "أدعية الآخرة",
+      "text": "اللهم أدخلنا الجنة برحمتك يا أرحم الراحمين.",
+      "sourceListNumber": 60
+    },
+    {
+      "id": "tawheed",
+      "categoryId": "legacy-basics",
+      "category": "أذكار أساسية",
+      "text": "لَا إِلَهَ إِلَّا اللهُ",
+      "sourceListNumber": 1
+    }
+  ]
+}

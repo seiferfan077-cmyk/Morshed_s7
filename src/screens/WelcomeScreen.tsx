@@ -79,7 +79,7 @@ export function WelcomeScreen({ onComplete }: { onComplete: () => void }) {
         <View style={styles.topBar}>
           <View style={styles.brandLockup}>
             <View style={styles.brandIconSmall}><Ionicons name="sparkles" size={15} color={colors.ink} /></View>
-            <Text style={styles.brandName}>مُرشد</Text>
+            <Text style={styles.brandName}>MURSHID</Text>
             <Text style={styles.brandVersion}>S7</Text>
           </View>
           <View style={styles.secureBadge}>

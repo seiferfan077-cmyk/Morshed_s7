@@ -19,7 +19,7 @@ export function HomeScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const onOpen = (screen: QuickTarget) => { const routes: Record<QuickTarget, keyof RootTabParamList> = { Browser: 'المتصفح', Media: 'المعرض', Files: 'المعرض' }; navigation.navigate(routes[screen]); };
   return <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-    <View style={styles.brandRow}><View><Text style={styles.kicker}>مُرشد · S7</Text><Text style={styles.title}>كل ما تحتاجه،<Text style={styles.titleAccent}> في مكان واحد.</Text></Text></View><View style={styles.avatar}><Text style={styles.avatarText}>م</Text></View></View>
+    <View style={styles.brandRow}><View><Text style={styles.kicker}>MURSHID · S7</Text><Text style={styles.title}>كل ما تحتاجه،<Text style={styles.titleAccent}> في مكان واحد.</Text></Text></View><View style={styles.avatar}><Text style={styles.avatarText}>م</Text></View></View>
     <Text style={styles.greeting}>أهلًا بك. اختر نقطة البداية اليوم.</Text>
     <AnnouncementCard />
     <SurfaceCard accent={colors.teal}><View style={styles.heroTop}><View><Text style={styles.heroLabel}>الوصول السريع</Text><Text style={styles.heroTitle}>تصفح بتركيز</Text><Text style={styles.heroBody}>افتح المواقع والأدوات التي تحتاجها داخل مساحة هادئة.</Text></View><View style={styles.heroIcon}><Ionicons name="compass-outline" size={30} color={colors.tealDark} /></View></View><ActionButton onPress={() => onOpen('Browser')}>فتح المتصفح</ActionButton></SurfaceCard>
