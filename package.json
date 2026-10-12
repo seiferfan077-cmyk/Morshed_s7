@@ -14,6 +14,7 @@
     "expo-image": "~57.0.5",
     "expo-intent-launcher": "~57.0.1",
     "expo-media-library": "~57.0.5",
+    "expo-notifications": "~57.0.22",
     "expo-secure-store": "~57.0.4",
     "expo-speech": "^57.0.3",
     "expo-status-bar": "~57.0.1",
@@ -44,10 +45,11 @@
     "memory:integration": "rm -rf .tmp-memory-test && npx tsc --ignoreConfig --outDir .tmp-memory-test --module commonjs --target es2022 --skipLibCheck src/types/memory.ts src/services/ai/aiService.ts src/services/memory/memoryExtractor.ts src/services/memory/memoryRetrieval.ts src/services/memory/contextAssembly.ts src/services/memory/memoryService.ts && node tests/memory-validation.integration.js && rm -rf .tmp-memory-test",
     "ai:test": "rm -rf .tmp-byok-test && ./node_modules/.bin/tsc --ignoreConfig --outDir .tmp-byok-test --module commonjs --target es2022 --skipLibCheck src/types/memory.ts src/services/ai/aiService.ts src/services/ai/byokAIService.ts && node tests/byok.test.js && rm -rf .tmp-byok-test",
     "ota:test": "rm -rf .tmp-ota-test && ./node_modules/.bin/tsc --ignoreConfig --types node --outDir .tmp-ota-test --module commonjs --target es2022 --skipLibCheck src/services/releases/updatePolicy.ts src/services/monitoring/updateMonitor.ts && node tests/ota-policy.test.js && rm -rf .tmp-ota-test",
+    "notifications:test": "rm -rf .tmp-notification-test && ./node_modules/.bin/tsc --ignoreConfig --types node --outDir .tmp-notification-test --rootDir src/services/notifications --module commonjs --target es2022 --skipLibCheck src/services/notifications/dailyNotificationPolicy.ts && node tests/daily-notification-policy.test.js && rm -rf .tmp-notification-test",
     "backend:test": "npm --prefix backend test",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "check": "npm run lint && npm run typecheck"
+    "check": "npm run lint && npm run typecheck && npm run notifications:test"
   },
   "private": true
 }

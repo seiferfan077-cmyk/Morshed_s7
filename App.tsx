@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { NativeModules, Platform, View } from 'react-native';
+import { AppState, NativeModules, Platform, View } from 'react-native';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as SystemUI from 'expo-system-ui';
 import * as Updates from 'expo-updates';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { showDailyUpdateNotificationIfDue } from './src/services/notifications/dailyUpdateNotification';
 import { hasSeenWelcome, WelcomeScreen } from './src/screens/WelcomeScreen';
 import { ThemeProvider, useAppTheme } from './src/theme/ThemeProvider';
 
@@ -25,20 +26,40 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if ((!fontsLoaded && !fontError) || !ready || showWelcome || Platform.OS !== 'android') return;
-    // The native transparent activity records that the one-time system prompt was shown.
-    // Declining the role never blocks the rest of the app.
+    if ((!fontsLoaded && !fontError) || !ready || showWelcome) return;
     let active = true;
+    let startupFlowDone = false;
+    let previousAppState = AppState.currentState;
+    const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
+      const returnedToApp = previousAppState !== 'active' && nextAppState === 'active';
+      previousAppState = nextAppState;
+      if (active && startupFlowDone && returnedToApp) {
+        void showDailyUpdateNotificationIfDue();
+      }
+    });
+
     void (async () => {
-      await IntentLauncher.startActivityAsync('com.murshid.s7.REQUEST_DEFAULT_ROLES').catch(() => undefined);
-      if (!active) return;
+      if (Platform.OS === 'android') {
+        // The native transparent activity records that the one-time system prompt was shown.
+        // Declining the role never blocks the rest of the app.
+        await IntentLauncher.startActivityAsync('com.murshid.s7.REQUEST_DEFAULT_ROLES').catch(() => undefined);
+        if (!active) return;
+      }
+
+      await showDailyUpdateNotificationIfDue();
+      startupFlowDone = true;
+      if (!active || Platform.OS !== 'android') return;
+
       try {
         await NativeModules.MurshidShortcutModule?.requestPinShortcut?.();
       } catch {
         // Pinned shortcuts are optional and unsupported launchers must not block startup.
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+      appStateSubscription.remove();
+    };
   }, [fontsLoaded, fontError, ready, showWelcome]);
 
   useEffect(() => {
