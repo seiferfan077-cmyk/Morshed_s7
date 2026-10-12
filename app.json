@@ -21,7 +21,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.murshid.s7",
-      "versionCode": 2
+      "versionCode": 2,
+      "permissions": ["com.android.launcher.permission.INSTALL_SHORTCUT"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
