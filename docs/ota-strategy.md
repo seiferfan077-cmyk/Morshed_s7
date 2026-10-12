@@ -14,7 +14,7 @@ At the audit time the official project had Expo SDK `~57.0.25`, React Native `0.
 
 ## Runtime version strategy
 
-`appVersion` is the runtime boundary. A binary built from app version `0.1.0` receives updates whose runtime version is `0.1.0`. When a native dependency, Android permission, Expo/RN SDK, WebView native setting, native asset/configuration, package ID, or other native contract changes, increment `expo.version` and build a new binary. JavaScript-only changes keep the same app version and can target the existing runtime.
+`appVersion` is the runtime boundary. A binary built from app version `0.1.2` receives updates whose runtime version is `0.1.2`. When a native dependency, Android permission, Expo/RN SDK, WebView native setting, native asset/configuration, package ID, or other native contract changes, increment `expo.version` and build a new binary. JavaScript-only changes keep the same app version and can target the existing runtime.
 
 This policy is deliberately conservative. It prevents an update compiled against a different native contract from being offered to an incompatible binary. Do not manually force a runtime value to make a native change look OTA-compatible.
 
@@ -28,7 +28,7 @@ Do not publish directly to production. A production update requires a compatible
 
 ## Current readiness
 
-The source is now **locally prepared but not production-ready**. It still needs `eas init` / project association, `eas update:configure` to create the real `updates.url` and project ID, an Expo account, at least one development/preview/production build, and a real Android-device check. No production build or update was run in this phase.
+The source is now **EAS-associated and locally prepared, but not production-ready**. `app.json` contains the project ID and `updates.url`, and the client uses a manual cross-platform update check with automatic startup checks disabled to avoid duplicate checks. It still needs an Expo account/token, at least one development/preview/production build, and a real device check on each target platform. No production build or update was run in this phase.
 
 ## OTA-compatible changes
 

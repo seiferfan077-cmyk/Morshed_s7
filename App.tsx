@@ -63,14 +63,15 @@ export default function App() {
   }, [fontsLoaded, fontError, ready, showWelcome]);
 
   useEffect(() => {
-    if (__DEV__ || Platform.OS !== 'android' || !ready || showWelcome || !Updates.isEnabled) return;
+    if (__DEV__ || !ready || showWelcome || !Updates.isEnabled) return;
     let active = true;
     void (async () => {
       try {
         const available = await Updates.checkForUpdateAsync();
         if (!active || !available.isAvailable) return;
         await Updates.fetchUpdateAsync();
-        if (active) await Updates.reloadAsync();
+        if (!active) return;
+        await Updates.reloadAsync();
       } catch {
         // OTA must never prevent the existing embedded bundle from starting.
       }

@@ -222,9 +222,9 @@ npx expo start --clear
 
 Hub يدير مقترحات وتصنيفًا، لكنه لا يقرأ schema آمنًا من Firebase ليعيد بناء صفحات أو مكونات كاملة. لا يوجد renderer ديناميكي ولا validation schema ولا preview/publish snapshot.
 
-### EAS OTA — Prepared locally, not published
+### EAS OTA — Prepared and wired, not published
 
-`updatePolicy.ts` يصنف التغيير ويقترح قناة. أضيف `expo-updates` و`runtimeVersion` و`eas.json` محليًا، لكن لا يوجد EAS project ID أو `updates.url` أو نشر فعلي بعد.
+`updatePolicy.ts` يصنف التغيير ويقترح قناة. أضيف `expo-updates` و`runtimeVersion` و`eas.json`، وربط المشروع مع EAS في `app.json`. التطبيق يفحص التحديث يدويًا بعد بدء التشغيل عبر `checkForUpdateAsync` ثم ينزله ويعيد التشغيل عند توفره، مع إبقاء الحزمة الحالية عند فشل الشبكة أو التحديث. لم يُنشر OTA فعليًا بعد.
 
 ### Monitoring/Rollback — Partially implemented
 
@@ -359,7 +359,7 @@ npx eas build --platform android --profile preview
 npx eas build --platform android --profile production
 ```
 
-لا تحفظ keystore أو `EXPO_TOKEN` داخل GitHub. تغييرات Native تحتاج Build جديدًا. تغييرات JS/TS المتوافقة يمكن أن تستخدم EAS Update بعد تهيئة `expo-updates`, `runtimeVersion`, المشروع والقنوات، لكن OTA غير مفعلة حاليًا.
+لا تحفظ keystore أو `EXPO_TOKEN` داخل GitHub. تغييرات Native تحتاج Build جديدًا. تغييرات JS/TS المتوافقة يمكن أن تستخدم EAS Update بعد وجود Binary مناسب واختبار Preview؛ عميل OTA مفعّل، لكن النشر الفعلي يحتاج حساب Expo وcredentials وبناءً مناسبًا.
 
 ## الخدمات الخارجية والحالة
 
@@ -372,13 +372,13 @@ npx eas build --platform android --profile production
 | Firebase Storage | غير موصل | اختيار سياسة التخزين وتفعيل الخدمة إذا لزم |
 | Firebase Admin SDK | غير موجود | Backend آمن وsecret storage |
 | Backend/API | غير موجود تشغيليًا | خدمة مستقلة للنشر وAI وclaims وaudit policy |
-| EAS | غير مهيأ | Expo account/project/token/channels |
+| EAS | المشروع مربوط محليًا؛ لا يوجد نشر مؤكد في هذه البيئة | Expo account/token، Binaries، واختبار القنوات |
 | AI provider | غير موصل | Backend ومزود يختاره المالك |
 | S3/Object storage | غير موصل | اختيار مزود وسياسة تكلفة |
 
 ## OTA Architecture وRuntime Version
 
-الاستراتيجية المختارة هي `runtimeVersion.policy = appVersion`. لذلك يحمل كل Binary قيمة runtime مساوية لإصدار التطبيق في `app.json`، مثل `0.1.0`. أي تغيير Native أو dependency/configuration يؤثر على native runtime يجب أن يرفع `expo.version` إلى قيمة جديدة، ثم يبني APK/AAB جديدًا. لا نرسل OTA من runtime قديم إلى Binary غير متوافق.
+الاستراتيجية المختارة هي `runtimeVersion.policy = appVersion`. لذلك يحمل كل Binary قيمة runtime مساوية لإصدار التطبيق في `app.json`، مثل `0.1.2`. أي تغيير Native أو dependency/configuration يؤثر على native runtime يجب أن يرفع `expo.version` إلى قيمة جديدة، ثم يبني APK/AAB جديدًا. لا نرسل OTA من runtime قديم إلى Binary غير متوافق.
 
 التغييرات التي يمكن نشرها OTA بعد وجود Binary مناسب هي React/TypeScript، الشاشات والمكونات، navigation/business logic، النصوص، إصلاحات JavaScript، وassets المضمنة في bundle. التغييرات التي تحتاج Build جديدًا هي package/native dependency جديدة، Android permissions، package ID، adaptive icon/splash، WebView native configuration، SDK/React Native/Expo upgrade، `app.json` native settings، أو أي تغيير في `runtimeVersion`.
 
@@ -392,7 +392,7 @@ npx eas build --platform android --profile production
 | `preview` | `preview` | APK داخلي لمجموعة الاختبار |
 | `production` | `production` | الإصدار العام |
 
-لم يتم تشغيل `eas init` أو `eas update:configure` لأن ذلك يحتاج حساب Expo وربط EAS project. لا يتم اختلاق `projectId` أو `updates.url`. بعد تسجيل الدخول وربط المشروع نفّذ مرة واحدة:
+تم حفظ `projectId` و`updates.url` في `app.json`. إذا تغير حساب Expo أو المشروع، أعد ربطهما بأوامر EAS الرسمية بدل تعديل القيم يدويًا:
 
 ```bash
 npx eas login

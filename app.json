@@ -50,7 +50,8 @@
     },
     "owner": "seif07",
     "updates": {
-      "url": "https://u.expo.dev/c4512276-2c5f-4cd5-8c32-ef4550c79cf4"
+      "url": "https://u.expo.dev/c4512276-2c5f-4cd5-8c32-ef4550c79cf4",
+      "checkAutomatically": "NEVER"
     }
   }
 }
