@@ -114,31 +114,40 @@ public final class MurshidCallScreenView extends LinearLayout {
     durationText.setContentDescription("مدة المكالمة");
     addView(durationText, params(WRAP_CONTENT, dp(43), 0, dp(2)));
 
-    LinearLayout firstRow = new LinearLayout(context);
-    firstRow.setGravity(Gravity.CENTER);
-    firstRow.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-    firstRow.addView(action("◖))", "مكبر الصوت", Color.rgb(45, 55, 60), Color.WHITE, false, () -> {
-      boolean next = !MurshidInCallService.isSpeakerOn();
-      dispatch(MurshidInCallService.ACTION_SET_SPEAKER, next);
-    }), params(0, dp(98), dp(4), 0, 1));
-    firstRow.addView(action("?▣", "فيس تايم", Color.rgb(45, 55, 60), Color.WHITE, false,
-        () -> Toast.makeText(getContext(), "فيس تايم غير متاح عبر شبكة الهاتف", Toast.LENGTH_SHORT).show()), params(0, dp(98), dp(4), 0, 1));
-    firstRow.addView(action("♩/", "كتم الصوت", Color.rgb(45, 55, 60), Color.WHITE, false, () -> {
-      boolean next = !MurshidInCallService.isMuted();
-      dispatch(MurshidInCallService.ACTION_SET_MUTED, next);
-    }), params(0, dp(98), dp(4), 0, 1));
-    addView(firstRow, params(MATCH_PARENT, dp(100), 0, 0));
+    if (incoming) {
+      LinearLayout answerRejectRow = new LinearLayout(context);
+      answerRejectRow.setGravity(Gravity.CENTER);
+      answerRejectRow.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+      answerRejectRow.addView(new SwipeRail(context, true), params(0, dp(60), dp(5), 0, 1));
+      answerRejectRow.addView(new SwipeRail(context, false), params(0, dp(60), dp(5), 0, 1));
+      addView(answerRejectRow, params(MATCH_PARENT, dp(70), 0, 0));
+    } else {
+      LinearLayout firstRow = new LinearLayout(context);
+      firstRow.setGravity(Gravity.CENTER);
+      firstRow.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+      firstRow.addView(action("◖))", "مكبر الصوت", Color.rgb(45, 55, 60), Color.WHITE, false, () -> {
+        boolean next = !MurshidInCallService.isSpeakerOn();
+        dispatch(MurshidInCallService.ACTION_SET_SPEAKER, next);
+      }), params(0, dp(98), dp(4), 0, 1));
+      firstRow.addView(action("?▣", "فيس تايم", Color.rgb(45, 55, 60), Color.WHITE, false,
+          () -> Toast.makeText(getContext(), "فيس تايم غير متاح عبر شبكة الهاتف", Toast.LENGTH_SHORT).show()), params(0, dp(98), dp(4), 0, 1));
+      firstRow.addView(action("♩/", "كتم الصوت", Color.rgb(45, 55, 60), Color.WHITE, false, () -> {
+        boolean next = !MurshidInCallService.isMuted();
+        dispatch(MurshidInCallService.ACTION_SET_MUTED, next);
+      }), params(0, dp(98), dp(4), 0, 1));
+      addView(firstRow, params(MATCH_PARENT, dp(100), 0, 0));
 
-    LinearLayout secondRow = new LinearLayout(context);
-    secondRow.setGravity(Gravity.CENTER);
-    secondRow.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-    secondRow.addView(action("•••", "المزيد", Color.rgb(45, 55, 60), Color.WHITE, false,
-        () -> Toast.makeText(getContext(), "المزيد من خيارات المكالمة قريبًا", Toast.LENGTH_SHORT).show()), params(0, dp(98), dp(4), 0, 1));
-    secondRow.addView(action("☎", "إنهاء المكالمة", Color.rgb(184, 22, 29), Color.WHITE, true,
-        () -> dispatch(MurshidInCallService.ACTION_HANGUP)), params(0, dp(98), dp(4), 0, 1));
-    secondRow.addView(action("⠿", "لوحة المفاتيح", Color.rgb(45, 55, 60), Color.WHITE, false,
-        () -> ((MurshidDialerActivity) getContext()).showCallDialPad()), params(0, dp(98), dp(4), 0, 1));
-    addView(secondRow, params(MATCH_PARENT, dp(100), 0, 0));
+      LinearLayout secondRow = new LinearLayout(context);
+      secondRow.setGravity(Gravity.CENTER);
+      secondRow.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+      secondRow.addView(action("•••", "المزيد", Color.rgb(45, 55, 60), Color.WHITE, false,
+          () -> Toast.makeText(getContext(), "المزيد من خيارات المكالمة قريبًا", Toast.LENGTH_SHORT).show()), params(0, dp(98), dp(4), 0, 1));
+      secondRow.addView(action("☎", "إنهاء المكالمة", Color.rgb(184, 22, 29), Color.WHITE, true,
+          () -> dispatch(MurshidInCallService.ACTION_HANGUP)), params(0, dp(98), dp(4), 0, 1));
+      secondRow.addView(action("⠿", "لوحة المفاتيح", Color.rgb(45, 55, 60), Color.WHITE, false,
+          () -> ((MurshidDialerActivity) getContext()).showCallDialPad()), params(0, dp(98), dp(4), 0, 1));
+      addView(secondRow, params(MATCH_PARENT, dp(100), 0, 0));
+    }
 
     if (incoming) {
       TextView prompt = text("اسحب يمينًا للرد أو يسارًا للرفض", 12, Color.rgb(171, 194, 193), Typeface.NORMAL);
@@ -314,7 +323,7 @@ public final class MurshidCallScreenView extends LinearLayout {
     SwipeRail(Context context, boolean answer) {
       super(context);
       this.answer = answer;
-      int accent = answer ? BURGUNDY : GREEN;
+      int accent = answer ? GREEN : BURGUNDY;
       setBackground(rounded(Color.argb(34, Color.red(accent), Color.green(accent), Color.blue(accent)),
           Color.argb(130, Color.red(accent), Color.green(accent), Color.blue(accent)), 28));
       setClipChildren(true);
@@ -334,7 +343,7 @@ public final class MurshidCallScreenView extends LinearLayout {
         switch (event.getActionMasked()) {
           case MotionEvent.ACTION_DOWN:
             downX = event.getRawX();
-            travel = Math.max(dp(70), getWidth() - handle.getWidth() - dp(16));
+            travel = Math.max(0f, getWidth() - handle.getWidth() - dp(12));
             return true;
           case MotionEvent.ACTION_MOVE:
             float delta = event.getRawX() - downX;
@@ -343,7 +352,8 @@ public final class MurshidCallScreenView extends LinearLayout {
             return true;
           case MotionEvent.ACTION_UP:
             float distance = event.getRawX() - downX;
-            boolean complete = answer ? distance >= Math.max(dp(72), travel * 0.46f) : distance <= -Math.max(dp(72), travel * 0.46f);
+            float threshold = Math.min(travel, Math.max(dp(44), travel * 0.46f));
+            boolean complete = travel > 0f && (answer ? distance >= threshold : distance <= -threshold);
             if (complete) {
               if (answer) answerBySwipe(); else rejectBySwipe();
             } else {
