@@ -27,7 +27,7 @@ function VideoAsset({ uri, large = false }: { uri: string; large?: boolean }) {
 function VideoThumbnail({ uri, filename }: { uri: string; filename: string }) {
   const { colors } = useAppTheme();
   const styles = createStyles(colors);
-  const player = useVideoPlayer(uri, (instance) => { instance.loop = false; instance.muted = true; });
+  const player = useVideoPlayer(uri, (instance) => { instance.loop = false; instance.muted = true; instance.pause(); });
   const [thumbnail, setThumbnail] = useState<VideoThumbnailRef | null>(null);
 
   useEffect(() => {
