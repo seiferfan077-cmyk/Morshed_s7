@@ -4,10 +4,14 @@ import { RuqaaText as Text } from '../components/RuqaaText';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { radii, spacing, typography, ThemeColors } from '../theme';
+import { useState } from 'react';
+import { QuranReader } from './QuranReader';
 
 export function FeaturesScreen() {
+  const [showQuranReader, setShowQuranReader] = useState(false);
   const { colors } = useAppTheme();
   const styles = createStyles(colors);
+  if (showQuranReader) return <QuranReader onClose={() => setShowQuranReader(false)} />;
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
@@ -32,6 +36,22 @@ export function FeaturesScreen() {
           </View>
         </View>
       </SurfaceCard>
+
+      <Text style={styles.sectionTitle}>القرآن الكريم</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="فتح قارئ القرآن الكريم"
+        onPress={() => setShowQuranReader(true)}
+        style={({ pressed }) => [styles.quranCard, pressed && styles.pressed]}
+      >
+        <View style={styles.quranIcon}><Ionicons name="book-outline" size={25} color={colors.tealDark} /></View>
+        <View style={styles.quranCopy}>
+          <Text style={styles.quranTitle}>القرآن الكريم</Text>
+          <Text style={styles.quranDetail}>تصفّح السور واقرأ النص العثماني كاملًا دون اتصال بالإنترنت.</Text>
+          <Text style={styles.quranHint}>فتح القارئ والبحث في السور</Text>
+        </View>
+        <Ionicons name="chevron-forward-outline" size={20} color={colors.tealDark} />
+      </Pressable>
 
       <Text style={styles.sectionTitle}>الاتصال الهاتفي</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="فتح لوحة اتصال مُرشد" onPress={() => { void Linking.sendIntent('com.murshid.s7.OPEN_DIALER').catch(() => Linking.openURL('murshid://dialer')); }} style={({ pressed }) => [styles.callCard, pressed && styles.pressed]}>
@@ -84,6 +104,12 @@ function createStyles(colors: ThemeColors) { return StyleSheet.create({
   updateIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: colors.tealSoft, alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, marginLeft: spacing.sm },
   callCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.ink, borderRadius: radii.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.ink },
+  quranCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.paper, borderRadius: radii.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.line },
+  quranIcon: { width: 52, height: 52, borderRadius: 17, backgroundColor: colors.tealSoft, alignItems: 'center', justifyContent: 'center' },
+  quranCopy: { flex: 1, marginHorizontal: spacing.sm },
+  quranTitle: { ...typography.h2, color: colors.ink, fontSize: 18 },
+  quranDetail: { ...typography.body, color: colors.inkMuted, fontSize: 12, marginTop: 3 },
+  quranHint: { ...typography.label, color: colors.tealDark, fontSize: 11, marginTop: 7 },
   callIcon: { width: 54, height: 54, borderRadius: 18, backgroundColor: colors.tealDark, alignItems: 'center', justifyContent: 'center' },
   callCopy: { flex: 1, marginHorizontal: spacing.sm },
   callTitle: { ...typography.h2, color: colors.paper, fontSize: 18 },

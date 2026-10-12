@@ -46,10 +46,11 @@
     "ai:test": "rm -rf .tmp-byok-test && ./node_modules/.bin/tsc --ignoreConfig --outDir .tmp-byok-test --module commonjs --target es2022 --skipLibCheck src/types/memory.ts src/services/ai/aiService.ts src/services/ai/byokAIService.ts && node tests/byok.test.js && rm -rf .tmp-byok-test",
     "ota:test": "rm -rf .tmp-ota-test && ./node_modules/.bin/tsc --ignoreConfig --types node --outDir .tmp-ota-test --module commonjs --target es2022 --skipLibCheck src/services/releases/updatePolicy.ts src/services/monitoring/updateMonitor.ts && node tests/ota-policy.test.js && rm -rf .tmp-ota-test",
     "notifications:test": "rm -rf .tmp-notification-test && ./node_modules/.bin/tsc --ignoreConfig --types node --outDir .tmp-notification-test --rootDir src/services/notifications --module commonjs --target es2022 --skipLibCheck src/services/notifications/dailyNotificationPolicy.ts && node tests/daily-notification-policy.test.js && rm -rf .tmp-notification-test",
+    "quran:test": "python3 scripts/prepare-quran-data.py --check && node tests/quran-data.test.js",
     "backend:test": "npm --prefix backend test",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "check": "npm run lint && npm run typecheck && npm run notifications:test"
+    "check": "npm run lint && npm run typecheck && npm run notifications:test && npm run quran:test"
   },
   "private": true
 }
