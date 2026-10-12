@@ -2,7 +2,7 @@
   "expo": {
     "name": "مُرشد - S7",
     "slug": "murshid-s7",
-    "version": "0.1.2",
+    "version": "0.2.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -10,7 +10,10 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "يستخدم مُرشد موقعك أثناء استخدام التطبيق لعرض مواقيت الصلاة واتجاه القبلة بدقة."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +24,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.murshid.s7",
-      "versionCode": 3,
+      "versionCode": 4,
       "permissions": ["com.android.launcher.permission.INSTALL_SHORTCUT"]
     },
     "web": {
@@ -38,6 +41,7 @@
         }
       ],
       "expo-secure-store",
+      "expo-location",
       "expo-video",
       ["expo-notifications", { "color": "#E53935", "defaultChannel": "murshid-daily-updates" }],
       "./plugins/withMurshidDialer",
