@@ -6,6 +6,7 @@ import { RuqaaText as Text } from '../components/RuqaaText';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { radii, spacing, typography, ThemeColors } from '../theme';
 import { NawawiSection } from './NawawiSection';
+import { DailyDuaSection } from './DailyDuaSection';
 
 type PrayerTimes = {
   Fajr: string;
@@ -162,6 +163,8 @@ export function IslamicSection({ colors, onOpenQuran }: { colors: ThemeColors; o
           <Ionicons name="refresh-outline" size={17} color={colors.tealDark} />
         </Pressable>
       </SurfaceCard>
+
+      <DailyDuaSection colors={colors} />
 
       <SurfaceCard accent={colors.teal}>
         <View style={styles.cardHeading}>
