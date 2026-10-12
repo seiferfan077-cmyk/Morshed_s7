@@ -1,68 +1,80 @@
 # Backend ذكاء مُرشد
 
-هذا Backend مستقل يعمل كـ Vercel Node.js Functions. اضبط **Root Directory** على `backend`، ثم انشر. المسارات:
+يدعم هذا المجلد **Cloudflare Workers** و**Vercel Functions** باستخدام منطق المحادثة والمصادقة نفسه. خيار الاستضافة المختار حاليًا هو Cloudflare Worker عبر `worker.js` و`wrangler.toml`؛ تبقى ملفات `api/` متاحة لـVercel.
 
-- `POST /api/ai/chat` — محادثة مُرشد.
-- `GET /api/health` — فحص وجود الإعدادات فقط.
+## النشر على Cloudflare Workers
 
-تستخدم ملفات API محولًا صغيرًا بين واجهة Vercel Node (`req`/`res`) وواجهة Fetch الداخلية، لذلك يمكن اختبار منطق المحادثة محليًا عبر `Request` وتشغيله على Vercel دون Edge runtime خاص.
+من جذر المستودع:
 
-## الإعداد المقترح للتجربة المجانية
+```bash
+cd backend
+npx wrangler login
+npx wrangler deploy
+```
 
-المزود الافتراضي هو **Groq** عبر واجهة OpenAI-compatible؛ مفتاحه يبقى على الخادم. النموذج الافتراضي `qwen/qwen3.8-27b`، ويمكن تغييره إلى أي نموذج نشط ومتاح في حساب Groq. الحدود الدقيقة للخطة المجانية تتغير حسب الحساب والنموذج، وتظهر في لوحة Groq.
+ينشئ هذا Worker باسم `murshid-ai-backend` على نطاق `workers.dev` إذا كان مفعّلًا في حساب Cloudflare. المسارات:
 
-أضف الإعدادات التالية من Vercel → Environment Variables، ولا تحفظ مفاتيح المزود في Git أو متغيرات `EXPO_PUBLIC_*`:
+- `POST /api/ai/chat` — محادثة مُرشد، وتتطلب رمز Firebase ID صالحًا.
+- `GET /api/health` — فحص وجود الإعدادات دون إرجاع قيمها.
 
-- `AI_PROVIDER=groq`
-- `GROQ_API_KEY` — مفتاح Groq API.
-- `GROQ_MODEL=qwen/qwen3.8-27b` — اختياري.
-- `FIREBASE_PROJECT_ID` — معرّف مشروع Firebase نفسه المستخدم في التطبيق؛ ليس سرًا، لكنه لازم للتحقق من ID tokens.
+في Cloudflare Dashboard افتح **Workers & Pages → murshid-ai-backend → Settings → Variables and Secrets**، ثم أضف:
 
-فعّل **Anonymous** من Firebase Console → Authentication → Sign-in method. اضبط إعدادات Firebase العامة في بيئة بناء Expo، و`FIREBASE_PROJECT_ID` في Vercel على المعرّف نفسه. اضبط `EXPO_PUBLIC_API_BASE_URL` على عنوان Vercel دون `/` في نهايته، ثم أعد بناء التطبيق. لا يحتاج المستخدم إلى مفتاح AI أو رمز Backend مشترك.
+- `GEMINI_API_KEY` بالنوع **Secret**؛ لا تضعه في التطبيق أو Git.
+- `FIREBASE_PROJECT_ID` كمتغير عادي؛ يجب أن يطابق معرّف مشروع Firebase المستخدم في التطبيق.
 
-## API contract لأي عميل متوافق، بما فيه Motion إذا كان المقصود عميلًا خارجيًا
+يحدد `wrangler.toml` مسبقًا `AI_PROVIDER=gemini` و`GEMINI_MODEL=gemini-3.8-flash`. ويمكن إضافة السر من الطرفية بدل لوحة Cloudflare عبر `npx wrangler secret put GEMINI_API_KEY`؛ لا تكتب قيمته داخل الملفات. ملفات `.dev.vars*` مستثناة من Git محليًا.
 
-يرسل تطبيق Murshid طلبًا إلى `POST https://<backend-domain>/api/ai/chat` مع `Authorization: Bearer <Firebase ID token>` و`Content-Type: application/json`. ينشئ التطبيق هوية Firebase مجهولة تلقائيًا للمستخدم غير المسجّل، ولا يضمّن مفتاحًا مشتركًا قابلًا للاستخراج:
+بعد نشر الـWorker وضبط إعداداته، عيّن `EXPO_PUBLIC_API_BASE_URL` في بيئة بناء Expo/EAS على أصل نطاقه دون `/` في النهاية، مثل `https://murshid-ai-backend.<subdomain>.workers.dev`. اضبط إعدادات Firebase العامة في Expo، وفعّل **Anonymous** من Firebase Console → Authentication → Sign-in method. ينشئ التطبيق هوية Firebase للمستخدم تلقائيًا؛ لا يحتاج المستخدم إلى مفتاح Gemini خاص به.
+
+## إعداد Gemini والتحقق
+
+يستخدم تكامل Gemini Interactions API مع `store: false`. طلبات المحادثة تستخدم Firebase ID token في `Authorization: Bearer …`، ويرفض Backend الطلبات غير الموثقة.
+
+بعد ضبط `GEMINI_API_KEY` و`FIREBASE_PROJECT_ID` وإعادة نشر البيئة، افحص:
+
+```text
+https://<worker-domain>/api/health
+```
+
+الرد `{"ok":true,"configured":true}` يعني أن إعدادات الخادم موجودة، لكنه لا يختبر صلاحية مفتاح Gemini. لاختبار المزود فعليًا، أرسل رسالة من شاشة مُرشد AI بعد إعداد عنوان الـWorker في التطبيق.
+
+## API contract
+
+يرسل التطبيق طلبًا إلى `POST https://<backend-domain>/api/ai/chat` مع `Authorization: Bearer <Firebase ID token>` و`Content-Type: application/json`:
 
 ```json
 {
-  "messages": [
-    { "role": "user", "content": "ساعدني أنظم يومي" }
-  ],
+  "messages": [{ "role": "user", "content": "ساعدني أنظم يومي" }],
   "memory": [{ "content": "أفضل البدء مبكرًا" }],
   "activeGoals": ["إنهاء الدراسة"],
   "activeTasks": ["مراجعة الفصل الأول"]
 }
 ```
 
-الحقول الاختيارية `memory` و`activeGoals` و`activeTasks` تُرسل فقط عند وجود موافقة/سياق مناسب. الرد الناجح:
+الرد الناجح:
 
 ```json
 { "role": "assistant", "content": "..." }
 ```
 
-المستودع لا يحتوي تكاملًا باسم Motion؛ هذا endpoint هو واجهة HTTP لمستخدمي Murshid الموثّقين عبر Firebase. لا يمكن لعميل خارجي استخدامه إلا إذا حصل على Firebase ID token صالح من المشروع نفسه. لا تقبل endpoint رموزًا ثابتة من التطبيق.
-
-## Gemini كبديل
-
-يمكن استخدام Gemini بدل Groq بتعيين `AI_PROVIDER=gemini` و`GEMINI_API_KEY`، واختياريًا `GEMINI_MODEL=gemini-3.8-flash`. يستخدم هذا المسار Gemini Interactions API مع `store: false`.
-
-**تنبيه الخصوصية:** تنص شروط Gemini API على أن المحتوى المرسل عبر الحصة المجانية قد يُستخدم لتحسين منتجات Google وقد يراجعه أشخاص؛ تجنب إرسال معلومات حساسة عبر الحصة المجانية. أما Groq فيذكر أن طلبات الاستدلال لا تُحتفظ بها افتراضيًا، مع احتمال تسجيل مؤقت محدود لأغراض الاعتمادية/مكافحة الإساءة حتى 30 يومًا؛ يمكن إدارة ذلك من إعدادات Data Controls وتفعيل Zero Data Retention. راجع الشروط الحالية للمزود قبل إطلاق التطبيق.
+لا يضمّن التطبيق مفتاحًا مشتركًا قابلًا للاستخراج، ولا يقبل Backend رموزًا ثابتة من التطبيق. لا يمكن لعميل خارجي استخدام endpoint إلا إذا حصل على Firebase ID token صالح من المشروع نفسه.
 
 ## الخصوصية والأمان وحدود الاستخدام
 
-- يرسل التطبيق آخر 12 رسالة وما يختاره من الذكريات والسياق فقط؛ المحادثات محفوظة محليًا على الجهاز.
-- لا يسجل Backend محتوى المحادثة أو المفاتيح، ويضع `Cache-Control: no-store` ويرفض الأجسام والأدوار/السياقات غير الصالحة.
-- مفتاح المزود لا يغادر Backend. لا تضعه في تطبيق Expo أو GitHub. يتحقق Backend من Firebase ID token بالتوقيع ومطابقة issuer/audience/expiry، باستخدام مفاتيح Google العامة، من دون حفظ service-account key.
-- Firebase Anonymous Auth يزيل شاشة تسجيل الدخول لكنه ينشئ هوية Firebase لكل مستخدم/جهاز. لا توجد حاليًا حصة استخدام دائمة أو حد يومي لكل UID؛ قبل الإطلاق العام أضف rate limiting دائمًا ومراقبة استهلاك المزود لمنع إساءة الاستخدام.
-- Vercel Hobby مخصص للاستخدام الشخصي وغير التجاري. حدوده قابلة للتغيير؛ افحص لوحة Vercel قبل الإطلاق. Cloudflare Workers Free بديل معلن بحد 100,000 طلب يوميًا، لكنه يحتاج تهيئة/نقل المشروع بدل إعداد Vercel الحالي.
+- يرسل التطبيق آخر 12 رسالة والسياق الذي يختاره المستخدم فقط؛ المحادثات محفوظة محليًا على الجهاز.
+- لا يسجل Backend محتوى المحادثة أو المفاتيح، ويضع `Cache-Control: no-store` ويرفض الأجسام والأدوار والسياقات غير الصالحة.
+- يبقى مفتاح المزود على الخادم. يتحقق Backend من Firebase ID token بالتوقيع ومطابقة issuer/audience/expiry، باستخدام مفاتيح Google العامة، دون حفظ service-account key.
+- Firebase Anonymous Auth ينشئ هوية Firebase لكل مستخدم/جهاز. لا توجد حاليًا حصة استخدام دائمة أو حد يومي لكل UID؛ قبل الإطلاق العام أضف rate limiting دائمًا ومراقبة استهلاك المزود لمنع إساءة الاستخدام.
+- راجع أسعار Gemini وحدود حساب Cloudflare قبل الإطلاق. قد تختلف أسعار Gemini وشروط استخدام بيانات الحصة المجانية باختلاف مستوى الحساب.
 
-## الاختبارات محليًا
+## التوافق مع Vercel والاختبارات
 
-من مجلد المستودع الرئيسي:
+تبقى ملفات `api/` و`lib/vercel-adapter.js` قابلة للنشر على Vercel. اختر `backend` كـRoot Directory، وأضف متغيرات `AI_PROVIDER` و`GEMINI_API_KEY` و`GEMINI_MODEL` و`FIREBASE_PROJECT_ID` في إعدادات المشروع. لا تحفظ مفاتيح المزود في Git أو متغيرات `EXPO_PUBLIC_*`.
+
+لتشغيل الاختبارات المحلية من جذر المستودع:
 
 ```bash
 npm run backend:test
 ```
 
-الاختبارات تستخدم mocks لمزودي AI ولا تحتاج مفاتيح حقيقية.
+الاختبارات تستخدم mocks ولا تحتاج مفاتيح حقيقية.
