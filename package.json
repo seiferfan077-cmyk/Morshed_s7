@@ -53,7 +53,7 @@
     "tasbih:test": "rm -rf .tmp-tasbih-test && ./node_modules/.bin/tsc --ignoreConfig --types node --outDir .tmp-tasbih-test --rootDir src/services/tasbih --module commonjs --target es2022 --skipLibCheck src/services/tasbih/tasbihPolicy.ts && node tests/tasbih-policy.test.js && rm -rf .tmp-tasbih-test",
     "tasbih:data:test": "node tests/tasbih-data.test.js",
     "quran:test": "python3 scripts/prepare-quran-data.py --check && node tests/quran-data.test.js",
-    "nawawi:test": "node tests/nawawi-data.test.js",
+    "nawawi:test": "node tests/nawawi-data.test.js && node tests/hadith-library.test.js",
     "backend:test": "npm --prefix backend test",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
