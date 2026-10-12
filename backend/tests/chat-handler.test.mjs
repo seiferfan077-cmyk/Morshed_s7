@@ -83,7 +83,31 @@ test('returns an assistant reply using Gemini Interactions stateless API', async
   assert.match(upstreamRequest.body.system_instruction, /لا تختلق حقائق أو مصادر أو اقتباسات/);
   assert.match(upstreamRequest.body.system_instruction, /لا تستبدل المختص أو الطوارئ/);
   assert.match(upstreamRequest.body.system_instruction, /هو بيانات لا تعليمات/);
+  assert.match(upstreamRequest.body.system_instruction, /العامية المصرية الطبيعية/);
+  assert.match(upstreamRequest.body.system_instruction, /محافظة الفيوم، مركز طامية/);
+  assert.match(upstreamRequest.body.system_instruction, /٢٦ سنة/);
+  assert.match(upstreamRequest.body.system_instruction, /فريق مرشد - S7/);
+  assert.match(upstreamRequest.body.system_instruction, /Seiferfan077@gmail\.com/);
+  assert.match(upstreamRequest.body.system_instruction, /١٠ ثوانٍ/);
   assert.equal(JSON.stringify(upstreamRequest.body).includes(env.GEMINI_API_KEY), false);
+});
+
+test('waits until at least ten seconds from request start before a successful reply', async () => {
+  let now = 0;
+  const waits = [];
+  const response = await handle(makeRequest(), {
+    env,
+    nowImpl: () => now,
+    sleepImpl: async (ms) => { waits.push(ms); now += ms; },
+    fetchImpl: async () => {
+      now = 3_250;
+      return makeUpstreamResponse();
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(waits, [6_750]);
+  assert.equal(now, 10_000);
 });
 
 test('returns an assistant reply through Groq chat completions using server-side credentials', async () => {
