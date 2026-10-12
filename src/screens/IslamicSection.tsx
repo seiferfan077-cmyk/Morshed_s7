@@ -1,10 +1,11 @@
 import * as Location from 'expo-location';
-import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, InteractionManager, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { radii, spacing, typography, ThemeColors } from '../theme';
+import { NawawiSection } from './NawawiSection';
 
 type PrayerTimes = {
   Fajr: string;
@@ -58,6 +59,8 @@ function getDirectionLabel(bearing: number) {
   return directions[Math.round(bearing / 45) % directions.length];
 }
 
+function normalizeBearing(value: number) { return (value + 360) % 360; }
+
 function formatDate(date: Date) {
   return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
 }
@@ -72,6 +75,7 @@ export function IslamicSection({ colors, onOpenQuran }: { colors: ThemeColors; o
   const [dhikrIndex, setDhikrIndex] = useState(0);
   const [location, setLocation] = useState<LocationState | null>(null);
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
+  const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,10 +91,15 @@ export function IslamicSection({ colors, onOpenQuran }: { colors: ThemeColors; o
         throw new Error('للحصول على مواقيت مدينتك واتجاه القبلة، اسمح للتطبيق باستخدام موقعك أثناء الاستخدام.');
       }
 
-      const lastKnown = await Location.getLastKnownPositionAsync({ maxAge: 300000, requiredAccuracy: 5000 });
-      const position = lastKnown ?? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      if (Platform.OS === 'android' && !(await Location.hasServicesEnabledAsync())) await Location.enableNetworkProviderAsync().catch(() => undefined);
+      if (!(await Location.hasServicesEnabledAsync())) throw new Error('فعّل خدمات الموقع للحصول على تحديد جغرافي دقيق.');
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest, mayShowUserSettingsDialog: true }).catch(async () => Location.getLastKnownPositionAsync({ maxAge: 300000, requiredAccuracy: 5000 }));
+      if (!position) throw new Error('تعذر الحصول على موقع حالي أو محفوظ من الجهاز.');
       const { latitude, longitude } = position.coords;
       const nextLocation = { latitude, longitude, qiblaBearing: getQiblaBearing(latitude, longitude) };
+      const heading = await Location.getHeadingAsync().catch(() => null);
+      const trueHeading = heading && heading.trueHeading >= 0 ? heading.trueHeading : heading?.magHeading;
+      setDeviceHeading(typeof trueHeading === 'number' && trueHeading >= 0 ? trueHeading : null);
 
       const response = await fetch(`https://api.aladhan.com/v1/timings/${formatDate(new Date())}?latitude=${latitude}&longitude=${longitude}&method=3`);
       if (!response.ok) throw new Error('تعذر الوصول إلى خدمة مواقيت الصلاة الآن. حاول مرة أخرى.');
@@ -112,6 +121,11 @@ export function IslamicSection({ colors, onOpenQuran }: { colors: ThemeColors; o
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => { void loadIslamicTimes(); });
+    return () => task.cancel();
+  }, [loadIslamicTimes]);
 
   return (
     <>
@@ -169,9 +183,10 @@ export function IslamicSection({ colors, onOpenQuran }: { colors: ThemeColors; o
           <Ionicons name="compass-outline" size={20} color={colors.tealDark} />
           <Text style={styles.cardTitle}>اتجاه القبلة</Text>
         </View>
-        {location ? <View style={styles.qiblaRow}><View style={[styles.qiblaArrow, { transform: [{ rotate: `${location.qiblaBearing}deg` }] }]}><Ionicons name="arrow-up-outline" size={48} color={colors.tealDark} /></View><View style={styles.qiblaCopy}><Text style={styles.qiblaDegree}>{location.qiblaBearing}°</Text><Text style={styles.cardDetail}>باتجاه {qiblaDirection} من الشمال الحقيقي</Text></View></View> : <Text style={styles.cardDetail}>حدّد موقعك أولًا لإظهار زاوية القبلة من مكانك الحالي.</Text>}
-        <Text style={styles.sourceText}>يُحسب الاتجاه جغرافيًا من إحداثياتك إلى الكعبة المشرفة. السهم يعبّر عن الشمال الحقيقي، وليس اتجاه الهاتف اللحظي.</Text>
+        {location ? <View style={styles.qiblaRow}><View style={[styles.qiblaArrow, { transform: [{ rotate: `${normalizeBearing(location.qiblaBearing - (deviceHeading ?? 0))}deg` }] }]}><Ionicons name="arrow-up-outline" size={48} color={colors.tealDark} /></View><View style={styles.qiblaCopy}><Text style={styles.qiblaDegree}>{location.qiblaBearing}°</Text><Text style={styles.cardDetail}>باتجاه {qiblaDirection} من الشمال الحقيقي</Text></View></View> : <Text style={styles.cardDetail}>حدّد موقعك أولًا لإظهار زاوية القبلة من مكانك الحالي.</Text>}
+        <Text style={styles.sourceText}>{deviceHeading === null ? 'حرّك الهاتف أو أعد المحاولة لإظهار السهم بالنسبة لاتجاهه الحالي.' : 'أدر الهاتف حتى يتجه السهم إلى الأعلى للوصول إلى القبلة.'} يُحسب الاتجاه من موقعك إلى الكعبة.</Text>
       </SurfaceCard>
+      <NawawiSection colors={colors} />
     </>
   );
 }

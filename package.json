@@ -8,6 +8,8 @@
     "@react-navigation/bottom-tabs": "^7.19.2",
     "@react-navigation/native": "^7.4.1",
     "expo": "~57.0.26",
+    "expo-asset": "~57.0.19",
+    "expo-audio": "~57.0.5",
     "expo-document-picker": "~57.0.3",
     "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
@@ -48,10 +50,11 @@
     "ota:test": "rm -rf .tmp-ota-test && ./node_modules/.bin/tsc --ignoreConfig --types node --outDir .tmp-ota-test --module commonjs --target es2022 --skipLibCheck src/services/releases/updatePolicy.ts src/services/monitoring/updateMonitor.ts && node tests/ota-policy.test.js && rm -rf .tmp-ota-test",
     "notifications:test": "rm -rf .tmp-notification-test && ./node_modules/.bin/tsc --ignoreConfig --types node --outDir .tmp-notification-test --rootDir src/services/notifications --module commonjs --target es2022 --skipLibCheck src/services/notifications/dailyNotificationPolicy.ts && node tests/daily-notification-policy.test.js && rm -rf .tmp-notification-test",
     "quran:test": "python3 scripts/prepare-quran-data.py --check && node tests/quran-data.test.js",
+    "nawawi:test": "node tests/nawawi-data.test.js",
     "backend:test": "npm --prefix backend test",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "check": "npm run lint && npm run typecheck && npm run notifications:test && npm run quran:test"
+    "check": "npm run lint && npm run typecheck && npm run notifications:test && npm run quran:test && npm run nawawi:test"
   },
   "private": true
 }

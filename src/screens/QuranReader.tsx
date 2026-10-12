@@ -4,6 +4,7 @@ import { BackHandler, Linking, Pressable, ScrollView, StyleSheet, Text as Native
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { radii, spacing, ThemeColors, typography } from '../theme';
+import { QuranRecitationPlayer } from './QuranRecitationPlayer';
 
 type QuranVerse = {
   index: number;
@@ -120,6 +121,8 @@ export function QuranReader({ onClose }: { onClose: () => void }) {
               <NativeText style={styles.basmalaText}>{bismillah}</NativeText>
             </View>
           )}
+
+          <QuranRecitationPlayer colors={colors} surahIndex={selectedSurah.index} surahName={selectedSurah.name} />
 
           <View style={styles.versesCard}>
             {selectedSurah.verses.map((verse) => (

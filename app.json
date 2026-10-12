@@ -2,7 +2,7 @@
   "expo": {
     "name": "مُرشد - S7",
     "slug": "murshid-s7",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -24,8 +24,10 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.murshid.s7",
-      "versionCode": 4,
-      "permissions": ["com.android.launcher.permission.INSTALL_SHORTCUT"]
+      "versionCode": 5,
+      "permissions": [
+        "com.android.launcher.permission.INSTALL_SHORTCUT"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -43,9 +45,17 @@
       "expo-secure-store",
       "expo-location",
       "expo-video",
-      ["expo-notifications", { "color": "#E53935", "defaultChannel": "murshid-daily-updates" }],
+      [
+        "expo-notifications",
+        {
+          "color": "#E53935",
+          "defaultChannel": "murshid-daily-updates"
+        }
+      ],
       "./plugins/withMurshidDialer",
-      "expo-image"
+      "expo-image",
+      "expo-audio",
+      "expo-asset"
     ],
     "extra": {
       "eas": {
