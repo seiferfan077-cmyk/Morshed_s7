@@ -3,7 +3,7 @@ package com.murshid.s7;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-import com.facebook.react.ReactApplicationContext;
+import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 
