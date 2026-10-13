@@ -3,6 +3,16 @@ main = "worker.js"
 compatibility_date = "2026-10-12"
 workers_dev = true
 
+[[d1_databases]]
+binding = "CHANNEL_DB"
+database_name = "murshid-channel-db"
+database_id = "dcb56e59-f184-4971-b57d-f215afe7c4e7"
+
+# Enable R2 in Cloudflare, then add this binding before deploying media support.
+# [[r2_buckets]]
+# binding = "MEDIA_BUCKET"
+# bucket_name = "murshid-channel-media"
+
 [vars]
 AI_PROVIDER = "gemini"
 GEMINI_MODEL = "gemini-3.8-flash"

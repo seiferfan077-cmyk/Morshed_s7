@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import worker from '../worker.js';
+import { handleChannelRequest, handleChannelAdminRequest } from '../lib/channel-handler.js';
+const env = { FIREBASE_PROJECT_ID: 'test-project', CHANNEL_OWNER_TEMP_PASSWORD: 'owner-temp', CHANNEL_ADMIN_TEMP_PASSWORD: 'admin-temp', CHANNEL_OWNER_BOOTSTRAP_UIDS: 'user-1', CHANNEL_ADMIN_BOOTSTRAP_UIDS: 'admin-1', CHANNEL_DB: { prepare() { throw new Error('not expected'); } } };
+const verify = async () => ({ uid: 'user-1' });
+const req = (path, method = 'GET', body, token = 'token') => new Request(`https://example.test${path}`, { method, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+test('channel routes reject unauthenticated users', async () => { const response = await worker.fetch(new Request('https://example.test/api/channel/feed'), env); assert.equal(response.status, 401); });
+test('channel routes require D1 configuration', async () => { const response = await handleChannelRequest(req('/api/channel/feed'), { ...env, CHANNEL_DB: undefined }, verify); assert.equal(response.status, 503); assert.deepEqual(await response.json(), { error: { code: 'channel_not_configured' } }); });
+test('admin bootstrap never grants access from a role without the server secret', async () => { const response = await handleChannelAdminRequest(req('/api/channel/admin/bootstrap', 'POST', { role: 'owner', password: 'wrong' }), env, verify); assert.equal(response.status, 401); });
