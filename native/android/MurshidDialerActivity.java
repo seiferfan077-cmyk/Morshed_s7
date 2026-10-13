@@ -49,6 +49,10 @@ import java.util.Set;
 
 public class MurshidDialerActivity extends Activity {
   private static volatile boolean callScreenVisible;
+  // Keep the action available to this Activity as well as the InCallService.
+  // This avoids an unresolved symbol when generated Android sources reference
+  // ACTION_REJECT from the dialer activity.
+  public static final String ACTION_REJECT = MurshidInCallService.ACTION_REJECT;
   public static final String ACTION_INCOMING = "com.murshid.s7.INCOMING_CALL";
   public static final String ACTION_ONGOING = "com.murshid.s7.ONGOING_CALL";
   public static final String ACTION_OPEN_DIALER = "com.murshid.s7.OPEN_DIALER";
