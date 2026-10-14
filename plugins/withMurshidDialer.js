@@ -139,19 +139,28 @@ function ensureSmsRespondService(application) {
 
 function ensureInCallService(application) {
   application.service ??= [];
-  const existing = application.service.find((entry) => entry.$?.['android:name'] === SERVICE_NAME);
-  if (existing) return;
-  application.service.push({
-    $: {
-      'android:name': SERVICE_NAME,
-      'android:permission': 'android.permission.BIND_INCALL_SERVICE',
-      'android:exported': 'true',
-    },
-    'meta-data': [
-      { $: { 'android:name': 'android.telecom.IN_CALL_SERVICE_UI', 'android:value': 'true' } },
-      { $: { 'android:name': 'android.telecom.IN_CALL_SERVICE_RINGING', 'android:value': 'true' } },
-    ],
-    'intent-filter': [{ action: [{ $: { 'android:name': 'android.telecom.InCallService' } }] }],
+  let service = application.service.find((entry) => entry.$?.['android:name'] === SERVICE_NAME);
+  if (!service) {
+    service = { $: { 'android:name': SERVICE_NAME }, 'meta-data': [], 'intent-filter': [] };
+    application.service.push(service);
+  }
+  service.$ = {
+    ...service.$,
+    'android:name': SERVICE_NAME,
+    'android:permission': 'android.permission.BIND_INCALL_SERVICE',
+    'android:exported': 'true',
+  };
+  service['meta-data'] ??= [];
+  for (const name of ['android.telecom.IN_CALL_SERVICE_UI', 'android.telecom.IN_CALL_SERVICE_RINGING']) {
+    let metadata = service['meta-data'].find((entry) => entry.$?.['android:name'] === name);
+    if (!metadata) {
+      metadata = { $: { 'android:name': name } };
+      service['meta-data'].push(metadata);
+    }
+    metadata.$ = { ...metadata.$, 'android:name': name, 'android:value': 'true' };
+  }
+  ensureIntentFilter(service, {
+    action: [{ $: { 'android:name': 'android.telecom.InCallService' } }],
   });
 }
 
