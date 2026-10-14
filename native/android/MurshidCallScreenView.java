@@ -147,11 +147,11 @@ public final class MurshidCallScreenView extends LinearLayout {
       secondRow.addView(action("☎", "إنهاء المكالمة", Color.rgb(184, 22, 29), Color.WHITE, true,
           () -> dispatch(MurshidInCallService.ACTION_HANGUP)), params(0, dp(98), dp(4), 0, 1));
       secondRow.addView(action("⠿", "لوحة المفاتيح", Color.rgb(45, 55, 60), Color.WHITE, false, () -> {
-        Context context = getContext();
-        if (context instanceof MurshidDialerActivity) {
-          ((MurshidDialerActivity) context).showCallDialPad();
+        Context viewContext = getContext();
+        if (viewContext instanceof MurshidDialerActivity) {
+          ((MurshidDialerActivity) viewContext).showCallDialPad();
         } else if (!MurshidInCallService.bringCallScreenToFront()) {
-          Toast.makeText(context, "تعذر فتح شاشة المكالمة؛ استخدم إشعار المكالمة", Toast.LENGTH_SHORT).show();
+          Toast.makeText(viewContext, "تعذر فتح شاشة المكالمة؛ استخدم إشعار المكالمة", Toast.LENGTH_SHORT).show();
         }
       }), params(0, dp(98), dp(4), 0, 1));
       addView(secondRow, params(MATCH_PARENT, dp(100), 0, 0));
