@@ -20,7 +20,7 @@
 - `FIREBASE_PROJECT_ID` — معرّف مشروع Firebase الذي يستخدمه التطبيق
 - اختياريًا `GROQ_MODEL` أو `GEMINI_MODEL`
 
-فعّل Anonymous sign-in في Firebase Authentication، واضبط Firebase العامة في إعدادات بناء Expo. عيّن `EXPO_PUBLIC_API_BASE_URL` إلى أصل خدمة Vercel (مثال `https://your-project.vercel.app`، من دون `/` أخير)، ثم أعد بناء التطبيق. سيستخدم التطبيق Firebase ID token لطلب `/api/ai/chat`، ويظل مفتاح المزود على الخادم. عند ضبط `EXPO_PUBLIC_API_BASE_URL` يتقدم هذا المسار على المفتاح الشخصي المحفوظ.
+فعّل Anonymous sign-in في Firebase Authentication، ثم أضف متغيرات Firebase العامة الستة إلى بيئة EAS المناسبة: `EXPO_PUBLIC_FIREBASE_API_KEY`، `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`، `EXPO_PUBLIC_FIREBASE_PROJECT_ID`، `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET`، `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`، و`EXPO_PUBLIC_FIREBASE_APP_ID`. استخدم قيم تطبيق الويب من إعدادات مشروع Firebase نفسه، واجعلها متاحة في بيئات `production` و`preview` (وفي `development` عند الحاجة). هذه قيم إعداد عميل وليست أسراراً؛ لا تضعها بنوع `Secret` إذا كانت ستُضمّن في JavaScript. عيّن أيضاً `EXPO_PUBLIC_API_BASE_URL` إلى أصل خدمة Vercel (مثال `https://your-project.vercel.app`، من دون `/` أخير)، ثم ابنِ APK جديداً بملف EAS المطابق للبيئة. يستخدم التطبيق Firebase ID token لطلب `/api/ai/chat`، ويظل مفتاح المزود على الخادم. عند ضبط `EXPO_PUBLIC_API_BASE_URL` يتقدم هذا المسار على المفتاح الشخصي المحفوظ.
 
 تفاصيل النشر والبيئة واختبار endpoint موجودة في [دليل Backend](../backend/README.md). لا توجد مفاتيح حقيقية أو بيانات اعتماد في هذا المستودع. نشر Backend على حساب Vercel أو ضبط أسراره يحتاج صلاحية ذلك الحساب.
 
