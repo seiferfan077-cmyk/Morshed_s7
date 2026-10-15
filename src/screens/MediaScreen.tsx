@@ -4,17 +4,16 @@ import { RuqaaText as Text, RuqaaTextInput as TextInput } from '../components/Ru
 import * as DocumentPicker from 'expo-document-picker';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { Image as ExpoImage } from 'expo-image';
-import { VideoThumbnail as VideoThumbnailRef, VideoView, useVideoPlayer } from 'expo-video';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Platform, Pressable, RefreshControl, StyleSheet, View, type ViewToken } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, Pressable, RefreshControl, StyleSheet, View, type ViewToken } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { MediaType } from '../types/domain';
 import { radii, spacing, typography, ThemeColors } from '../theme';
 import { StoredMediaItem, deleteStoredMedia, getPrivacyRecoveryQuestion, hasPrivacyPin, importToVault, listStoredMedia, savePrivacyCredentials, setStoredMediaHidden, updatePrivacyPin, verifyPrivacyPin, verifyPrivacyRecoveryAnswer } from '../services/storage/mediaVaultService';
 
 type Filter = 'all' | MediaType | 'private';
-type DeviceItem = { id: string; deviceAssetId: string; uri: string; filename: string; type: 'image' | 'video'; createdAt: string; hidden: boolean; source: 'device' };
-type DisplayItem = StoredMediaItem | DeviceItem;
+type DisplayItem = StoredMediaItem;
 const VIEWER_WIDTH = Dimensions.get('window').width;
 
 function VideoAsset({ uri, large = false }: { uri: string; large?: boolean }) {
@@ -24,35 +23,14 @@ function VideoAsset({ uri, large = false }: { uri: string; large?: boolean }) {
   return <VideoView player={player} contentFit="contain" nativeControls style={large ? styles.viewerVideo : styles.videoPreview} />;
 }
 
-function VideoThumbnail({ uri, filename }: { uri: string; filename: string }) {
+function VideoThumbnail({ filename }: { filename: string; uri?: string }) {
   const { colors } = useAppTheme();
   const styles = createStyles(colors);
-  const player = useVideoPlayer(uri, (instance) => { instance.loop = false; instance.muted = true; instance.pause(); });
-  const [thumbnail, setThumbnail] = useState<VideoThumbnailRef | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    let requested = false;
-    if (Platform.OS === 'web') return () => { active = false; };
-    const generate = () => {
-      if (!active || requested || player.status !== 'readyToPlay') return;
-      requested = true;
-      void player.generateThumbnailsAsync([0], { maxWidth: 480, maxHeight: 480 })
-        .then(([firstFrame]) => { if (active && firstFrame) setThumbnail(firstFrame); })
-        .catch(() => undefined);
-    };
-    const subscription = player.addListener('statusChange', ({ status }) => {
-      if (status === 'readyToPlay') generate();
-    });
-    generate();
-    return () => { active = false; subscription.remove(); };
-  }, [player]);
-
   return <View style={styles.videoThumbnail}>
-    {thumbnail ? <ExpoImage source={thumbnail} style={styles.videoThumbnailImage} contentFit="cover" cachePolicy="memory-disk" /> : <View style={styles.videoFallback}>
+    <View style={styles.videoFallback}>
       <Ionicons name="videocam-outline" size={25} color={colors.tealDark} />
       <Text numberOfLines={2} style={styles.fileName}>{filename}</Text>
-    </View>}
+    </View>
     <View pointerEvents="none" style={styles.videoPlayBadge}><Ionicons name="play" size={17} color={colors.paper} /></View>
   </View>;
 }
@@ -64,22 +42,28 @@ function typeFromAsset(name: string, mimeType?: string): MediaType {
   return 'file';
 }
 
-async function getAllDeviceAssets(mediaType: 'photo' | 'video') {
-  const assets: MediaLibrary.Asset[] = [];
-  let after: string | undefined;
-  do {
-    const page = await MediaLibrary.getAssetsAsync({ first: 100, after, mediaType, sortBy: [MediaLibrary.SortBy.creationTime] });
-    assets.push(...page.assets);
-    after = page.hasNextPage ? page.endCursor : undefined;
-  } while (after);
-  return assets;
+async function getDeviceAssetCount(mediaType: 'photo' | 'video') {
+  const page = await MediaLibrary.getAssetsAsync({ first: 1, mediaType });
+  return page.totalCount;
+}
+
+async function copyDeviceAssetsToVault() {
+  for (const mediaType of ['photo', 'video'] as const) {
+    let after: string | undefined;
+    do {
+      const page = await MediaLibrary.getAssetsAsync({ first: 50, after, mediaType, sortBy: [MediaLibrary.SortBy.creationTime] });
+      for (const asset of page.assets) {
+        await importToVault(asset.uri, asset.filename, mediaType === 'video' ? 'video' : 'image', undefined, undefined, asset.id);
+      }
+      after = page.hasNextPage ? page.endCursor : undefined;
+    } while (after);
+  }
 }
 
 export function MediaScreen() {
   const { colors } = useAppTheme();
   const styles = createStyles(colors);
   const [permission, requestPermission] = MediaLibrary.usePermissions();
-  const [deviceItems, setDeviceItems] = useState<DeviceItem[]>([]);
   const [deviceCount, setDeviceCount] = useState(0);
   const [copying, setCopying] = useState(false);
   const [storedItems, setStoredItems] = useState<StoredMediaItem[]>([]);
@@ -107,15 +91,12 @@ export function MediaScreen() {
     if (refresh) setRefreshing(true);
     else setLoading(true);
     try {
-      const [photos, videos, stored] = await Promise.all([
-        getAllDeviceAssets('photo'),
-        getAllDeviceAssets('video'),
+      const [photoCount, videoCount, stored] = await Promise.all([
+        getDeviceAssetCount('photo'),
+        getDeviceAssetCount('video'),
         listStoredMedia(),
       ]);
-      const assets = [...photos, ...videos].sort((a, b) => (b.creationTime ?? 0) - (a.creationTime ?? 0));
-      const mapped: DeviceItem[] = assets.map((asset) => ({ id: `device-${asset.id}`, deviceAssetId: asset.id, uri: asset.uri, filename: asset.filename, type: asset.mediaType === 'video' ? 'video' : 'image', createdAt: new Date((asset.creationTime || Date.now())).toISOString(), hidden: false, source: 'device' }));
-      setDeviceItems(mapped);
-      setDeviceCount(mapped.length);
+      setDeviceCount(photoCount + videoCount);
       setStoredItems(stored);
     } catch { setError('تعذر قراءة وسائط الجهاز حاليًا. حاول مرة أخرى.'); } finally { setLoading(false); setRefreshing(false); }
   }, [permission?.granted]);
@@ -198,7 +179,7 @@ export function MediaScreen() {
     setPrivateUnlocked(true); setFilter('private'); setPinOpen(false); setPin(''); setPinConfirm(''); setPinError(null);
   };
 
-  const copyAllDeviceMedia = () => Alert.alert('نسخ مكتبة الجهاز إلى مُرشد؟', `سيتم نسخ ${deviceItems.length} صورة وفيديو إلى مساحة الجهاز التي يستخدمها التطبيق. قد يستهلك ذلك عدة جيجابايت، ولا تُحذف النسخ عند حذف الأصل من معرض الجهاز.`, [{ text: 'إلغاء', style: 'cancel' }, { text: 'نسخ الآن', onPress: async () => { setCopying(true); try { for (const item of deviceItems) await importToVault(item.uri, item.filename, item.type, undefined, undefined, item.deviceAssetId); await load(true); } catch { setError('تعذر نسخ كامل المكتبة. تحقق من مساحة الجهاز.'); } finally { setCopying(false); } } }]);
+  const copyAllDeviceMedia = () => Alert.alert('نسخ مكتبة الجهاز إلى مُرشد؟', `سيتم نسخ ${deviceCount} صورة وفيديو إلى مساحة الجهاز التي يستخدمها التطبيق. قد يستهلك ذلك عدة جيجابايت، ولا تُحذف النسخ عند حذف الأصل من معرض الجهاز.`, [{ text: 'إلغاء', style: 'cancel' }, { text: 'نسخ الآن', onPress: async () => { setCopying(true); try { await copyDeviceAssetsToVault(); await load(true); } catch { setError('تعذر نسخ كامل المكتبة. تحقق من مساحة الجهاز.'); } finally { setCopying(false); } } }]);
 
   const openPrivate = async () => { setPinMode((await hasPrivacyPin()) ? 'unlock' : 'create'); setPin(''); setPinConfirm(''); setRecoveryQuestion(''); setRecoveryAnswer(''); setPinError(null); setPinOpen(true); };
   const secretTap = () => { const next = secretTaps + 1; setSecretTaps(next); if (next === 3) { setSecretTaps(0); openPrivate(); } setTimeout(() => setSecretTaps(0), 900); };

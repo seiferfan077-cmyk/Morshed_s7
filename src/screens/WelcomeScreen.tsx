@@ -9,7 +9,7 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import { colors, radii, spacing, typography } from '../theme';
 
 const WELCOME_SEEN_KEY = '@murshid/welcome-seen';
-const WELCOME_VIDEO_URL = 'https://drive.google.com/uc?export=download&id=1DQ7qmZU_w83M7bwabfyhhvNfWEu_Ba82';
+const WELCOME_VIDEO = require('../../assets/video/welcome-intro.mp4');
 type WelcomeStage = 'intro' | 'video';
 
 export async function hasSeenWelcome() {
@@ -155,7 +155,7 @@ export function WelcomeScreen({ onComplete }: { onComplete: () => void }) {
 }
 
 function IntroVideoPlayer({ onContinue }: { onContinue: () => void }) {
-  const player = useVideoPlayer(WELCOME_VIDEO_URL, (videoPlayer) => {
+  const player = useVideoPlayer(WELCOME_VIDEO, (videoPlayer) => {
     videoPlayer.loop = false;
     videoPlayer.muted = false;
   });
@@ -216,7 +216,7 @@ function IntroVideoPlayer({ onContinue }: { onContinue: () => void }) {
           ) : null}
         </View>
         <View style={styles.videoMetaRow}>
-          <Text style={styles.videoDuration}>{isReady ? 'جاهز للمشاهدة' : hasError ? 'تعذر التحميل' : 'اتصال آمن عبر Google Drive'}</Text>
+          <Text style={styles.videoDuration}>{isReady ? 'جاهز للمشاهدة' : hasError ? 'تعذر تشغيل الفيديو' : 'فيديو خفيف محفوظ داخل التطبيق'}</Text>
         </View>
       </View>
 

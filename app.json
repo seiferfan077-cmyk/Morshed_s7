@@ -2,7 +2,7 @@
   "expo": {
     "name": "مُرشد - S7",
     "slug": "murshid-s7",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -24,7 +24,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.murshid.s7",
-      "versionCode": 6,
+      "versionCode": 7,
       "permissions": [
         "com.android.launcher.permission.INSTALL_SHORTCUT"
       ]
@@ -53,6 +53,7 @@
         }
       ],
       "./plugins/withMurshidDialer",
+      "./plugins/withMurshidLargeHeap",
       "expo-image",
       "expo-audio",
       "expo-asset"
