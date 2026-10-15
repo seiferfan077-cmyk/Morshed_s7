@@ -9,12 +9,14 @@ import { MemoryScreen } from '../screens/MemoryScreen';
 import { FeaturesScreen } from '../screens/FeaturesScreen';
 import { MessagesScreen } from '../screens/MessagesScreen';
 import { MurshidAIScreen } from '../screens/MurshidAIScreen';
+import { ChannelScreen } from '../screens/ChannelScreen';
 import { typography } from '../theme';
 import { useAppTheme } from '../theme/ThemeProvider';
 
 export type RootTabParamList = {
   الرئيسية: undefined;
   'مُرشد AI': undefined;
+  'القناة الرسمية': undefined;
   الرسائل: undefined;
   المتصفح: undefined;
   المعرض: undefined;
@@ -43,6 +45,7 @@ export function AppNavigator() {
               const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
                 الرئيسية: 'grid-outline',
                 'مُرشد AI': 'sparkles-outline',
+                'القناة الرسمية': 'megaphone-outline',
                 الرسائل: 'chatbubbles-outline',
                 المتصفح: 'compass-outline',
                 المعرض: 'images-outline',
@@ -57,6 +60,7 @@ export function AppNavigator() {
       >
         <Tabs.Screen name="الرئيسية" component={HomeScreen} />
         <Tabs.Screen name="مُرشد AI" component={MurshidAIScreen} />
+        <Tabs.Screen name="القناة الرسمية" component={ChannelScreen} />
         <Tabs.Screen name="الرسائل" component={MessagesScreen} />
         <Tabs.Screen name="المتصفح" component={BrowserScreen} />
         <Tabs.Screen name="المعرض" component={MediaScreen} />

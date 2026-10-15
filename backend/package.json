@@ -7,9 +7,14 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "channel:test": "node --test tests/channel-handler.test.mjs",
+    "channel:migrate": "wrangler d1 execute murshid-channel-db --remote --file=channel-schema.sql"
   },
   "dependencies": {
     "jose": "^6.2.12"
+  },
+  "devDependencies": {
+    "wrangler": "^4.149.0"
   }
 }

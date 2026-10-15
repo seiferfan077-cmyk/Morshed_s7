@@ -1,4 +1,5 @@
 import { handleChatRequest, handleHealthRequest } from './lib/chat-handler.js';
+import { handleChannelRequest, handleChannelAdminRequest } from './lib/channel-handler.js';
 
 export default {
   async fetch(request, env) {
@@ -10,6 +11,14 @@ export default {
 
     if (pathname === '/api/ai/chat') {
       return handleChatRequest(request, { env });
+    }
+
+    if (pathname.startsWith('/api/channel/admin/')) {
+      return handleChannelAdminRequest(request, env);
+    }
+
+    if (pathname.startsWith('/api/channel/')) {
+      return handleChannelRequest(request, env);
     }
 
     return Response.json(
