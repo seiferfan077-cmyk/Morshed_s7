@@ -41,6 +41,8 @@ function makeUpstreamResponse(status = 200) {
   }), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
+const silentLogger = { warn() {}, error() {} };
+
 test('requires POST and a verified Firebase bearer token before calling Gemini', async () => {
   let calls = 0;
   const fetchImpl = async () => { calls += 1; return makeUpstreamResponse(); };
@@ -110,6 +112,60 @@ test('waits until at least ten seconds from request start before a successful re
   assert.equal(now, 10_000);
 });
 
+test('retries one transient provider 5xx and succeeds within the ten-second response floor', async () => {
+  let calls = 0;
+  let now = 0;
+  const waits = [];
+  const response = await handle(makeRequest(), {
+    env,
+    nowImpl: () => now,
+    sleepImpl: async (ms) => { waits.push(ms); now += ms; },
+    loggerImpl: silentLogger,
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls === 1) {
+        now += 500;
+        return makeUpstreamResponse(503);
+      }
+      now += 1_000;
+      return makeUpstreamResponse();
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(calls, 2);
+  assert.deepEqual(waits, [1_000, 7_500]);
+});
+
+test('returns provider_unavailable after the single retry also receives a 5xx', async () => {
+  let calls = 0;
+  const response = await handle(makeRequest(), {
+    env,
+    nowImpl: () => 0,
+    sleepImpl: async () => {},
+    loggerImpl: silentLogger,
+    fetchImpl: async () => { calls += 1; return makeUpstreamResponse(503); },
+  });
+
+  assert.equal(response.status, 502);
+  assert.deepEqual(await response.json(), { error: { code: 'provider_unavailable' } });
+  assert.equal(calls, 2);
+});
+
+test('does not retry provider client errors', async () => {
+  let calls = 0;
+  const response = await handle(makeRequest(), {
+    env,
+    sleepImpl: async () => {},
+    loggerImpl: silentLogger,
+    fetchImpl: async () => { calls += 1; return makeUpstreamResponse(400); },
+  });
+
+  assert.equal(response.status, 502);
+  assert.deepEqual(await response.json(), { error: { code: 'provider_request_failed' } });
+  assert.equal(calls, 1);
+});
+
 test('returns an assistant reply through Groq chat completions using server-side credentials', async () => {
   let upstreamRequest;
   const response = await handle(makeRequest(), {
@@ -141,11 +197,18 @@ test('rejects malformed or oversized conversation context', async () => {
 });
 
 test('does not reveal provider errors or secrets and maps rate limits', async () => {
-  const response = await handle(makeRequest(), { env, fetchImpl: async () => makeUpstreamResponse(429) });
+  let calls = 0;
+  const response = await handle(makeRequest(), {
+    env,
+    sleepImpl: async () => {},
+    loggerImpl: silentLogger,
+    fetchImpl: async () => { calls += 1; return makeUpstreamResponse(429); },
+  });
   assert.equal(response.status, 429);
   const body = await response.text();
   assert.match(body, /provider_rate_limited/);
   assert.equal(body.includes(env.GEMINI_API_KEY), false);
+  assert.equal(calls, 2);
 });
 
 test('reports missing backend, provider, or Firebase project configuration without revealing details', async () => {

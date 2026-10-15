@@ -10,6 +10,9 @@ const MAX_MESSAGE_LENGTH = 4_000;
 const MAX_TOTAL_MESSAGE_LENGTH = 48_000;
 const MAX_CONTEXT_ITEMS = 5;
 const MIN_SUCCESS_RESPONSE_TIME_MS = 10_000;
+const PROVIDER_REQUEST_TIMEOUT_MS = 25_000;
+const MAX_PROVIDER_ATTEMPTS = 2;
+const PROVIDER_RETRY_DELAY_MS = 1_000;
 
 function json(body, status = 200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -97,7 +100,7 @@ function mapProviderError(upstream) {
   return errorResponse(502, 'provider_request_failed');
 }
 
-export async function handleChatRequest(request, { env = process.env, fetchImpl = globalThis.fetch, verifyTokenImpl = verifyFirebaseIdToken, nowImpl = Date.now, sleepImpl = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {}) {
+export async function handleChatRequest(request, { env = process.env, fetchImpl = globalThis.fetch, verifyTokenImpl = verifyFirebaseIdToken, nowImpl = Date.now, sleepImpl = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), loggerImpl = console } = {}) {
   const requestStartedAt = nowImpl();
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: { code: 'method_not_allowed' } }), {
@@ -158,29 +161,56 @@ export async function handleChatRequest(request, { env = process.env, fetchImpl 
         stream: false,
       };
 
-  try {
-    const upstream = await fetchImpl(endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(upstreamBody),
-      signal: AbortSignal.timeout(25_000),
-    });
-    if (!upstream.ok) return mapProviderError(upstream);
-
-    let payload;
-    try {
-      payload = await upstream.json();
-    } catch {
-      return errorResponse(502, 'provider_invalid_response');
+  let upstream;
+  for (let attempt = 1; attempt <= MAX_PROVIDER_ATTEMPTS; attempt += 1) {
+    const remainingTimeout = PROVIDER_REQUEST_TIMEOUT_MS - (nowImpl() - requestStartedAt);
+    if (remainingTimeout <= 0) {
+      loggerImpl.error?.({ event: 'murshid_ai_provider_error', provider: provider.name, reason: 'timeout', attempt });
+      return errorResponse(502, 'provider_unavailable');
     }
-    const content = provider.name === 'gemini' ? extractGeminiOutputText(payload) : extractChatCompletionText(payload);
-    if (!content) return errorResponse(502, 'provider_empty_response');
-    const remainingDelay = MIN_SUCCESS_RESPONSE_TIME_MS - (nowImpl() - requestStartedAt);
-    if (remainingDelay > 0) await sleepImpl(remainingDelay);
-    return json({ role: 'assistant', content });
-  } catch {
-    return errorResponse(502, 'provider_unavailable');
+
+    try {
+      upstream = await fetchImpl(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(upstreamBody),
+        signal: AbortSignal.timeout(remainingTimeout),
+      });
+    } catch (error) {
+      const timeLeft = PROVIDER_REQUEST_TIMEOUT_MS - (nowImpl() - requestStartedAt);
+      if (attempt < MAX_PROVIDER_ATTEMPTS && timeLeft > PROVIDER_RETRY_DELAY_MS) {
+        loggerImpl.warn?.({ event: 'murshid_ai_provider_retry', provider: provider.name, attempt, reason: 'network_error' });
+        await sleepImpl(PROVIDER_RETRY_DELAY_MS);
+        continue;
+      }
+      loggerImpl.error?.({ event: 'murshid_ai_provider_error', provider: provider.name, attempt, reason: error?.name === 'TimeoutError' ? 'timeout' : 'network_error' });
+      return errorResponse(502, 'provider_unavailable');
+    }
+
+    if (upstream.ok) break;
+    const retryable = upstream.status === 408 || upstream.status === 429 || upstream.status >= 500;
+    const timeLeft = PROVIDER_REQUEST_TIMEOUT_MS - (nowImpl() - requestStartedAt);
+    if (retryable && attempt < MAX_PROVIDER_ATTEMPTS && timeLeft > PROVIDER_RETRY_DELAY_MS) {
+      loggerImpl.warn?.({ event: 'murshid_ai_provider_retry', provider: provider.name, status: upstream.status, attempt });
+      try { await upstream.body?.cancel(); } catch { /* Ignore response cleanup failures. */ }
+      await sleepImpl(PROVIDER_RETRY_DELAY_MS);
+      continue;
+    }
+    loggerImpl.error?.({ event: 'murshid_ai_provider_error', provider: provider.name, status: upstream.status, attempt });
+    return mapProviderError(upstream);
   }
+
+  let payload;
+  try {
+    payload = await upstream.json();
+  } catch {
+    return errorResponse(502, 'provider_invalid_response');
+  }
+  const content = provider.name === 'gemini' ? extractGeminiOutputText(payload) : extractChatCompletionText(payload);
+  if (!content) return errorResponse(502, 'provider_empty_response');
+  const remainingDelay = MIN_SUCCESS_RESPONSE_TIME_MS - (nowImpl() - requestStartedAt);
+  if (remainingDelay > 0) await sleepImpl(remainingDelay);
+  return json({ role: 'assistant', content });
 }
 
 export function handleHealthRequest(request, { env = process.env } = {}) {
