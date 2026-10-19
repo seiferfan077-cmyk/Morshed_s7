@@ -14,6 +14,7 @@ export interface StoredMediaItem {
   hidden: boolean;
   source: 'imported';
   deviceAssetId?: string;
+  sourceId?: string;
 }
 
 const ITEMS_KEY = '@murshid/media-vault-items';
@@ -43,15 +44,16 @@ function safeFilename(filename: string) {
   return filename.replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '') || 'media';
 }
 
-export async function importToVault(uri: string, filename: string, type: MediaType, mimeType?: string, size?: number, deviceAssetId?: string) {
-  const existing = deviceAssetId ? (await listStoredMedia()).find((item) => item.deviceAssetId === deviceAssetId) : undefined;
+export async function importToVault(uri: string, filename: string, type: MediaType, mimeType?: string, size?: number, deviceAssetId?: string, sourceId?: string, createdAt?: string) {
+  const stored = await listStoredMedia();
+  const existing = deviceAssetId ? stored.find((item) => item.deviceAssetId === deviceAssetId) : sourceId ? stored.find((item) => item.sourceId === sourceId) : undefined;
   if (existing) return existing;
   await ensureVault();
   const id = `vault-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const target = `${VAULT_DIR}${id}-${safeFilename(filename)}`;
   await FileSystem.copyAsync({ from: uri, to: target });
-  const item: StoredMediaItem = { id, uri: target, filename, type, mimeType, size, createdAt: new Date().toISOString(), hidden: false, source: 'imported', deviceAssetId };
-  await writeItems([item, ...(await listStoredMedia())]);
+  const item: StoredMediaItem = { id, uri: target, filename, type, mimeType, size, createdAt: createdAt ?? new Date().toISOString(), hidden: false, source: 'imported', deviceAssetId, sourceId };
+  await writeItems([item, ...stored]);
   return item;
 }
 
