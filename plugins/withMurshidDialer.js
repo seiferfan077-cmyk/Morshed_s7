@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { withAndroidManifest, withDangerousMod, withMainApplication } = require('@expo/config-plugins');
+const { withAndroidManifest, withDangerousMod, withMainApplication, withAppBuildGradle } = require('@expo/config-plugins');
 
 const PACKAGE = 'com.murshid.s7';
 const SERVICE_NAME = '.MurshidInCallService';
@@ -13,6 +13,34 @@ function ensurePermission(manifest, name) {
   if (!manifest.manifest['uses-permission'].some((entry) => entry.$?.['android:name'] === name)) {
     manifest.manifest['uses-permission'].push({ $: { 'android:name': name } });
   }
+}
+
+function ensureSmsPackageVisibilityQuery(manifest) {
+  const queries = manifest.manifest.queries ?? [];
+  const mergedQuery = {};
+  for (const query of queries) {
+    for (const [key, value] of Object.entries(query)) {
+      if (Array.isArray(value)) {
+        mergedQuery[key] ??= [];
+        for (const item of value) {
+          if (!mergedQuery[key].some((existing) => JSON.stringify(existing) === JSON.stringify(item))) {
+            mergedQuery[key].push(item);
+          }
+        }
+      } else if (!(key in mergedQuery)) {
+        mergedQuery[key] = value;
+      }
+    }
+  }
+  const actionName = 'android.provider.Telephony.SMS_DELIVER';
+  const exists = (mergedQuery.intent ?? []).some((intent) =>
+    (intent.action ?? []).some((action) => action.$?.['android:name'] === actionName),
+  );
+  if (!exists) {
+    mergedQuery.intent ??= [];
+    mergedQuery.intent.push({ action: [{ $: { 'android:name': actionName } }] });
+  }
+  manifest.manifest.queries = [mergedQuery];
 }
 
 function ensureIntentFilter(component, filter) {
@@ -139,25 +167,36 @@ function ensureSmsRespondService(application) {
 
 function ensureInCallService(application) {
   application.service ??= [];
-  const existing = application.service.find((entry) => entry.$?.['android:name'] === SERVICE_NAME);
-  if (existing) return;
-  application.service.push({
-    $: {
-      'android:name': SERVICE_NAME,
-      'android:permission': 'android.permission.BIND_INCALL_SERVICE',
-      'android:exported': 'true',
-    },
-    'meta-data': [
-      { $: { 'android:name': 'android.telecom.IN_CALL_SERVICE_UI', 'android:value': 'true' } },
-      { $: { 'android:name': 'android.telecom.IN_CALL_SERVICE_RINGING', 'android:value': 'true' } },
-    ],
-    'intent-filter': [{ action: [{ $: { 'android:name': 'android.telecom.InCallService' } }] }],
+  let service = application.service.find((entry) => entry.$?.['android:name'] === SERVICE_NAME);
+  if (!service) {
+    service = { $: { 'android:name': SERVICE_NAME }, 'meta-data': [], 'intent-filter': [] };
+    application.service.push(service);
+  }
+  service.$ = {
+    ...service.$,
+    'android:name': SERVICE_NAME,
+    'android:permission': 'android.permission.BIND_INCALL_SERVICE',
+    'android:exported': 'true',
+  };
+  service['meta-data'] ??= [];
+  for (const name of ['android.telecom.IN_CALL_SERVICE_UI', 'android.telecom.IN_CALL_SERVICE_RINGING']) {
+    let metadata = service['meta-data'].find((entry) => entry.$?.['android:name'] === name);
+    if (!metadata) {
+      metadata = { $: { 'android:name': name } };
+      service['meta-data'].push(metadata);
+    }
+    metadata.$ = { ...metadata.$, 'android:name': name, 'android:value': 'true' };
+  }
+  ensureIntentFilter(service, {
+    action: [{ $: { 'android:name': 'android.telecom.InCallService' } }],
   });
 }
 
 module.exports = function withMurshidDialer(config) {
   config = withAndroidManifest(config, (config) => {
     const manifest = config.modResults;
+    manifest.manifest.$ ??= {};
+    manifest.manifest.$['xmlns:tools'] ??= 'http://schemas.android.com/tools';
     [
       'android.permission.READ_PHONE_STATE',
       'android.permission.CALL_PHONE',
@@ -171,7 +210,10 @@ module.exports = function withMurshidDialer(config) {
       'android.permission.RECEIVE_SMS',
       'android.permission.RECEIVE_MMS',
       'android.permission.SEND_SMS',
+      'android.permission.FOREGROUND_SERVICE',
+      'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
     ].forEach((permission) => ensurePermission(manifest, permission));
+    ensureSmsPackageVisibilityQuery(manifest);
     manifest.manifest['uses-feature'] ??= [];
     if (!manifest.manifest['uses-feature'].some((entry) => entry.$?.['android:name'] === 'android.hardware.telephony')) {
       manifest.manifest['uses-feature'].push({ $: { 'android:name': 'android.hardware.telephony', 'android:required': 'false' } });
@@ -191,6 +233,17 @@ module.exports = function withMurshidDialer(config) {
       });
       ensureSmsRespondService(application);
       ensureInCallService(application);
+      application.service ??= [];
+      let foregroundWorker = application.service.find((entry) => entry.$?.['android:name'] === 'androidx.work.impl.foreground.SystemForegroundService');
+      if (!foregroundWorker) {
+        foregroundWorker = { $: { 'android:name': 'androidx.work.impl.foreground.SystemForegroundService' } };
+        application.service.push(foregroundWorker);
+      }
+      foregroundWorker.$ = {
+        ...foregroundWorker.$,
+        'android:foregroundServiceType': 'dataSync',
+        'tools:node': 'merge',
+      };
       application.receiver ??= [];
       const callActionReceiver = '.MurshidCallActionReceiver';
       if (!application.receiver.some((entry) => entry.$?.['android:name'] === callActionReceiver)) {
@@ -200,15 +253,29 @@ module.exports = function withMurshidDialer(config) {
     return config;
   });
 
+  config = withAppBuildGradle(config, (config) => {
+    const contents = config.modResults.contents;
+    if (!contents.includes('androidx.work:work-runtime')) {
+      const dependencyBlock = /dependencies\s*\{/;
+      if (!dependencyBlock.test(contents)) throw new Error('withMurshidDialer: app Gradle dependencies block was not found.');
+      config.modResults.contents = contents.replace(dependencyBlock, (match) => `${match}\n    implementation("androidx.work:work-runtime:2.10.0")`);
+    }
+    return config;
+  });
+
   config = withMainApplication(config, (config) => {
-    const source = config.modResults.contents;
-    if (!source.includes('add(MurshidSmsPackage())')) {
+    let source = config.modResults.contents;
+    const additions = [];
+    if (!source.includes('add(MurshidSmsPackage())')) additions.push('          add(MurshidSmsPackage())');
+    if (!source.includes('add(MurshidGalleryPackage())')) additions.push('          add(MurshidGalleryPackage())');
+    if (additions.length) {
       const packageListPattern = /PackageList\(this\)\.packages\.apply\s*\{/;
       if (!packageListPattern.test(source)) {
-        throw new Error('withMurshidDialer: could not register MurshidSmsPackage in MainApplication.');
+        throw new Error('withMurshidDialer: could not register custom packages in MainApplication.');
       }
-      config.modResults.contents = source.replace(packageListPattern, (match) => `${match}\n          add(MurshidSmsPackage())`);
+      source = source.replace(packageListPattern, (match) => `${match}\n${additions.join('\n')}`);
     }
+    config.modResults.contents = source;
     return config;
   });
 
@@ -237,6 +304,9 @@ module.exports = function withMurshidDialer(config) {
       'MurshidSmsReceiver.java',
       'MurshidWapPushReceiver.java',
       'MurshidRespondViaMessageService.java',
+      'MurshidGalleryModule.java',
+      'MurshidGalleryPackage.java',
+      'MurshidGalleryImportWorker.java',
     ]) {
       fs.copyFileSync(path.join(sourceDir, filename), path.join(targetDir, filename));
     }

@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { showDailyUpdateNotificationIfDue } from './src/services/notifications/dailyUpdateNotification';
 import { hasSeenWelcome, WelcomeScreen } from './src/screens/WelcomeScreen';
+import { hasOpenedRequiredWebsite, WebsiteLaunchGate } from './src/screens/WebsiteLaunchGate';
 import { ThemeProvider, useAppTheme } from './src/theme/ThemeProvider';
 
 export default function App() {
@@ -17,16 +18,18 @@ export default function App() {
   });
   const [ready, setReady] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showWebsiteGate, setShowWebsiteGate] = useState(false);
 
   useEffect(() => {
-    hasSeenWelcome().then((seen) => {
-      setShowWelcome(!seen);
+    Promise.all([hasSeenWelcome().catch(() => false), hasOpenedRequiredWebsite()]).then(([seenWelcome, websiteOpened]) => {
+      setShowWelcome(!seenWelcome);
+      setShowWebsiteGate(!websiteOpened);
       setReady(true);
     });
   }, []);
 
   useEffect(() => {
-    if ((!fontsLoaded && !fontError) || !ready || showWelcome) return;
+    if ((!fontsLoaded && !fontError) || !ready || showWelcome || showWebsiteGate) return;
     let active = true;
     let startupFlowDone = false;
     let previousAppState = AppState.currentState;
@@ -60,10 +63,10 @@ export default function App() {
       active = false;
       appStateSubscription.remove();
     };
-  }, [fontsLoaded, fontError, ready, showWelcome]);
+  }, [fontsLoaded, fontError, ready, showWelcome, showWebsiteGate]);
 
   useEffect(() => {
-    if (__DEV__ || !ready || showWelcome || !Updates.isEnabled) return;
+    if (__DEV__ || !ready || showWelcome || showWebsiteGate || !Updates.isEnabled) return;
     let active = true;
     void (async () => {
       try {
@@ -77,19 +80,20 @@ export default function App() {
       }
     })();
     return () => { active = false; };
-  }, [ready, showWelcome]);
+  }, [ready, showWelcome, showWebsiteGate]);
 
   const finishWelcome = useCallback(() => setShowWelcome(false), []);
+  const finishWebsiteGate = useCallback(() => setShowWebsiteGate(false), []);
 
   if (!fontsLoaded && !fontError) return null;
   if (!ready) return <><StatusBar style="light" /><WelcomeScreen onComplete={() => undefined} /></>;
   if (showWelcome) return <><StatusBar style="light" /><WelcomeScreen onComplete={finishWelcome} /></>;
-  return <ThemeProvider><ThemedApp /></ThemeProvider>;
+  return <ThemeProvider><ThemedApp websiteGateRequired={showWebsiteGate} onWebsiteGateComplete={finishWebsiteGate} /></ThemeProvider>;
 }
 
-function ThemedApp() {
+function ThemedApp({ websiteGateRequired, onWebsiteGateComplete }: { websiteGateRequired: boolean; onWebsiteGateComplete: () => void }) {
   const { colors, mode, ready } = useAppTheme();
   useEffect(() => { void SystemUI.setBackgroundColorAsync(colors.surface).catch(() => undefined); }, [colors.surface]);
   if (!ready) return null;
-  return <View style={{ flex: 1, backgroundColor: colors.surface }}><StatusBar style={mode === 'dark' ? 'light' : 'dark'} /><AppNavigator /></View>;
+  return <View style={{ flex: 1, backgroundColor: colors.surface }}><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{websiteGateRequired ? <WebsiteLaunchGate onComplete={onWebsiteGateComplete} /> : <AppNavigator />}</View>;
 }

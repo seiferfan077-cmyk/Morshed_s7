@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, type LinkingOptions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HomeScreen } from '../screens/HomeScreen';
 import { BrowserScreen } from '../screens/BrowserScreen';
@@ -14,7 +14,7 @@ import { useAppTheme } from '../theme/ThemeProvider';
 
 export type RootTabParamList = {
   الرئيسية: undefined;
-  'مُرشد AI': undefined;
+  مرشد: undefined;
   الرسائل: undefined;
   المتصفح: undefined;
   المعرض: undefined;
@@ -24,11 +24,15 @@ export type RootTabParamList = {
 };
 
 const Tabs = createBottomTabNavigator<RootTabParamList>();
+const linking: LinkingOptions<RootTabParamList> = {
+  prefixes: ['murshid://'],
+  config: { screens: { الرسائل: 'messages' } },
+};
 
 export function AppNavigator() {
   const { colors } = useAppTheme();
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Tabs.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
@@ -39,7 +43,7 @@ export function AppNavigator() {
           tabBarIcon: ({ color, size }) => {
             const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
               الرئيسية: 'grid-outline',
-              'مُرشد AI': 'sparkles-outline',
+              مرشد: 'sparkles-outline',
               الرسائل: 'chatbubbles-outline',
               المتصفح: 'compass-outline',
               المعرض: 'images-outline',
@@ -52,7 +56,7 @@ export function AppNavigator() {
         })}
       >
         <Tabs.Screen name="الرئيسية" component={HomeScreen} />
-        <Tabs.Screen name="مُرشد AI" component={MurshidAIScreen} />
+        <Tabs.Screen name="مرشد" component={MurshidAIScreen} />
         <Tabs.Screen name="الرسائل" component={MessagesScreen} />
         <Tabs.Screen name="المتصفح" component={BrowserScreen} />
         <Tabs.Screen name="المعرض" component={MediaScreen} />

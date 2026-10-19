@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.Telephony;
 import android.telecom.TelecomManager;
 
 public final class MurshidRolePromptActivity extends Activity {
@@ -16,14 +15,13 @@ public final class MurshidRolePromptActivity extends Activity {
   private static final int REQUEST_SMS_ROLE = 9621;
   private static final String PREFS_NAME = "murshid_dialer";
   private static final String PREF_DIALER_PROMPTED = "startup_dialer_role_prompted";
-  private static final String PREF_SMS_PROMPTED = "startup_sms_role_prompted";
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     String action = getIntent() == null ? null : getIntent().getAction();
     if (ACTION_REQUEST_SMS_ROLE.equals(action)) {
-      requestSmsRole(false);
+      requestSmsRole();
       return;
     }
     requestNextStartupRole();
@@ -48,13 +46,6 @@ public final class MurshidRolePromptActivity extends Activity {
           startActivityForResult(roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER), REQUEST_DIALER_ROLE);
           return;
         }
-        if (roleManager.isRoleAvailable(RoleManager.ROLE_SMS)
-            && !roleManager.isRoleHeld(RoleManager.ROLE_SMS)
-            && !preferences().getBoolean(PREF_SMS_PROMPTED, false)) {
-          preferences().edit().putBoolean(PREF_SMS_PROMPTED, true).apply();
-          startActivityForResult(roleManager.createRequestRoleIntent(RoleManager.ROLE_SMS), REQUEST_SMS_ROLE);
-          return;
-        }
         finish();
         return;
       }
@@ -68,13 +59,13 @@ public final class MurshidRolePromptActivity extends Activity {
         startActivityForResult(request, REQUEST_DIALER_ROLE);
         return;
       }
-      requestSmsRole(true);
+      finish();
     } catch (RuntimeException error) {
       finish();
     }
   }
 
-  private void requestSmsRole(boolean startupFlow) {
+  private void requestSmsRole() {
     try {
       if (Build.VERSION.SDK_INT >= 29) {
         RoleManager roleManager = getSystemService(RoleManager.class);
@@ -83,31 +74,17 @@ public final class MurshidRolePromptActivity extends Activity {
           finish();
           return;
         }
-        if (startupFlow) {
-          if (preferences().getBoolean(PREF_SMS_PROMPTED, false)) {
-            finish();
-            return;
-          }
-          preferences().edit().putBoolean(PREF_SMS_PROMPTED, true).apply();
-        }
         startActivityForResult(roleManager.createRequestRoleIntent(RoleManager.ROLE_SMS), REQUEST_SMS_ROLE);
         return;
       }
 
-      String defaultSmsPackage = Telephony.Sms.getDefaultSmsPackage(this);
+      String defaultSmsPackage = android.provider.Telephony.Sms.getDefaultSmsPackage(this);
       if (getPackageName().equals(defaultSmsPackage)) {
         finish();
         return;
       }
-      if (startupFlow) {
-        if (preferences().getBoolean(PREF_SMS_PROMPTED, false)) {
-          finish();
-          return;
-        }
-        preferences().edit().putBoolean(PREF_SMS_PROMPTED, true).apply();
-      }
-      Intent request = new Intent(Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT);
-      request.putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, getPackageName());
+      Intent request = new Intent(android.provider.Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT);
+      request.putExtra(android.provider.Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, getPackageName());
       startActivityForResult(request, REQUEST_SMS_ROLE);
     } catch (RuntimeException error) {
       finish();

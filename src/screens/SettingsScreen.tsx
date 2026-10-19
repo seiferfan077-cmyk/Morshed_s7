@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { useState } from 'react';
 import * as IntentLauncher from 'expo-intent-launcher';
-import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { SupportWebsiteModal } from './SupportWebsiteModal';
@@ -37,7 +37,7 @@ export function SettingsScreen() {
   };
 
   return (
-    <View style={styles.screen}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <ScreenHeader eyebrow="Settings" title="الإعدادات" detail="تحكم في السلوك والاتصالات ومظهر التطبيق." />
       <View style={styles.themeSection}>
         <View style={styles.themeCopy}>
@@ -101,7 +101,7 @@ export function SettingsScreen() {
         <Setting icon="information-circle-outline" title="حول مُرشد" detail="نسخة الأساس 0.1.0 · Expo" />
       </SurfaceCard>
       <SupportWebsiteModal visible={supportVisible} onClose={() => setSupportVisible(false)} />
-    </View>
+    </ScrollView>
   );
 }
 
@@ -121,7 +121,8 @@ function Setting({ icon, title, detail }: { icon: keyof typeof Ionicons.glyphMap
 }
 
 function createStyles(colors: ThemeColors) { return StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.surface, padding: spacing.lg },
+  screen: { flex: 1, backgroundColor: colors.surface },
+  content: { flexGrow: 1, padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   themeSection: { backgroundColor: colors.paper, borderRadius: 20, borderWidth: 1, borderColor: colors.line, padding: spacing.md, marginBottom: spacing.md },
   themeCopy: { marginBottom: spacing.sm },
   themeChoices: { flexDirection: 'row', gap: spacing.sm },

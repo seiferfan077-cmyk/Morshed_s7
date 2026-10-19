@@ -39,6 +39,7 @@
         {
           "photosPermission": "اسمح لمُرشد بعرض الصور والفيديوهات الموجودة على جهازك.",
           "savePhotosPermission": "اسمح لمُرشد بحفظ الوسائط على جهازك عند طلبك ذلك.",
+          "granularPermissions": ["photo", "video"],
           "isAccessMediaLocationEnabled": false
         }
       ],
@@ -55,7 +56,8 @@
       "./plugins/withMurshidDialer",
       "expo-image",
       "expo-audio",
-      "expo-asset"
+      "expo-asset",
+      "expo-sqlite"
     ],
     "extra": {
       "eas": {

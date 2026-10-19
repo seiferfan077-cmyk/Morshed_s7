@@ -1,10 +1,11 @@
 package com.murshid.s7;
 
 import android.Manifest;
-import android.content.ContentValues;
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.net.Uri;
 import android.provider.BaseColumns;
 import android.provider.Telephony;
 
@@ -39,10 +40,6 @@ public final class MurshidSmsModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void getMessages(Promise promise) {
     ReactApplicationContext context = getReactApplicationContext();
-    if (!isDefaultSmsApp(context)) {
-      promise.reject("E_NOT_DEFAULT_SMS", "يجب تعيين مُرشد تطبيق الرسائل الافتراضي أولًا");
-      return;
-    }
     if (context.checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
       promise.reject("E_SMS_PERMISSION", "إذن قراءة SMS غير ممنوح");
       return;
@@ -88,28 +85,30 @@ public final class MurshidSmsModule extends ReactContextBaseJavaModule {
   }
 
   @ReactMethod
-  public void markAllMessagesRead(Promise promise) {
+  public void deleteMessage(String messageId, Promise promise) {
     ReactApplicationContext context = getReactApplicationContext();
     if (!isDefaultSmsApp(context)) {
-      promise.reject("E_NOT_DEFAULT_SMS", "يجب تعيين مُرشد تطبيق الرسائل الافتراضي أولًا");
+      promise.reject("E_SMS_DELETE_ROLE", "لا يمكن حذف SMS إلا من تطبيق الرسائل الافتراضي");
       return;
     }
     if (context.checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
-      promise.reject("E_SMS_PERMISSION", "إذن قراءة SMS غير ممنوح");
+      promise.reject("E_SMS_PERMISSION", "إذن الوصول إلى SMS غير ممنوح");
+      return;
+    }
+    if (messageId == null || !messageId.matches("\\d+")) {
+      promise.reject("E_SMS_ID", "معرّف الرسالة غير صالح");
       return;
     }
     try {
-      ContentValues values = new ContentValues();
-      values.put(Telephony.Sms.READ, 1);
-      values.put(Telephony.Sms.SEEN, 1);
-      int updated = context.getContentResolver().update(
-          Telephony.Sms.Inbox.CONTENT_URI,
-          values,
-          Telephony.Sms.READ + "=0",
-          null);
-      promise.resolve(updated);
+      Uri messageUri = ContentUris.withAppendedId(Telephony.Sms.CONTENT_URI, Long.parseLong(messageId));
+      int deleted = context.getContentResolver().delete(messageUri, null, null);
+      if (deleted == 0) {
+        promise.reject("E_SMS_NOT_FOUND", "الرسالة غير موجودة أو حُذفت مسبقًا");
+        return;
+      }
+      promise.resolve(deleted);
     } catch (Exception error) {
-      promise.reject("E_SMS_UPDATE", "تعذر تحديث حالة قراءة الرسائل", error);
+      promise.reject("E_SMS_DELETE", "تعذر حذف الرسالة من صندوق الجهاز", error);
     }
   }
 

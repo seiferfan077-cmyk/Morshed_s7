@@ -69,7 +69,9 @@ public final class MurshidSmsReceiver extends BroadcastReceiver {
       manager.createNotificationChannel(channel);
     }
     Intent openApp = new Intent(context, MainActivity.class);
-    openApp.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+    openApp.setAction(Intent.ACTION_VIEW);
+    openApp.setData(Uri.parse("murshid://messages"));
+    openApp.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
     PendingIntent contentIntent = PendingIntent.getActivity(
         context,
         address == null ? 0 : address.hashCode(),

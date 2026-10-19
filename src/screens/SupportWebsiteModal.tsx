@@ -8,13 +8,16 @@ import { WebView } from 'react-native-webview';
 import { radii, spacing, typography, ThemeColors } from '../theme';
 
 const SUPPORT_URL = 'https://setr-seif-ai.vercel.app/';
+export const MURSHID_FEATURES_URL = 'https://setr-seif-ai.vercel.app/#features';
 
 type SupportWebsiteModalProps = {
   visible: boolean;
   onClose: () => void;
+  url?: string;
+  title?: string;
 };
 
-export function SupportWebsiteModal({ visible, onClose }: SupportWebsiteModalProps) {
+export function SupportWebsiteModal({ visible, onClose, url = SUPPORT_URL, title = 'الدعم عبر الموقع الإلكتروني' }: SupportWebsiteModalProps) {
   const { colors } = useAppTheme();
   const styles = createStyles(colors);
   const webViewRef = useRef<WebView>(null);
@@ -53,15 +56,15 @@ export function SupportWebsiteModal({ visible, onClose }: SupportWebsiteModalPro
             <Ionicons name="arrow-back" size={22} color={colors.ink} />
           </Pressable>
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>MURSHID SUPPORT</Text>
-            <Text style={styles.title}>الدعم عبر الموقع الإلكتروني</Text>
+            <Text style={styles.eyebrow}>MURSHID WEBSITE</Text>
+            <Text style={styles.title}>{title}</Text>
           </View>
         </View>
 
         <View style={styles.webViewContainer}>
           <WebView
             ref={webViewRef}
-            source={{ uri: SUPPORT_URL }}
+            source={{ uri: url }}
             style={styles.webView}
             originWhitelist={['http://*', 'https://*']}
             onShouldStartLoadWithRequest={(request) => /^https?:\/\//i.test(request.url)}
@@ -98,12 +101,12 @@ export function SupportWebsiteModal({ visible, onClose }: SupportWebsiteModalPro
               </View>
               <View style={styles.statusCopy}>
                 <Text style={[styles.statusTitle, hasError && styles.errorTitle]}>
-                  {hasError ? 'تعذّر فتح صفحة الدعم' : 'لحظات من فضلك'}
+                  {hasError ? 'تعذّر فتح الموقع الإلكتروني' : 'لحظات من فضلك'}
                 </Text>
                 <Text style={styles.statusBody}>
                   {hasError
                     ? 'تحقق من اتصال الإنترنت وحاول مرة أخرى.'
-                    : 'ستُفتح صفحة الدعم خلال ثوانٍ معدودة، يُرجى الانتظار بهدوء.'}
+                    : 'ستُفتح الصفحة داخل مُرشد خلال ثوانٍ معدودة.'}
                 </Text>
               </View>
               {hasError ? (

@@ -5,6 +5,7 @@ export type FirebaseConfig = {
   storageBucket: string;
   messagingSenderId: string;
   appId: string;
+  measurementId?: string;
 };
 
 const readPublicConfig = (): FirebaseConfig | null => {
@@ -15,6 +16,7 @@ const readPublicConfig = (): FirebaseConfig | null => {
     storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? '',
     messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '',
     appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '',
+    measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || undefined,
   };
   return Object.values(values).every(Boolean) ? values : null;
 };
