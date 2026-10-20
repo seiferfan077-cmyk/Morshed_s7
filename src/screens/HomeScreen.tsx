@@ -11,7 +11,7 @@ import { MURSHID_FEATURES_URL, SupportWebsiteModal } from './SupportWebsiteModal
 import { RootTabParamList } from '../navigation/AppNavigator';
 import { radii, spacing, typography, ThemeColors } from '../theme';
 
-type QuickTarget = 'Browser' | 'Media' | 'Files';
+type QuickTarget = 'Browser' | 'Media' | 'Files' | 'Channel';
 const ANNOUNCEMENT_TEXT = 'عزيزي مستخدم مُرشد،\n\nمُرشد المتكامل يجمع لك المساعد الذكي، ومكتبة الوسائط، والرسائل، والمتصفح، والميزات اليومية في تطبيق واحد. تابع موقعنا الإلكتروني لمعرفة آخر التحديثات والمميزات الجديدة.\n\nشكرًا لثقتكم ودعمكم.';
 
 export function HomeScreen() {
@@ -19,7 +19,7 @@ export function HomeScreen() {
   const styles = createStyles(colors);
   const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const [websiteVisible, setWebsiteVisible] = useState(false);
-  const onOpen = (screen: QuickTarget) => { const routes: Record<QuickTarget, keyof RootTabParamList> = { Browser: 'المتصفح', Media: 'المعرض', Files: 'المعرض' }; navigation.navigate(routes[screen]); };
+  const onOpen = (screen: QuickTarget) => { const routes: Record<QuickTarget, keyof RootTabParamList> = { Browser: 'المتصفح', Media: 'المعرض', Files: 'المعرض', Channel: 'القناة الرسمية' }; navigation.navigate(routes[screen]); };
   return <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} stickyHeaderIndices={[0]}>
     <View style={styles.websitePinnedArea}>
       <SurfaceCard accent={colors.teal}>
@@ -37,6 +37,7 @@ export function HomeScreen() {
     <View style={styles.brandRow}><View><Text style={styles.kicker}>MURSHID · S7</Text><Text style={styles.title}>كل ما تحتاجه،<Text style={styles.titleAccent}> في مكان واحد.</Text></Text></View><View style={styles.avatar}><Text style={styles.avatarText}>م</Text></View></View>
     <Text style={styles.greeting}>أهلًا بك. اختر نقطة البداية اليوم.</Text>
     <AnnouncementCard />
+    <SurfaceCard accent={colors.teal}><View style={styles.heroTop}><View><Text style={styles.heroLabel}>القناة الرسمية</Text><Text style={styles.heroTitle}>أخبار مُرشد</Text><Text style={styles.heroBody}>تابع المنشورات والتحديثات الرسمية من داخل التطبيق.</Text></View><View style={styles.heroIcon}><Ionicons name="megaphone-outline" size={28} color={colors.tealDark} /></View></View><ActionButton onPress={() => onOpen('Channel')}>فتح القناة</ActionButton></SurfaceCard>
     <SurfaceCard accent={colors.teal}><View style={styles.heroTop}><View><Text style={styles.heroLabel}>الوصول السريع</Text><Text style={styles.heroTitle}>تصفح بتركيز</Text><Text style={styles.heroBody}>افتح المواقع والأدوات التي تحتاجها داخل مساحة هادئة.</Text></View><View style={styles.heroIcon}><Ionicons name="compass-outline" size={30} color={colors.tealDark} /></View></View><ActionButton onPress={() => onOpen('Browser')}>فتح المتصفح</ActionButton></SurfaceCard>
     <Text style={styles.sectionTitle}>الأدوات الأساسية</Text>
     <View style={styles.grid}><Tool title="المعرض" detail="صور وفيديو" icon="images-outline" color={colors.coralSoft} iconColor={colors.coral} onPress={() => onOpen('Media')} /><Tool title="الملفات" detail="مساحة منظمة" icon="folder-open-outline" color={colors.blueSoft} iconColor={colors.blue} onPress={() => onOpen('Files')} /></View>
