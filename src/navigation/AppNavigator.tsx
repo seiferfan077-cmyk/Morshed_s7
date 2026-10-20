@@ -30,7 +30,12 @@ const Tabs = createBottomTabNavigator<RootTabParamList>();
 export function AppNavigator() {
   const { colors } = useAppTheme();
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      linking={{
+        prefixes: ['murshid://'],
+        config: { screens: { الرسائل: 'messages' } },
+      }}
+    >
       <Tabs.Navigator
         screenOptions={({ route }) => {
           const isMurshidAI = route.name === 'مُرشد AI';

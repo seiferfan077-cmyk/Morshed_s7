@@ -106,6 +106,14 @@ function ensureMessagingMainActivity(application) {
     ],
     data: ['sms', 'smsto', 'mms', 'mmsto'].map((scheme) => ({ $: { 'android:scheme': scheme } })),
   });
+  ensureIntentFilter(activity, {
+    action: [{ $: { 'android:name': 'android.intent.action.VIEW' } }],
+    category: [
+      { $: { 'android:name': 'android.intent.category.DEFAULT' } },
+      { $: { 'android:name': 'android.intent.category.BROWSABLE' } },
+    ],
+    data: [{ $: { 'android:scheme': 'murshid', 'android:host': 'messages' } }],
+  });
 }
 
 function ensureReceiver(application, name, permission, filter) {

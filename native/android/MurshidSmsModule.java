@@ -39,10 +39,6 @@ public final class MurshidSmsModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void getMessages(Promise promise) {
     ReactApplicationContext context = getReactApplicationContext();
-    if (!isDefaultSmsApp(context)) {
-      promise.reject("E_NOT_DEFAULT_SMS", "يجب تعيين مُرشد تطبيق الرسائل الافتراضي أولًا");
-      return;
-    }
     if (context.checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
       promise.reject("E_SMS_PERMISSION", "إذن قراءة SMS غير ممنوح");
       return;
@@ -62,7 +58,7 @@ public final class MurshidSmsModule extends ReactContextBaseJavaModule {
         projection,
         null,
         null,
-        Telephony.Sms.DEFAULT_SORT_ORDER + " LIMIT 250")) {
+        Telephony.Sms.DEFAULT_SORT_ORDER)) {
       if (cursor != null) {
         int idColumn = cursor.getColumnIndex(BaseColumns._ID);
         int addressColumn = cursor.getColumnIndex(Telephony.Sms.ADDRESS);
@@ -90,10 +86,6 @@ public final class MurshidSmsModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void markAllMessagesRead(Promise promise) {
     ReactApplicationContext context = getReactApplicationContext();
-    if (!isDefaultSmsApp(context)) {
-      promise.reject("E_NOT_DEFAULT_SMS", "يجب تعيين مُرشد تطبيق الرسائل الافتراضي أولًا");
-      return;
-    }
     if (context.checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
       promise.reject("E_SMS_PERMISSION", "إذن قراءة SMS غير ممنوح");
       return;
@@ -110,6 +102,28 @@ public final class MurshidSmsModule extends ReactContextBaseJavaModule {
       promise.resolve(updated);
     } catch (Exception error) {
       promise.reject("E_SMS_UPDATE", "تعذر تحديث حالة قراءة الرسائل", error);
+    }
+  }
+
+  @ReactMethod
+  public void deleteMessage(String messageId, Promise promise) {
+    ReactApplicationContext context = getReactApplicationContext();
+    if (!isDefaultSmsApp(context)) {
+      promise.reject("E_NOT_DEFAULT_SMS", "حذف الرسائل يحتاج اختيار مُرشد كتطبيق الرسائل الافتراضي");
+      return;
+    }
+    if (context.checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
+      promise.reject("E_SMS_PERMISSION", "إذن قراءة SMS غير ممنوح");
+      return;
+    }
+    try {
+      int deleted = context.getContentResolver().delete(
+          Telephony.Sms.Inbox.CONTENT_URI,
+          BaseColumns._ID + "=?",
+          new String[] { messageId });
+      promise.resolve(deleted);
+    } catch (Exception error) {
+      promise.reject("E_SMS_DELETE", "تعذر حذف الرسالة من صندوق Android", error);
     }
   }
 
