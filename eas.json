@@ -42,11 +42,20 @@
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "chat-5e935",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "chat-5e935.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "231307311782",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:231307311782:web:27bdf39b82e8a6b4899267"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:231307311782:web:27bdf39b82e8a6b4899267",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "231307311782-gl7ru653m39u7lq5kg7rbveebbou9n8q.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_PHOTOS_CLIENT_ID": "231307311782-gl7ru653m39u7lq5kg7rbveebbou9n8q.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "231307311782-gl7ru653m39u7lq5kg7rbveebbou9n8q.apps.googleusercontent.com"
       },
       "channel": "production",
       "android": {
         "buildType": "apk"
+      }
+    },
+    "production-aab": {
+      "extends": "production",
+      "android": {
+        "buildType": "app-bundle"
       }
     }
   },
