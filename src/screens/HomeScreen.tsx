@@ -11,7 +11,7 @@ import { RootTabParamList } from '../navigation/AppNavigator';
 import { radii, spacing, typography, ThemeColors } from '../theme';
 
 type QuickTarget = 'Browser' | 'Media' | 'Files' | 'Channel';
-const ANNOUNCEMENT_TEXT = 'عزيزي مستخدم مُرشد،\n\nيرجى زيارة موقعنا الإلكتروني لمعرفة آخر التحديثات. ويسعدنا إبلاغكم بأن مُرشد سيحصل على تحديث Pro للمكالمات خلال الفترة من 25 إلى 3 من الشهر القادم. عند توفر النسخة على موقعنا، سنعلن عنها هنا مباشرة داخل التطبيق.\n\nشكرًا لثقتكم ودعمكم.';
+const ANNOUNCEMENT_TEXT = 'عزيزي مستخدم مُرشد،\n\nيرجى زيارة موقعنا الإلكتروني لمعرفة آخر التحديثات. ويسعدنا إبلاغكم بأن مُرشد المتكامل يجمع أدوات التطبيق ومميزاته في تجربة واحدة أوضح وأسهل. عند توفر أي تحديث جديد، سنعلن عنه هنا مباشرة داخل التطبيق.\n\nشكرًا لثقتكم ودعمكم.';
 
 export function HomeScreen() {
   const { colors } = useAppTheme();
@@ -54,7 +54,7 @@ function AnnouncementCard() {
       <View style={styles.pinnedBadge}><Ionicons name="pin" size={12} color={colors.tealDark} /><Text style={styles.pinnedText}>مثبت</Text></View>
     </View>
     <View style={styles.announcementRule} />
-    <View style={styles.proRow}><View style={styles.proIcon}><Ionicons name="call-outline" size={19} color={colors.paper} /></View><View style={styles.proCopy}><Text style={styles.proEyebrow}>إعلان قادم</Text><Text style={styles.proTitle}>مُرشد Pro للمكالمات</Text></View><Ionicons name="sparkles" size={18} color={colors.amber} /></View>
+    <View style={styles.proRow}><View style={styles.proIcon}><Ionicons name="apps-outline" size={21} color={colors.paper} /></View><View style={styles.proCopy}><Text style={styles.proEyebrow}>التجربة المتكاملة</Text><Text style={styles.proTitle}>مُرشد المتكامل</Text></View><Ionicons name="sparkles" size={18} color={colors.amber} /></View>
     <Text style={styles.announcementText}>{displayedText}<Text style={styles.typingCursor}>▌</Text></Text>
     <View style={styles.announcementFooter}><Ionicons name="globe-outline" size={15} color="#9adbd1" /><Text style={styles.announcementFooterText}>تابع الموقع الإلكتروني لمعرفة موعد التوفر</Text></View>
   </View>;
