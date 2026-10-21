@@ -13,6 +13,9 @@ function throwProviderError(response: Response) {
 
 export function providerErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? '');
+  if (message.includes('auth/network-request-failed') || /network request failed|fetch failed/i.test(message)) return 'تعذّر الوصول إلى خدمة الذكاء. تحقق من اتصال الإنترنت ثم اضغط «إعادة المحاولة».';
+  if (message.includes('auth/invalid-api-key')) return 'إعداد Firebase غير صالح في نسخة التطبيق. حدّث إعدادات EXPO_PUBLIC_FIREBASE ثم أعد البناء.';
+  if (message.includes('auth/too-many-requests')) return 'توقفت محاولات تسجيل الدخول مؤقتًا لكثرة الطلبات. انتظر قليلًا ثم أعد المحاولة.';
   if (message.includes('firebase_auth_not_configured')) return 'إعداد تسجيل الدخول الآمن غير مكتمل في هذا الإصدار. تواصل مع فريق التطبيق.';
   if (message.includes('firebase_anonymous_auth_disabled') || message.includes('auth/operation-not-allowed')) return 'يحتاج Chat إلى تفعيل تسجيل الدخول المجهول في إعدادات Firebase Authentication.';
   if (message.includes('firebase_auth_failed')) return 'تعذر تجهيز جلسة Chat الآمنة. تحقق من الاتصال وحاول مجددًا.';
@@ -22,10 +25,11 @@ export function providerErrorMessage(error: unknown) {
   if (message.includes('API key rejected by provider')) return 'المزوّد رفض مفتاح API أو لا يملك صلاحية استخدام النموذج. تحقق من المفتاح والصلاحيات.';
   if (message.includes('provider_rate_limited') || message.includes('Provider rate limit reached')) return 'وصلت إلى حد الاستخدام أو نفد الرصيد لدى المزوّد. تحقق من لوحة حسابك ثم أعد المحاولة.';
   if (message.includes('provider_unavailable')) return 'خدمة الذكاء الاصطناعي غير متاحة مؤقتًا. تحقق من الاتصال ثم أعد المحاولة.';
+  if (/Murshid backend returned an invalid response \(5\d\d\)|Murshid backend request failed \(5\d\d\)/.test(message)) return 'خدمة مُرشد لا تستجيب حاليًا. انتظر لحظات ثم اضغط «إعادة المحاولة».';
   const status = message.match(/\((\d{3})\)/)?.[1];
   if (status === '402') return 'المزوّد يطلب تفعيل الفوترة أو إضافة رصيد.';
   if (status === '400' || status === '404') return 'تحقق من اسم النموذج وBase URL؛ قد لا يدعم المزوّد هذا النموذج أو المسار.';
-  if (/network request failed|fetch failed|network/i.test(message)) return 'تعذّر الوصول إلى المزوّد. تحقق من اتصال الإنترنت ثم أعد المحاولة.';
+  if (/network/i.test(message)) return 'تعذّر الوصول إلى المزوّد. تحقق من اتصال الإنترنت ثم أعد المحاولة.';
   if (message.includes('no assistant message') || message.includes('no text response')) return 'اتصل التطبيق بالمزوّد لكن لم يصل رد نصي. تحقق من النموذج وإعداداته.';
   return 'تعذّر استلام الرد من المزوّد. تحقق من المفتاح والنموذج والاتصال ثم حاول مجددًا.';
 }

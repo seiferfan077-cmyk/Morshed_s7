@@ -60,6 +60,8 @@ const originalFetch = global.fetch;
   await assert.rejects(new UserKeyOpenAICompatibleProvider(config).sendMessage([{ role: 'user', content: 'test' }]), /Provider rate limit reached/);
   assert.match(providerErrorMessage(new Error('Provider rate limit reached')), /الرصيد/);
   assert.match(providerErrorMessage(new Error('Murshid backend request failed (401): unauthorized')), /جلسة المستخدم/);
+  assert.match(providerErrorMessage(new Error('firebase_auth_failed:auth/network-request-failed')), /اتصال الإنترنت/);
+  assert.match(providerErrorMessage(new Error('Murshid backend request failed (503): provider_unavailable')), /المحاولة/);
   global.fetch = originalFetch;
   console.log('BYOK provider tests passed');
 })().catch((error) => { global.fetch = originalFetch; throw error; });

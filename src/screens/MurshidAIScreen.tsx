@@ -167,8 +167,8 @@ export function MurshidAIScreen() {
     } finally { setTesting(false); }
   };
 
-  const send = async () => {
-    const content = draft.trim();
+  const send = async (contentOverride?: string) => {
+    const content = (contentOverride ?? draft).trim();
     if (!content || busy) return;
     const provider = activeProvider();
     if (!provider) { setSettingsOpen(true); Alert.alert('إعداد مُرشد', 'أضف مفتاح API أو أعد إعداد Backend قبل بدء المحادثة.'); return; }
@@ -186,7 +186,11 @@ export function MurshidAIScreen() {
       await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(completed));
     } catch (error) {
       setMessages(next);
-      Alert.alert('تعذر استلام الرد', providerErrorMessage(error));
+      setDraft(content);
+      Alert.alert('تعذر استلام الرد', providerErrorMessage(error), [
+        { text: 'إغلاق', style: 'cancel' },
+        { text: 'إعادة المحاولة', onPress: () => { void send(content); } },
+      ]);
     } finally { setBusy(false); }
   };
 
@@ -255,7 +259,7 @@ export function MurshidAIScreen() {
 
     <View style={styles.composer}>
       <ActionButton tone="quiet" buttonStyle={styles.memoryAction} labelStyle={styles.memoryActionText} onPress={() => setIncludeMemory((value) => !value)}><Ionicons name={includeMemory ? 'bookmark' : 'bookmark-outline'} size={20} color={includeMemory ? colors.tealDark : colors.inkFaint} /><Text style={styles.memoryToggle}>{includeMemory ? 'الذاكرة مفعّلة' : 'استخدام الذاكرة'}</Text></ActionButton>
-      <View style={styles.inputRow}><TextInput value={draft} onChangeText={setDraft} placeholder="اكتب رسالتك…" placeholderTextColor={colors.inkFaint} multiline maxLength={4000} editable={!busy} style={styles.composerInput} submitBehavior="submit" returnKeyType="send" onSubmitEditing={send} /><ActionButton buttonStyle={styles.sendAction} labelStyle={styles.sendActionText} onPress={busy || !draft.trim() ? undefined : send}><Ionicons name="arrow-up" size={21} color="#07110F" /></ActionButton></View>
+      <View style={styles.inputRow}><TextInput value={draft} onChangeText={setDraft} placeholder="اكتب رسالتك…" placeholderTextColor={colors.inkFaint} multiline maxLength={4000} editable={!busy} style={styles.composerInput} submitBehavior="submit" returnKeyType="send" onSubmitEditing={() => { void send(); }} /><ActionButton buttonStyle={styles.sendAction} labelStyle={styles.sendActionText} onPress={busy || !draft.trim() ? undefined : send}><Ionicons name="arrow-up" size={21} color="#07110F" /></ActionButton></View>
       <Text style={styles.footer}>راجع الإجابات المهمة. لا ترسل كلمات مرور أو معلومات حساسة.</Text>
     </View>
     </KeyboardAvoidingView>
