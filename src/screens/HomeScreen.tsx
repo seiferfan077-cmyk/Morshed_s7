@@ -4,15 +4,23 @@ import { RuqaaText as Text } from '../components/RuqaaText';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { ActionButton } from '../components/ActionButton';
+import { showAppError } from '../components/AppDialogProvider';
 import { SurfaceCard } from '../components/SurfaceCard';
+import { useIdTokenAuthRequest } from 'expo-auth-session/providers/google';
+import { User } from 'firebase/auth';
+import { signInWithGoogleIdToken, signOutFirebaseUser, subscribeToFirebaseUser } from '../services/firebase/firebaseAuthService';
 import { MURSHID_FEATURES_URL, SupportWebsiteModal } from './SupportWebsiteModal';
 import { RootTabParamList } from '../navigation/AppNavigator';
 import { radii, spacing, typography, ThemeColors } from '../theme';
 
 type QuickTarget = 'Browser' | 'Media' | 'Files' | 'Channel';
 const ANNOUNCEMENT_TEXT = 'عزيزي مستخدم مُرشد،\n\nمُرشد المتكامل يجمع لك المساعد الذكي، ومكتبة الوسائط، والرسائل، والمتصفح، والميزات اليومية في تطبيق واحد. تابع موقعنا الإلكتروني لمعرفة آخر التحديثات والمميزات الجديدة.\n\nشكرًا لثقتكم ودعمكم.';
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? process.env.EXPO_PUBLIC_GOOGLE_PHOTOS_CLIENT_ID ?? '';
+const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '';
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '';
+const GOOGLE_CLIENT_ID_FALLBACK = 'google-oauth-not-configured.apps.googleusercontent.com';
 
 export function HomeScreen() {
   const { colors } = useAppTheme();
@@ -34,6 +42,7 @@ export function HomeScreen() {
         <ActionButton onPress={() => setWebsiteVisible(true)}>افتح الموقع الإلكتروني الآن</ActionButton>
       </SurfaceCard>
     </View>
+    <GoogleAccountCard />
     <View style={styles.brandRow}><View><Text style={styles.kicker}>MURSHID · S7</Text><Text style={styles.title}>كل ما تحتاجه،<Text style={styles.titleAccent}> في مكان واحد.</Text></Text></View><View style={styles.avatar}><Text style={styles.avatarText}>م</Text></View></View>
     <Text style={styles.greeting}>أهلًا بك. اختر نقطة البداية اليوم.</Text>
     <AnnouncementCard />
@@ -45,6 +54,73 @@ export function HomeScreen() {
     <Text style={styles.sectionTitle}>ملخص المساحة</Text><SurfaceCard><View style={styles.storageRow}><View style={styles.storageIcon}><Ionicons name="cloud-outline" size={20} color={colors.tealDark} /></View><View style={styles.storageText}><Text style={styles.storageTitle}>التخزين المحلي</Text><Text style={styles.storageDetail}>جاهز لإضافة ملفاتك في المرحلة التالية</Text></View><Text style={styles.storageValue}>0%</Text></View><View style={styles.progress}><View style={styles.progressFill} /></View></SurfaceCard>
     <SupportWebsiteModal visible={websiteVisible} onClose={() => setWebsiteVisible(false)} url={MURSHID_FEATURES_URL} title="موقع مُرشد الإلكتروني" />
   </ScrollView>;
+}
+
+function GoogleAccountCard() {
+  const { colors } = useAppTheme();
+  const [user, setUser] = useState<User | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [request, , promptAsync] = useIdTokenAuthRequest({
+    clientId: Platform.OS === 'android' ? GOOGLE_ANDROID_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK : Platform.OS === 'ios' ? GOOGLE_IOS_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK : GOOGLE_WEB_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK,
+    webClientId: GOOGLE_WEB_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK,
+    iosClientId: GOOGLE_IOS_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK,
+    selectAccount: true,
+  }, { scheme: 'murshid' });
+  const hasPlatformClientId = Platform.OS === 'android'
+    ? Boolean(GOOGLE_ANDROID_CLIENT_ID)
+    : Platform.OS === 'ios'
+      ? Boolean(GOOGLE_IOS_CLIENT_ID)
+      : Boolean(GOOGLE_WEB_CLIENT_ID);
+  const signedInUser = user && !user.isAnonymous ? user : null;
+
+  useEffect(() => subscribeToFirebaseUser(setUser), []);
+
+  const signIn = async () => {
+    if (!hasPlatformClientId) {
+      showAppError('تسجيل الدخول بحساب Google غير جاهز', 'يلزم ضبط معرّف OAuth الخاص بنظام هاتفك، وتفعيل Google في مصادقة Firebase. بعد ضبطهما هيظهر اختيار الحساب هنا.');
+      return;
+    }
+    if (!request || busy) return;
+    setBusy(true);
+    try {
+      const result = await promptAsync();
+      if (result.type === 'cancel' || result.type === 'dismiss') return;
+      if (result.type !== 'success') throw result.type === 'error' ? result.error ?? new Error('google_oauth_failed') : new Error('google_oauth_incomplete');
+      const idToken = result.authentication?.idToken ?? result.params.id_token;
+      if (!idToken) throw new Error('google_id_token_missing');
+      await signInWithGoogleIdToken(idToken);
+    } catch {
+      showAppError('تعذر تسجيل الدخول', 'تأكد من تفعيل Google في Firebase ومن صحة إعداد OAuth لهذا التطبيق، ثم حاول مرة تانية.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      await signOutFirebaseUser();
+    } catch {
+      showAppError('تعذر تسجيل الخروج', 'حاول تسجيل الخروج مرة تانية.');
+    }
+  };
+
+  return <SurfaceCard accent={signedInUser ? colors.teal : colors.blue}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
+      <View style={{ width: 44, height: 44, borderRadius: radii.md, backgroundColor: colors.tealSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name={signedInUser ? 'person-circle-outline' : 'logo-google'} size={24} color={colors.tealDark} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ ...typography.h2, color: colors.ink }}>{signedInUser ? `أهلًا، ${signedInUser.displayName || 'بيك'}` : 'حسابك في مُرشد'}</Text>
+        <Text style={{ ...typography.body, color: colors.inkMuted, marginTop: 2 }}>{signedInUser?.email || 'سجّل دخولك بحساب Google واحفظ هويتك على أجهزتك.'}</Text>
+      </View>
+    </View>
+    {signedInUser
+      ? <ActionButton tone="quiet" onPress={() => { void signOut(); }}>تسجيل الخروج</ActionButton>
+      : <ActionButton onPress={() => { void signIn(); }}>
+        <Ionicons name="logo-google" size={17} color={colors.paper} />{'  '}{busy ? 'جارٍ فتح تسجيل الدخول…' : 'تسجيل الدخول بحساب Google'}
+      </ActionButton>}
+  </SurfaceCard>;
 }
 
 function AnnouncementCard() {
@@ -70,7 +146,7 @@ function AnnouncementCard() {
       <View style={styles.pinnedBadge}><Ionicons name="pin" size={12} color={colors.tealDark} /><Text style={styles.pinnedText}>مثبت</Text></View>
     </View>
     <View style={styles.announcementRule} />
-    <View style={styles.proRow}><View style={styles.proIcon}><Ionicons name="sparkles-outline" size={19} color={colors.paper} /></View><View style={styles.proCopy}><Text style={styles.proEyebrow}>إعلان مُرشد المتكامل</Text><Text style={styles.proTitle}>كل أدواتك في مكان واحد</Text></View><Ionicons name="sparkles" size={18} color={colors.amber} /></View>
+    <View style={styles.proRow}><View style={styles.proIcon}><Ionicons name="apps-outline" size={21} color={colors.paper} /></View><View style={styles.proCopy}><Text style={styles.proEyebrow}>التجربة المتكاملة</Text><Text style={styles.proTitle}>مُرشد المتكامل</Text></View><Ionicons name="sparkles" size={18} color={colors.amber} /></View>
     <Text style={styles.announcementText}>{displayedText}<Text style={styles.typingCursor}>▌</Text></Text>
     <View style={styles.announcementFooter}><Ionicons name="globe-outline" size={15} color="#9adbd1" /><Text style={styles.announcementFooterText}>تابع الموقع الإلكتروني لمعرفة موعد التوفر</Text></View>
   </View>;

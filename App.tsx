@@ -70,7 +70,7 @@ export default function App() {
   useEffect(() => {
     if (__DEV__ || !ready || showWelcome || showWebsiteGate || !Updates.isEnabled) return;
     let active = true;
-    void (async () => {
+    const checkForUpdate = async () => {
       try {
         const available = await Updates.checkForUpdateAsync();
         if (!active || !available.isAvailable) return;
@@ -80,8 +80,15 @@ export default function App() {
       } catch {
         // OTA must never prevent the existing embedded bundle from starting.
       }
-    })();
-    return () => { active = false; };
+    };
+    let previousAppState = AppState.currentState;
+    const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
+      const returnedToApp = previousAppState !== 'active' && nextAppState === 'active';
+      previousAppState = nextAppState;
+      if (active && returnedToApp) void checkForUpdate();
+    });
+    void checkForUpdate();
+    return () => { active = false; appStateSubscription.remove(); };
   }, [ready, showWelcome, showWebsiteGate]);
 
   const finishWelcome = useCallback(() => setShowWelcome(false), []);

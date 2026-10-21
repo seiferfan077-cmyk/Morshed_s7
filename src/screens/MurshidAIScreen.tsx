@@ -23,6 +23,7 @@ const MAX_HISTORY = 12;
 const DEFAULT_BACKEND_URL = 'https://murshid-ai-backend.murshid-s7.workers.dev';
 const configuredBaseUrl = typeof process !== 'undefined' ? process.env?.EXPO_PUBLIC_API_BASE_URL?.trim() : undefined;
 const API_BASE_URL = configuredBaseUrl && !configuredBaseUrl.includes('api.example.com') ? configuredBaseUrl : DEFAULT_BACKEND_URL;
+const timestampNow = Date.now.bind(Date);
 const GREETING_TITLE = 'ابدأ محادثتك مع مرشد';
 const GREETING_BODY = 'ابدأ محادثتك الآن. ما الذي تفكر به؟ سنساعدك';
 const QUICK_PROMPTS = ['ساعدني أرتب يومي', 'عايز أفكر في هدف', 'اشرحلي فكرة ببساطة'];
@@ -127,12 +128,16 @@ export function MurshidAIScreen() {
     }
   };
 
-  const send = async () => {
-    const content = draft.trim();
+  const send = async (contentOverride?: string) => {
+    const content = (contentOverride ?? draft).trim();
     if (!content || busy) return;
 
-    const userMessage: ChatMessage = { id: `${Date.now()}-u`, role: 'user', content, createdAt: Date.now() };
-    const next = [...messages, userMessage].slice(-MAX_HISTORY);
+    const retryingLastMessage = Boolean(contentOverride)
+      && messages[messages.length - 1]?.role === 'user'
+      && messages[messages.length - 1]?.content === content;
+    const createdAt = timestampNow();
+    const userMessage: ChatMessage = { id: `${createdAt}-u`, role: 'user', content, createdAt };
+    const next = retryingLastMessage ? messages : [...messages, userMessage].slice(-MAX_HISTORY);
     setMessages(next);
     setDraft('');
     setBusy(true);
@@ -143,14 +148,16 @@ export function MurshidAIScreen() {
       const context = await requestContext(content);
       const history: AIMessage[] = next.map(({ role, content: text }) => ({ role, content: text }));
       const reply = await new BackendAIProvider(API_BASE_URL, getFirebaseAIIdToken).sendMessage(history, undefined, context);
-      const completed = [...next, { id: `${Date.now()}-a`, role: 'assistant' as const, content: reply.content, createdAt: Date.now() }].slice(-MAX_HISTORY);
+      const assistantCreatedAt = timestampNow();
+      const completed = [...next, { id: `${assistantCreatedAt}-a`, role: 'assistant' as const, content: reply.content, createdAt: assistantCreatedAt }].slice(-MAX_HISTORY);
       setMessages(completed);
       setConnectionState('connected');
       await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(completed));
     } catch (error) {
       setMessages(next);
       setConnectionState('error');
-      showAppError('الرسالة ماوصلهاش رد', providerErrorMessage(error), { retryLabel: 'إعادة المحاولة', onRetry: () => setDraft(content) });
+      setDraft(content);
+      showAppError('الرسالة ماوصلهاش رد', providerErrorMessage(error), { retryLabel: 'إعادة المحاولة', onRetry: () => { void send(content); } });
       void AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(next)).catch(() => undefined);
     } finally {
       setBusy(false);
@@ -283,7 +290,7 @@ export function MurshidAIScreen() {
           maxLength={4000}
           editable={!busy}
           style={styles.composerInput}
-          onSubmitEditing={send}
+          onSubmitEditing={() => { void send(); }}
           accessibilityLabel="اكتب رسالتك لمرشد"
           selectionColor={AI_COLORS.teal}
         />

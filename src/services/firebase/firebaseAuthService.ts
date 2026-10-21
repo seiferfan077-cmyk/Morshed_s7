@@ -1,4 +1,4 @@
-import { signInWithEmailAndPassword, signInAnonymously, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { GoogleAuthProvider, linkWithCredential, onAuthStateChanged, signInAnonymously, signInWithCredential, signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
 import { getFirebaseAuth } from './firebaseClient';
 
 export function subscribeToFirebaseUser(listener: (user: User | null) => void) {
@@ -31,7 +31,26 @@ export async function signInAdmin(email: string, password: string) {
   return credential.user;
 }
 
-export async function signOutAdmin() {
+export async function signOutFirebaseUser() {
   const auth = getFirebaseAuth();
   if (auth) await signOut(auth);
+}
+
+export const signOutAdmin = signOutFirebaseUser;
+
+export async function signInWithGoogleIdToken(idToken: string) {
+  const auth = getFirebaseAuth();
+  if (!auth) throw new Error('firebase_auth_not_configured');
+  if (!idToken.trim()) throw new Error('google_id_token_missing');
+  const credential = GoogleAuthProvider.credential(idToken);
+  const currentUser = auth.currentUser;
+  if (currentUser?.isAnonymous) {
+    try {
+      return (await linkWithCredential(currentUser, credential)).user;
+    } catch (error) {
+      const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
+      if (code !== 'auth/credential-already-in-use' && code !== 'auth/email-already-in-use') throw error;
+    }
+  }
+  return (await signInWithCredential(auth, credential)).user;
 }

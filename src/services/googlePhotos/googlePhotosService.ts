@@ -16,7 +16,9 @@ const OAUTH_DISCOVERY = {
 const TOKEN_KEY = 'murshid.google-photos.oauth-token';
 const JOB_KEY = '@murshid/google-photos-import-job';
 const SCOPES = ['https://www.googleapis.com/auth/photospicker.mediaitems.readonly'];
-const CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_PHOTOS_CLIENT_ID ?? '';
+const CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_PHOTOS_CLIENT_ID
+  ?? process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+  ?? '';
 
 export type GooglePhotosProgress = {
   sessionId: string;

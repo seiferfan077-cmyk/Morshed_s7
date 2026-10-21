@@ -38,7 +38,7 @@ export function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <ScreenHeader eyebrow="Settings" title="الإعدادات" detail="تحكم في السلوك والاتصالات ومظهر التطبيق." />
       <View style={styles.themeSection}>
         <View style={styles.themeCopy}>
