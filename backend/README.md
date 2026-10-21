@@ -26,6 +26,18 @@ npx wrangler deploy
 
 بعد نشر الـWorker وضبط إعداداته، عيّن `EXPO_PUBLIC_API_BASE_URL` في بيئة بناء Expo/EAS على أصل نطاقه دون `/` في النهاية، مثل `https://murshid-ai-backend.<subdomain>.workers.dev`. اضبط إعدادات Firebase العامة في Expo، وفعّل **Anonymous** من Firebase Console → Authentication → Sign-in method. ينشئ التطبيق هوية Firebase للمستخدم تلقائيًا؛ لا يحتاج المستخدم إلى مفتاح Gemini خاص به.
 
+### القناة الرسمية وكلمات مرور الإدارة
+
+المنشورات محفوظة في D1 على الخادم، وهو المصدر المشترك بين الأجهزة وإصدارات التطبيق؛ ويحتفظ كل جهاز بنسخة SQLite محلية للقراءة عند انقطاع الاتصال. طبّق مخطط القناة مرة واحدة:
+
+```bash
+npm --prefix backend run channel:migrate
+```
+
+على Worker عيّن `CHANNEL_OWNER_TEMP_PASSWORD` و/أو `CHANNEL_ADMIN_TEMP_PASSWORD` كـSecrets قوية للاستخدام مرة واحدة. بعد إدخال السر المؤقت في التطبيق، يختار المسؤول كلمة مرور دائمة من 10 أحرف على الأقل، وتُحفظ مشتقة ومملّحة في D1. يمكن تشديد التهيئة بقوائم UID اختيارية `CHANNEL_OWNER_BOOTSTRAP_UIDS` و`CHANNEL_ADMIN_BOOTSTRAP_UIDS`. جلسة النشر تصدر بعد التحقق من كلمة المرور وتنتهي بعد 12 ساعة.
+
+لإشعارات المنشورات، يسجّل التطبيق رمز Expo Push للجهاز بعد منح إذن الإشعارات وفتح القناة، ويحفظه Worker في `channel_devices`. عند النشر يرسل Worker إشعارًا للأجهزة المسجلة؛ يمكن ضبط `EXPO_ACCESS_TOKEN` كـSecret اختياري على Worker. يحتاج بناء Android إلى بيانات Firebase Cloud Messaging الخاصة بـEAS، كما يلزم أن يسمح المستخدم بإشعارات التطبيق. الضغط على الإشعار يفتح تبويب القناة.
+
 ## إعداد Gemini والتحقق
 
 يستخدم تكامل Gemini Interactions API مع `store: false`. طلبات المحادثة تستخدم Firebase ID token في `Authorization: Bearer …`، ويرفض Backend الطلبات غير الموثقة.

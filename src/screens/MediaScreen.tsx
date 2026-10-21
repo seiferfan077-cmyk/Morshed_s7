@@ -7,6 +7,7 @@ import * as MediaLibrary from 'expo-media-library/legacy';
 import { Image as ExpoImage } from 'expo-image';
 import { VideoThumbnail as VideoThumbnailRef, VideoView, useVideoPlayer } from 'expo-video';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { showAppError } from '../components/AppDialogProvider';
 import { RuqaaText as Text, RuqaaTextInput as TextInput } from '../components/RuqaaText';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { radii, spacing, typography, ThemeColors } from '../theme';
@@ -115,7 +116,9 @@ export function MediaScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const setError = useCallback((message: string | null) => {
+    if (message) showAppError('تعذر إتمام العملية', message);
+  }, []);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const [actionItem, setActionItem] = useState<StoredMediaItem | null>(null);
@@ -141,6 +144,15 @@ export function MediaScreen() {
   const [fallbackRunning, setFallbackRunning] = useState(false);
   const scanCancelRef = useRef(false);
   const fallbackStopRef = useRef(false);
+  const lastJobErrorRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const jobError = activeJob?.error ?? null;
+    if (jobError && jobError !== lastJobErrorRef.current) {
+      lastJobErrorRef.current = jobError;
+      showAppError('تعذر استيراد الوسائط', jobError);
+    } else if (!jobError) lastJobErrorRef.current = null;
+  }, [activeJob?.error]);
 
   const currentFolder = folderStack[folderStack.length - 1];
   const currentFolderId = currentFolder?.id;
@@ -180,7 +192,7 @@ export function MediaScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [pageOptions, refreshStats]);
+  }, [pageOptions, refreshStats, setError]);
 
   const loadCollections = useCallback(async () => {
     try {
@@ -190,7 +202,7 @@ export function MediaScreen() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر تحميل الألبومات والمجلدات.');
     }
-  }, [currentFolderId]);
+  }, [currentFolderId, setError]);
 
   useEffect(() => {
     const timer = setTimeout(() => { void loadFirstPage(); }, 0);
@@ -335,7 +347,7 @@ export function MediaScreen() {
       const result = await DocumentPicker.getDocumentAsync({ type, multiple: true, copyToCacheDirectory: false });
       if (result.canceled) return;
       const mediaOnly = result.assets.filter((asset) => mediaTypeFromName(asset.name, asset.mimeType) !== 'file' || type === '*/*');
-      if (!mediaOnly.length) { Alert.alert('نوع غير مدعوم', 'اختر صورًا أو فيديوهات مدعومة.'); return; }
+      if (!mediaOnly.length) { setError('نوع غير مدعوم. اختر صورًا أو فيديوهات مدعومة.'); return; }
       const jobId = await createPickerImportJob(mediaOnly, albumId);
       const job = await (await import('../services/storage/mediaVaultService')).getImportJob(jobId);
       if (job) { setActiveJob(job); confirmImport(job); }
@@ -531,7 +543,7 @@ export function MediaScreen() {
   ]);
 
   const exportAlbumToFolder = async (album: MediaAlbum) => {
-    if (Platform.OS !== 'android') { Alert.alert('غير متاح', 'تصدير مجلد SAF متاح على Android.'); return; }
+    if (Platform.OS !== 'android') { setError('تصدير مجلد كامل متاح على Android فقط.'); return; }
     try {
       const selection = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
       if (!selection.granted) return;
@@ -553,15 +565,16 @@ export function MediaScreen() {
         }
         offset += page.length;
       }
-      Alert.alert('اكتمل التصدير', `تم تصدير ${exported} ملف${failures ? `، وتعذر تصدير ${failures}` : ''}.`);
-    } catch (cause) { Alert.alert('فشل التصدير', cause instanceof Error ? cause.message : 'تعذر التصدير إلى المجلد المختار.'); }
+      if (failures) showAppError('اكتمل التصدير جزئيًا', `تم تصدير ${exported} ملف، وتعذر تصدير ${failures}.`);
+      else Alert.alert('اكتمل التصدير', `تم تصدير ${exported} ملف.`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'تعذر التصدير إلى المجلد المختار.'); }
     finally { setExporting(false); }
   };
 
   const exportAlbumToPhotos = async (album: MediaAlbum) => {
     try {
       const permissionResult = await MediaLibrary.requestPermissionsAsync(true, ['photo', 'video']);
-      if (!permissionResult.granted) { Alert.alert('الإذن مطلوب', 'اسمح بحفظ الوسائط إلى مكتبة الصور.'); return; }
+      if (!permissionResult.granted) { setError('اسمح بحفظ الوسائط إلى مكتبة الصور ثم حاول مرة تانية.'); return; }
       setExporting(true);
       let offset = 0; let exported = 0; let failures = 0;
       while (true) {
@@ -572,15 +585,16 @@ export function MediaScreen() {
         }
         offset += page.length;
       }
-      Alert.alert('حفظ في صور الجهاز', `تم حفظ ${exported} ملف${failures ? `، وتعذر حفظ ${failures}` : ''}. قد يستغرق تطبيق الصور وقتًا لعرض العناصر الجديدة.`);
-    } catch (cause) { Alert.alert('تعذر الحفظ', cause instanceof Error ? cause.message : 'تعذر حفظ الألبوم في مكتبة الصور.'); }
+      if (failures) showAppError('اكتمل الحفظ جزئيًا', `تم حفظ ${exported} ملف، وتعذر حفظ ${failures}.`);
+      else Alert.alert('حفظ في صور الجهاز', `تم حفظ ${exported} ملف. قد يستغرق تطبيق الصور وقتًا لعرض العناصر الجديدة.`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'تعذر حفظ الألبوم في مكتبة الصور.'); }
     finally { setExporting(false); }
   };
 
   const exportSelectionToPhotos = async () => {
     try {
       const permissionResult = await MediaLibrary.requestPermissionsAsync(true, ['photo', 'video']);
-      if (!permissionResult.granted) { Alert.alert('الإذن مطلوب', 'اسمح بحفظ الوسائط إلى مكتبة الصور.'); return; }
+      if (!permissionResult.granted) { setError('اسمح بحفظ الوسائط إلى مكتبة الصور ثم حاول مرة تانية.'); return; }
       let copied = 0;
       const selectedItems = selectionMode ? items.filter((entry) => selectedIds.has(entry.id)) : actionItem ? [actionItem] : [];
       for (const item of selectedItems) { await MediaLibrary.saveToLibraryAsync(item.uri); copied += 1; }
@@ -644,12 +658,10 @@ export function MediaScreen() {
           {activeJob.state === 'scanning' ? <Text style={styles.jobDetail}>تم فحص {scanProgress?.scannedFiles ?? 0} عنصر · تقدير {formatBytes(scanProgress?.estimatedBytes)}</Text> : <Text style={styles.jobDetail}>{activeJob.currentFilename ? `الملف الحالي: ${activeJob.currentFilename}` : `${activeJob.completedFiles} اكتمل · ${activeJob.failedFiles} تعذر · ${formatBytes(activeJob.copiedBytes)} من تقدير ${formatBytes(activeJob.totalBytes)}`}</Text>}
           {activeJob.state === 'running' ? <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${activeJob.totalFiles ? Math.min(100, (activeJob.completedFiles + activeJob.failedFiles) / activeJob.totalFiles * 100) : 0}%` }]} /></View> : null}
           <View style={styles.jobButtons}>{activeJob.state === 'scanning' ? <Pressable onPress={() => { void cancelJob(); }} style={styles.jobButton}><Text style={styles.jobButtonText}>إلغاء الفحص</Text></Pressable> : null}{['ready', 'paused'].includes(activeJob.state) ? <Pressable onPress={() => { void beginImport(activeJob); }} style={styles.jobButton}><Text style={styles.jobButtonText}>{activeJob.state === 'ready' ? 'بدء النسخ' : 'استئناف'}</Text></Pressable> : null}{activeJob.state === 'running' ? <Pressable onPress={() => { void pauseImport(); }} style={styles.jobButton}><Text style={styles.jobButtonText}>{fallbackRunning ? 'إيقاف مؤقت' : 'إيقاف مؤقت'}</Text></Pressable> : null}{['running', 'paused', 'ready'].includes(activeJob.state) ? <Pressable onPress={() => { void cancelJob(); }} style={styles.jobButtonSecondary}><Text style={styles.jobButtonSecondaryText}>إيقاف نهائي</Text></Pressable> : null}{activeJob.state === 'completed' || activeJob.state === 'cancelled' ? <Pressable onPress={() => setActiveJob(null)} style={styles.jobButtonSecondary}><Text style={styles.jobButtonSecondaryText}>إخفاء</Text></Pressable> : null}</View>
-          {activeJob.error ? <Text style={styles.jobError}>{activeJob.error}</Text> : null}
         </View> : null}
       </> : <>
         <View style={styles.collectionHeader}><View style={styles.breadcrumbRow}>{folderStack.length ? <Pressable onPress={() => setFolderStack((stack) => stack.slice(0, -1))} style={styles.backButton}><Ionicons name="arrow-back" size={17} color={colors.tealDark} /><Text style={styles.backText}>رجوع</Text></Pressable> : null}<Text style={styles.collectionPath}>{folderStack.length ? folderStack.map((item) => item.name).join(' / ') : 'كل الألبومات'}</Text></View><View style={styles.collectionActions}><Pressable onPress={() => setEditor({ kind: 'folder', mode: 'create', value: '' })} style={styles.smallButton}><Ionicons name="folder-open-outline" size={16} color={colors.tealDark} /><Text style={styles.smallButtonText}>مجلد</Text></Pressable><Pressable onPress={() => setEditor({ kind: 'album', mode: 'create', value: '' })} style={styles.smallButton}><Ionicons name="add-circle-outline" size={16} color={colors.tealDark} /><Text style={styles.smallButtonText}>ألبوم</Text></Pressable></View></View>
       </>}
-      {error ? <View style={styles.errorNotice}><Ionicons name="alert-circle-outline" size={18} color={colors.coral} /><Text style={styles.noticeText}>{error}</Text></View> : null}
     </View>
   );
 

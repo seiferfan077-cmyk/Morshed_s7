@@ -6,11 +6,13 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 
 public final class MurshidCallOverlay {
+  private static final String TAG = "MurshidCallOverlay";
   private static final String PREFERENCES = "murshid_call_overlay";
   private static final String ENABLED_KEY = "incoming_call_overlay_enabled";
   private final Context context;
@@ -47,38 +49,44 @@ public final class MurshidCallOverlay {
   }
 
   private void showOnMainThread(MurshidCallerInfo info, boolean incoming) {
-    if (windowManager == null || !isEnabled(context) || !hasPermission(context)) {
-      removeOverlay();
-      return;
-    }
-    removeOverlay();
-    View next = new MurshidCallScreenView(context, info.displayName, info.number, info.lineLabel,
-        info.contactType, info.savedContact, info.favorite, info.contactLookupAvailable,
-        info.recentCallSummary, info.recentSmsSummary, info.verified, incoming);
-    int windowType = Build.VERSION.SDK_INT >= 26
-        ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        : WindowManager.LayoutParams.TYPE_PHONE;
-    int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
-        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-        | WindowManager.LayoutParams.FLAG_FULLSCREEN
-        | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
-        | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-        | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
-    WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-        WindowManager.LayoutParams.MATCH_PARENT,
-        WindowManager.LayoutParams.MATCH_PARENT,
-        windowType,
-        flags,
-        PixelFormat.TRANSLUCENT);
-    params.gravity = Gravity.TOP | Gravity.LEFT;
-    params.setTitle("مُرشد · شاشة المكالمة بملء الشاشة");
+    View next = null;
     try {
+      boolean permission = hasPermission(context);
+      if (windowManager == null || !isEnabled(context) || !permission) {
+        if (!permission) Log.w(TAG, "Overlay permission is not granted; rely on the InCallService notification UI");
+        removeOverlay();
+        return;
+      }
+      removeOverlay();
+      next = new MurshidCallScreenView(context, info.displayName, info.number, info.lineLabel,
+          info.contactType, info.savedContact, info.favorite, info.contactLookupAvailable,
+          info.recentCallSummary, info.recentSmsSummary, info.verified, incoming);
+      int windowType = Build.VERSION.SDK_INT >= 26
+          ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+          : WindowManager.LayoutParams.TYPE_PHONE;
+      int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+          | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+          | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+          | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+          | WindowManager.LayoutParams.FLAG_FULLSCREEN
+          | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+          | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+          | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
+      WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+          WindowManager.LayoutParams.MATCH_PARENT,
+          WindowManager.LayoutParams.MATCH_PARENT,
+          windowType,
+          flags,
+          PixelFormat.TRANSLUCENT);
+      params.gravity = Gravity.TOP | Gravity.LEFT;
+      params.setTitle("مُرشد · شاشة المكالمة بملء الشاشة");
       windowManager.addView(next, params);
       overlayView = next;
-    } catch (RuntimeException ignored) {
-      // The full-screen call Activity and Android's call notification remain the fallback.
+    } catch (RuntimeException error) {
+      Log.e(TAG, "Unable to build or attach call overlay; full-screen InCall notification remains the fallback", error);
+      if (next != null && next.getParent() != null && windowManager != null) {
+        try { windowManager.removeView(next); } catch (RuntimeException ignored) { }
+      }
       overlayView = null;
     }
   }

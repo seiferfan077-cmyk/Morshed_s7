@@ -2,6 +2,7 @@ import * as Location from 'expo-location';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, InteractionManager, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { showAppError } from '../components/AppDialogProvider';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { radii, spacing, typography, ThemeColors } from '../theme';
@@ -79,14 +80,12 @@ export function IslamicSection({ colors, onOpenQuran }: { colors: ThemeColors; o
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
   const [deviceHeading, setDeviceHeading] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const dhikr = ADHKAR[dhikrIndex];
   const qiblaDirection = useMemo(() => location ? getDirectionLabel(location.qiblaBearing) : null, [location]);
 
   const loadIslamicTimes = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== Location.PermissionStatus.GRANTED) {
@@ -118,7 +117,7 @@ export function IslamicSection({ colors, onOpenQuran }: { colors: ThemeColors; o
         Isha: cleanTime(payload.data.timings.Isha),
       });
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'تعذر تحديد المواقيت من موقعك.');
+      showAppError('تعذر تحديث مواقيت الصلاة', loadError instanceof Error ? loadError.message : 'تحقق من الموقع والاتصال ثم حاول مرة تانية.');
     } finally {
       setLoading(false);
     }
@@ -179,7 +178,6 @@ export function IslamicSection({ colors, onOpenQuran }: { colors: ThemeColors; o
           {loading ? <ActivityIndicator color={colors.paper} size="small" /> : <Ionicons name="locate-outline" size={18} color={colors.paper} />}
           <Text style={styles.primaryButtonText}>{prayerTimes ? 'تحديث من موقعي' : 'تحديد موقعي والمواقيت'}</Text>
         </Pressable>
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <Text style={styles.sourceText}>طريقة الحساب: رابطة العالم الإسلامي · المصدر: AlAdhan</Text>
       </SurfaceCard>
 

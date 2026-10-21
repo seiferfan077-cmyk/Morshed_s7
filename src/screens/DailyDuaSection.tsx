@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, Platform, Pressable, StyleSheet, Switch, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { showAppError } from '../components/AppDialogProvider';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { radii, spacing, ThemeColors, typography } from '../theme';
@@ -91,9 +92,11 @@ export function DailyDuaSection({ colors }: { colors: ThemeColors }) {
     try {
       const result = await saveDailyDuaSettings(next);
       if (!result.saved) {
-        setStatusMessage(result.reason ?? 'تعذر حفظ التذكير. حاول مرة أخرى.');
-        setStatusIsError(true);
+        const message = result.reason ?? 'تعذر حفظ التذكير. حاول مرة أخرى.';
+        setStatusMessage(null);
+        setStatusIsError(false);
         setRequiresSettings(result.requiresSettings === true);
+        showAppError('تعذر حفظ التذكير', message, { retryLabel: 'حاول مرة تانية', onRetry: () => { void persistSettings(next, successMessage); } });
         return false;
       }
       setSettings(next);
@@ -101,8 +104,9 @@ export function DailyDuaSection({ colors }: { colors: ThemeColors }) {
       setStatusIsError(Boolean(result.warning));
       return true;
     } catch {
-      setStatusMessage('تعذر حفظ التذكير. حاول مرة أخرى.');
-      setStatusIsError(true);
+      setStatusMessage(null);
+      setStatusIsError(false);
+      showAppError('تعذر حفظ التذكير', 'راجع إعدادات الإشعارات في جهازك وحاول مرة تانية.', { retryLabel: 'حاول مرة تانية', onRetry: () => { void persistSettings(next, successMessage); } });
       return false;
     } finally {
       setSaving(false);

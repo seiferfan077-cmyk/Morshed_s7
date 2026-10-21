@@ -2,7 +2,7 @@ import { handleChatRequest, handleHealthRequest } from './lib/chat-handler.js';
 import { handleChannelRequest, handleChannelAdminRequest } from './lib/channel-handler.js';
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const { pathname } = new URL(request.url);
 
     if (pathname === '/api/health') {
@@ -14,11 +14,11 @@ export default {
     }
 
     if (pathname.startsWith('/api/channel/admin/')) {
-      return handleChannelAdminRequest(request, env);
+      return handleChannelAdminRequest(request, env, undefined, ctx);
     }
 
     if (pathname.startsWith('/api/channel/')) {
-      return handleChannelRequest(request, env);
+      return handleChannelRequest(request, env, undefined, ctx);
     }
 
     return Response.json(

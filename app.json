@@ -2,7 +2,7 @@
   "expo": {
     "name": "مُرشد - S7",
     "slug": "murshid-s7",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -24,7 +24,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.murshid.s7",
-      "versionCode": 5,
+      "versionCode": 8,
       "permissions": [
         "com.android.launcher.permission.INSTALL_SHORTCUT"
       ]
@@ -54,10 +54,12 @@
         }
       ],
       "./plugins/withMurshidDialer",
+      "./plugins/withMurshidLargeHeap",
       "expo-image",
       "expo-audio",
       "expo-asset",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
@@ -68,6 +70,7 @@
     "updates": {
       "url": "https://u.expo.dev/c4512276-2c5f-4cd5-8c32-ef4550c79cf4",
       "checkAutomatically": "NEVER"
-    }
+    },
+    "scheme": "murshid"
   }
 }

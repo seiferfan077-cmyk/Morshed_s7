@@ -39,6 +39,7 @@ public final class MurshidCallScreenView extends LinearLayout {
 
   private final Handler timerHandler = new Handler(Looper.getMainLooper());
   private final long connectedAtMillis;
+  private final boolean incomingCall;
   private TextView durationText;
   private final Runnable durationTicker = new Runnable() {
     @Override public void run() {
@@ -53,6 +54,7 @@ public final class MurshidCallScreenView extends LinearLayout {
       boolean savedContact, boolean favoriteContact, boolean contactLookupAvailable,
       String recentCallSummary, String recentSmsSummary, boolean verified, boolean incoming) {
     super(context);
+    incomingCall = incoming;
     connectedAtMillis = incoming ? 0L : connectedAt();
     setOrientation(VERTICAL);
     setGravity(Gravity.CENTER_HORIZONTAL);
@@ -110,7 +112,7 @@ public final class MurshidCallScreenView extends LinearLayout {
 
     TextView counterLabel = text(incoming ? "بانتظار الرد" : "عداد ساعات", 20, Color.rgb(179, 191, 190), Typeface.BOLD);
     addView(counterLabel, params(WRAP_CONTENT, dp(29), 0, 0));
-    durationText = text("00:00:00", 31, Color.WHITE, Typeface.NORMAL);
+    durationText = text(incoming ? "—" : "00:00:00", 31, Color.WHITE, Typeface.NORMAL);
     durationText.setContentDescription("مدة المكالمة");
     addView(durationText, params(WRAP_CONTENT, dp(43), 0, dp(2)));
 
@@ -144,8 +146,14 @@ public final class MurshidCallScreenView extends LinearLayout {
           () -> Toast.makeText(getContext(), "المزيد من خيارات المكالمة قريبًا", Toast.LENGTH_SHORT).show()), params(0, dp(98), dp(4), 0, 1));
       secondRow.addView(action("☎", "إنهاء المكالمة", Color.rgb(184, 22, 29), Color.WHITE, true,
           () -> dispatch(MurshidInCallService.ACTION_HANGUP)), params(0, dp(98), dp(4), 0, 1));
-      secondRow.addView(action("⠿", "لوحة المفاتيح", Color.rgb(45, 55, 60), Color.WHITE, false,
-          () -> ((MurshidDialerActivity) getContext()).showCallDialPad()), params(0, dp(98), dp(4), 0, 1));
+      secondRow.addView(action("⠿", "لوحة المفاتيح", Color.rgb(45, 55, 60), Color.WHITE, false, () -> {
+        Context viewContext = getContext();
+        if (viewContext instanceof MurshidDialerActivity) {
+          ((MurshidDialerActivity) viewContext).showCallDialPad();
+        } else if (!MurshidInCallService.bringCallScreenToFront()) {
+          Toast.makeText(viewContext, "تعذر فتح شاشة المكالمة؛ استخدم إشعار المكالمة", Toast.LENGTH_SHORT).show();
+        }
+      }), params(0, dp(98), dp(4), 0, 1));
       addView(secondRow, params(MATCH_PARENT, dp(100), 0, 0));
     }
 
@@ -191,7 +199,7 @@ public final class MurshidCallScreenView extends LinearLayout {
 
   @Override protected void onAttachedToWindow() {
     super.onAttachedToWindow();
-    if (durationText != null) {
+    if (durationText != null && !incomingCall) {
       timerHandler.removeCallbacks(durationTicker);
       durationTicker.run();
     }

@@ -22,7 +22,15 @@
 
 تُحفظ `GEMINI_API_KEY` و`FIREBASE_PROJECT_ID` كأسرار على Cloudflare Worker، ولا يجوز وضعهما في التطبيق أو في Git أو في متغيرات `EXPO_PUBLIC_*`. إعداد Gemini وFirebase السري موجود في [دليل Backend](../backend/README.md).
 
+للبناء البعيد عبر EAS، أضف قيم Firebase العامة إلى بيئتي `production` و`preview` (و`development` عند الحاجة)، واجعلها متغيرات نصية عادية لأنها ستُضمّن في حزمة التطبيق. يقرأ البناء المحلي القيم من ملف البيئة المحلي. لا تضع مفاتيح Gemini أو كلمات مرور القناة في متغيرات `EXPO_PUBLIC_*`.
+
 إذا ظهرت حالة **إعداد الدخول مطلوب** داخل الشاشة، فتحقق من ضبط قيم Firebase العامة في بيئة بناء التطبيق ومن تفعيل Anonymous sign-in. زر **اختبر اتصال مرشد** يختبر مسار الطلب من الجهاز.
+
+## القناة الرسمية
+
+- تفتح القناة من تبويب **القناة الرسمية** أو زر **فتح القناة** في الصفحة الرئيسية. يرسل التطبيق Firebase ID token إلى المسار `/api/channel/feed` على عنوان `EXPO_PUBLIC_API_BASE_URL`.
+- يحتاج Cloudflare Worker إلى `FIREBASE_PROJECT_ID` مطابق لمشروع التطبيق، وربط D1 باسم `CHANNEL_DB`، ثم تطبيق `backend/channel-schema.sql` مرة واحدة.
+- قراءة المنشورات لا تحتاج كلمة مرور إدارة. النشر الإداري فقط يحتاج أسرار التهيئة `CHANNEL_OWNER_TEMP_PASSWORD` أو `CHANNEL_ADMIN_TEMP_PASSWORD` وقائمة UID المسموح بها على Worker؛ لا تحفظ هذه القيم داخل التطبيق.
 
 ## المحادثة والخصوصية
 

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEvent, useEventListener } from 'expo';
 import { Ionicons } from '@expo/vector-icons';
+import { showAppError } from '../components/AppDialogProvider';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -9,7 +10,7 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import { colors, radii, spacing, typography } from '../theme';
 
 const WELCOME_SEEN_KEY = '@murshid/welcome-seen';
-const WELCOME_VIDEO_URL = 'https://drive.google.com/uc?export=download&id=1DQ7qmZU_w83M7bwabfyhhvNfWEu_Ba82';
+const WELCOME_VIDEO = require('../../assets/video/welcome-intro.mp4');
 type WelcomeStage = 'intro' | 'video';
 
 export async function hasSeenWelcome() {
@@ -155,7 +156,7 @@ export function WelcomeScreen({ onComplete }: { onComplete: () => void }) {
 }
 
 function IntroVideoPlayer({ onContinue }: { onContinue: () => void }) {
-  const player = useVideoPlayer(WELCOME_VIDEO_URL, (videoPlayer) => {
+  const player = useVideoPlayer(WELCOME_VIDEO, (videoPlayer) => {
     videoPlayer.loop = false;
     videoPlayer.muted = false;
   });
@@ -172,6 +173,10 @@ function IntroVideoPlayer({ onContinue }: { onContinue: () => void }) {
   });
   const isReady = status === 'readyToPlay';
   const hasError = status === 'error';
+
+  useEffect(() => {
+    if (hasError) showAppError('تعذر تشغيل فيديو الترحيب', 'تقدر تتخطى الفيديو وتكمّل استخدام مُرشد عادي.');
+  }, [hasError]);
 
   const playFullscreen = () => {
     if (!isReady) return;
@@ -208,15 +213,9 @@ function IntroVideoPlayer({ onContinue }: { onContinue: () => void }) {
               <Text style={styles.videoStatusText}>جارٍ تجهيز الفيديو…</Text>
             </View>
           ) : null}
-          {hasError ? (
-            <View pointerEvents="none" style={styles.videoStatusOverlay}>
-              <Ionicons name="cloud-offline-outline" size={23} color="#F4BE5B" />
-              <Text style={styles.videoStatusText}>تعذر تحميل الفيديو. يمكنك الدخول إلى مُرشد والمتابعة لاحقاً.</Text>
-            </View>
-          ) : null}
         </View>
         <View style={styles.videoMetaRow}>
-          <Text style={styles.videoDuration}>{isReady ? 'جاهز للمشاهدة' : hasError ? 'تعذر التحميل' : 'اتصال آمن عبر Google Drive'}</Text>
+          <Text style={styles.videoDuration}>{isReady ? 'جاهز للمشاهدة' : hasError ? 'يمكنك متابعة الخطوات' : 'فيديو خفيف محفوظ داخل التطبيق'}</Text>
         </View>
       </View>
 
@@ -227,7 +226,7 @@ function IntroVideoPlayer({ onContinue }: { onContinue: () => void }) {
 
       <View style={styles.videoActions}>
         <Pressable accessibilityRole="button" accessibilityLabel="تشغيل فيديو التعريف بملء الشاشة" disabled={!isReady} onPress={playFullscreen} style={({ pressed }) => [styles.primaryButton, !isReady && styles.buttonDisabled, pressed && isReady && styles.buttonPressed]}>
-          <Text style={styles.primaryButtonText}>{hasError ? 'الفيديو غير متاح الآن' : isReady ? 'مشاهدة بملء الشاشة' : 'جارٍ تجهيز الفيديو'}</Text>
+          <Text style={styles.primaryButtonText}>{hasError ? 'متابعة إلى مُرشد' : isReady ? 'مشاهدة بملء الشاشة' : 'جارٍ تجهيز الفيديو'}</Text>
           {isReady ? <Ionicons name="expand-outline" size={18} color={colors.ink} /> : hasError ? <Ionicons name="alert-circle-outline" size={18} color={colors.ink} /> : <ActivityIndicator size="small" color={colors.ink} />}
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="تخطي الفيديو والدخول إلى التطبيق" onPress={onContinue} hitSlop={10} style={styles.skipButton}>

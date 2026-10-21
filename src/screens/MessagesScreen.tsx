@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { ActionButton } from '../components/ActionButton';
+import { showAppError } from '../components/AppDialogProvider';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { useAppTheme } from '../theme/ThemeProvider';
@@ -35,7 +36,6 @@ export function MessagesScreen() {
   const [messages, setMessages] = useState<SmsMessage[]>([]);
   const [isDefaultSmsApp, setIsDefaultSmsApp] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
 
   const refresh = useCallback(async () => {
     if (Platform.OS !== 'android') {
@@ -59,10 +59,10 @@ export function MessagesScreen() {
       const received = await smsBridge.getMessages();
       setMessages([...received].sort((left, right) => right.date - left.date));
       setState('ready');
-      setErrorMessage('');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر تحميل الرسائل من Android.');
+      const message = error instanceof Error ? error.message : 'تعذر تحميل الرسائل من Android.';
       setState('error');
+      showAppError('تعذر تحميل الرسائل', message);
     } finally {
       setRefreshing(false);
     }
@@ -81,8 +81,8 @@ export function MessagesScreen() {
       await IntentLauncher.startActivityAsync('com.murshid.s7.REQUEST_SMS_ROLE');
       await refresh();
     } catch {
-      setErrorMessage('تعذر فتح إعداد تطبيق الرسائل الافتراضي. يمكنك متابعة استخدام التطبيق بدونه.');
       setState('error');
+      showAppError('تعذر فتح إعداد الرسائل', 'يمكنك متابعة استخدام مُرشد دون جعله تطبيق الرسائل الافتراضي.');
     }
   }, [refresh]);
 
@@ -107,16 +107,13 @@ export function MessagesScreen() {
       await Clipboard.setStringAsync(body);
       Alert.alert('تم النسخ', 'أصبح نص الرسالة في الحافظة، ويمكنك لصقه في تطبيق الرسائل.');
     } catch {
-      Alert.alert('تعذر النسخ', 'حاول تحديد نص الرسالة بالضغط المطوّل ثم اختر نسخ.');
+      showAppError('تعذر نسخ الرسالة', 'حاول تحديد نص الرسالة بالضغط المطوّل ثم اختر نسخ.');
     }
   }, []);
 
   const deleteMessage = useCallback((message: SmsMessage) => {
     if (!isDefaultSmsApp) {
-      Alert.alert(
-        'الحذف غير متاح الآن',
-        'يسمح Android للتطبيق الافتراضي بإدارة رسائل صندوق SMS. يمكنك قراءة الرسالة ونسخها الآن، أو جعل مُرشد التطبيق الافتراضي اختياريًا لتفعيل الحذف.',
-      );
+      showAppError('الحذف غير متاح الآن', 'يسمح Android للتطبيق الافتراضي بإدارة رسائل صندوق SMS. يمكنك قراءة الرسالة ونسخها الآن، أو جعل مُرشد التطبيق الافتراضي اختياريًا لتفعيل الحذف.');
       return;
     }
     Alert.alert('حذف الرسالة؟', 'سيحذفها مُرشد من صندوق الرسائل على هذا الجهاز.', [
@@ -130,7 +127,7 @@ export function MessagesScreen() {
               await smsBridge?.deleteMessage(message.id);
               setMessages((current) => current.filter((item) => item.id !== message.id));
             } catch {
-              Alert.alert('تعذر حذف الرسالة', 'تحقق من أن مُرشد ما زال تطبيق الرسائل الافتراضي ثم أعد المحاولة.');
+              showAppError('تعذر حذف الرسالة', 'تحقق من أن مُرشد ما زال تطبيق الرسائل الافتراضي ثم أعد المحاولة.');
               await refresh();
             }
           })();
@@ -172,9 +169,9 @@ export function MessagesScreen() {
     gate = <SurfaceCard><Text style={styles.cardTitle}>قسم الرسائل متاح على Android</Text><Text style={styles.cardBody}>قراءة SMS وإدارتها غير متاحتين في نسخة iOS.</Text></SurfaceCard>;
   } else if (state === 'error') {
     gate = <SurfaceCard accent={colors.coral}>
-      <Text style={styles.cardTitle}>تعذر تحميل الرسائل</Text>
-      <Text style={styles.cardBody}>{errorMessage || 'تحقق من إذن قراءة SMS ثم أعد المحاولة.'}</Text>
-      <ActionButton tone="quiet" onPress={() => void refresh()}>إعادة المحاولة</ActionButton>
+      <Text style={styles.cardTitle}>صندوق الرسائل غير محدث</Text>
+      <Text style={styles.cardBody}>حدّث الصندوق للتحقق من أحدث حالة.</Text>
+      <ActionButton tone="quiet" onPress={() => void refresh()}>إعادة تحميل صندوق الرسائل</ActionButton>
     </SurfaceCard>;
   }
 

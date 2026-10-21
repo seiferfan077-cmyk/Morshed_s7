@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { ActionButton } from '../components/ActionButton';
+import { showAppError } from '../components/AppDialogProvider';
 import { RuqaaText as Text, RuqaaTextInput as TextInput } from '../components/RuqaaText';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { AIMessage, BackendAIProvider, AIRequestContext } from '../services/ai/aiService';
@@ -55,8 +56,6 @@ export function MurshidAIScreen() {
   const [busy, setBusy] = useState(false);
   const [testing, setTesting] = useState(false);
   const [connectionState, setConnectionState] = useState<ConnectionState>('ready');
-  const [sendError, setSendError] = useState<string | null>(null);
-  const [failedDraft, setFailedDraft] = useState('');
   const [typedTitle, setTypedTitle] = useState('');
   const [typedBody, setTypedBody] = useState('');
 
@@ -122,7 +121,7 @@ export function MurshidAIScreen() {
       Alert.alert('الاتصال ناجح', `وصل رد من خدمة مرشد: ${reply.content.slice(0, 120)}`);
     } catch (error) {
       setConnectionState('error');
-      Alert.alert('فشل اختبار الاتصال', providerErrorMessage(error));
+      showAppError('فشل اختبار الاتصال', providerErrorMessage(error), { retryLabel: 'اختبر مرة تانية', onRetry: () => { void testConnection(); } });
     } finally {
       setTesting(false);
     }
@@ -138,8 +137,6 @@ export function MurshidAIScreen() {
     setDraft('');
     setBusy(true);
     setConnectionState('checking');
-    setSendError(null);
-    setFailedDraft('');
     void AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(next)).catch(() => undefined);
 
     try {
@@ -153,8 +150,7 @@ export function MurshidAIScreen() {
     } catch (error) {
       setMessages(next);
       setConnectionState('error');
-      setSendError(providerErrorMessage(error));
-      setFailedDraft(content);
+      showAppError('الرسالة ماوصلهاش رد', providerErrorMessage(error), { retryLabel: 'إعادة المحاولة', onRetry: () => setDraft(content) });
       void AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(next)).catch(() => undefined);
     } finally {
       setBusy(false);
@@ -165,8 +161,6 @@ export function MurshidAIScreen() {
     { text: 'إلغاء', style: 'cancel' },
     { text: 'مسح', style: 'destructive', onPress: () => {
       setMessages([]);
-      setSendError(null);
-      setFailedDraft('');
       void AsyncStorage.removeItem(HISTORY_KEY);
     } },
   ]);
@@ -269,13 +263,6 @@ export function MurshidAIScreen() {
         <Text style={styles.thinkingText}>مرشد بيفكر في الرد…</Text>
       </View>}
 
-      {!!sendError && <View style={styles.errorPanel}>
-        <Text style={styles.errorTitle}>الرسالة لسه ما وصلهاش رد</Text>
-        <Text style={styles.errorText}>{sendError}</Text>
-        <ActionButton themeColors={AI_COLORS} tone="quiet" onPress={() => { setDraft(failedDraft); setSendError(null); }}>
-          رجّع الرسالة عشان تحاول تاني
-        </ActionButton>
-      </View>}
     </ScrollView>
 
     <View style={styles.composer}>

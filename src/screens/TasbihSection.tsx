@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import tasbihData from '../data/tasbihTexts.json';
+import { showAppError } from '../components/AppDialogProvider';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { radii, spacing, ThemeColors, typography } from '../theme';
@@ -63,6 +64,10 @@ export function TasbihSection({ colors }: { colors: ThemeColors }) {
   const [categoryId, setCategoryId] = useState('all');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [visibleLimit, setVisibleLimit] = useState(INITIAL_VISIBLE);
+
+  useEffect(() => {
+    if (storageError) showAppError('تعذر حفظ التسبيح', 'تعذر حفظ الإعدادات والعدادات على هذا الجهاز. تأكد من وجود مساحة متاحة ثم حاول مرة تانية.');
+  }, [storageError]);
 
   const activeDhikr = tasbihData.items.find((item) => item.id === activeId) ?? tasbihData.items[0];
   const count = counts[activeDhikr.id] ?? 0;
@@ -401,7 +406,6 @@ export function TasbihSection({ colors }: { colors: ThemeColors }) {
           <Pressable accessibilityRole="button" onPress={() => setConfirmReset(false)} style={styles.cancelButton}><Text style={styles.cancelButtonText}>إلغاء</Text></Pressable>
         </View>
       ) : null}
-      {storageError ? <Text style={styles.errorText}>تعذر حفظ الإعدادات والعدادات على هذا الجهاز.</Text> : null}
       {!hydrated ? <ActivityIndicator style={styles.spinner} size="small" color={colors.tealDark} /> : null}
     </SurfaceCard>
   );

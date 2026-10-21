@@ -21,9 +21,14 @@ import android.speech.tts.TextToSpeech;
 import android.telecom.Call;
 import android.telecom.CallAudioState;
 import android.telecom.InCallService;
+import android.util.Log;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 
 public class MurshidInCallService extends InCallService {
+  private static final String TAG = "MurshidInCallService";
   public static final String ACTION_ANSWER = "com.murshid.s7.ACTION_ANSWER";
   public static final String ACTION_REJECT = "com.murshid.s7.ACTION_REJECT";
   public static final String ACTION_HANGUP = "com.murshid.s7.ACTION_HANGUP";
@@ -40,14 +45,21 @@ public class MurshidInCallService extends InCallService {
   private static volatile boolean speakerEnabledState;
   private static volatile long ringtoneStartedAtElapsedRealtime;
   private Call.Callback currentCallCallback;
+  private MurshidCallerInfo currentCallerInfo;
   private MurshidCallOverlay callOverlay;
   private boolean incomingCallForOverlay;
   private boolean callScreenActivityVisible;
   private final Handler overlayHandler = new Handler(Looper.getMainLooper());
+  private final ExecutorService callerInfoExecutor = Executors.newSingleThreadExecutor(runnable -> {
+    Thread thread = new Thread(runnable, "MurshidCallerInfo");
+    thread.setDaemon(true);
+    return thread;
+  });
   private final Runnable refreshOverlayAfterActivity = () -> {
     if (!callScreenActivityVisible) refreshCallOverlayForCurrent();
   };
   private TextToSpeech speech;
+  private int speechGeneration;
   private Ringtone ringtone;
   private Vibrator callVibrator;
 
@@ -66,34 +78,42 @@ public class MurshidInCallService extends InCallService {
   @Override
   public void onCallAdded(Call call) {
     super.onCallAdded(call);
-    if (currentCall != null && currentCallCallback != null) currentCall.unregisterCallback(currentCallCallback);
+    if (currentCall != null) stopRinging();
+    if (currentCall != null && currentCallCallback != null) {
+      try { currentCall.unregisterCallback(currentCallCallback); }
+      catch (RuntimeException error) { Log.w(TAG, "Unable to unregister previous call callback", error); }
+    }
     currentCall = call;
     mutedState = false;
     speakerEnabledState = false;
     currentCallCallback = new Call.Callback() {
       @Override public void onStateChanged(Call changedCall, int state) {
         if (state == Call.STATE_RINGING) {
-          showCallNotification(MurshidCallerInfo.from(MurshidInCallService.this, changedCall), true);
+          incomingCallForOverlay = true;
+          showCallNotification(callerInfoFor(changedCall), true);
         } else {
           stopRinging();
           if (state == Call.STATE_DISCONNECTED) {
             broadcastCallState(changedCall, state);
             clearCall();
           }
-          else showCallNotification(MurshidCallerInfo.from(MurshidInCallService.this, changedCall), false);
+          else showCallNotification(callerInfoFor(changedCall), false);
         }
         if (state != Call.STATE_DISCONNECTED) broadcastCallState(changedCall, state);
         updateCallOverlay(changedCall, state);
       }
     };
-    call.registerCallback(currentCallCallback);
+    try { call.registerCallback(currentCallCallback); }
+    catch (RuntimeException error) { Log.e(TAG, "Unable to register call state callback", error); }
     incomingCallForOverlay = call.getState() == Call.STATE_RINGING;
-    MurshidCallerInfo info = MurshidCallerInfo.from(this, call);
+    MurshidCallerInfo info = MurshidCallerInfo.basicFrom(call);
+    currentCallerInfo = info;
     boolean incoming = call.getState() == Call.STATE_RINGING;
     showCallNotification(info, incoming);
     updateCallOverlay(call, call.getState());
     if (incoming) announceThenRing(info);
     broadcastCallState(call, call.getState());
+    enrichCallerInfoAsync(call);
   }
 
   @Override
@@ -119,7 +139,7 @@ public class MurshidInCallService extends InCallService {
     if (callOverlay != null) callOverlay.hide();
     Call call = currentCall;
     if (call == null) return;
-    MurshidCallerInfo info = MurshidCallerInfo.from(this, call);
+    MurshidCallerInfo info = callerInfoFor(call);
     String action = call.getState() == Call.STATE_RINGING
         ? MurshidDialerActivity.ACTION_INCOMING : MurshidDialerActivity.ACTION_ONGOING;
     try {
@@ -132,8 +152,10 @@ public class MurshidInCallService extends InCallService {
 
   @Override public void onDestroy() {
     overlayHandler.removeCallbacksAndMessages(null);
+    stopRinging();
     if (callOverlay != null) callOverlay.hide();
     if (activeService == this) activeService = null;
+    callerInfoExecutor.shutdownNow();
     super.onDestroy();
   }
 
@@ -147,21 +169,26 @@ public class MurshidInCallService extends InCallService {
     MurshidInCallService service = activeService;
     Call call = currentCall;
     if (service == null || call == null) return false;
-    if (ACTION_ANSWER.equals(action)) {
-      service.stopRinging();
-      call.answer(0);
-    } else if (ACTION_REJECT.equals(action) || ACTION_HANGUP.equals(action)) {
-      service.stopRinging();
-      call.disconnect();
-    } else if (ACTION_SET_MUTED.equals(action)) {
-      service.setMuted(enabled);
-      mutedState = enabled;
-      service.refreshCallOverlayForCurrent();
-    } else if (ACTION_SET_SPEAKER.equals(action)) {
-      service.setAudioRoute(enabled ? CallAudioState.ROUTE_SPEAKER : CallAudioState.ROUTE_EARPIECE);
-      speakerEnabledState = enabled;
-      service.refreshCallOverlayForCurrent();
-    } else {
+    try {
+      if (ACTION_ANSWER.equals(action)) {
+        service.stopRinging();
+        call.answer(0);
+      } else if (ACTION_REJECT.equals(action) || ACTION_HANGUP.equals(action)) {
+        service.stopRinging();
+        call.disconnect();
+      } else if (ACTION_SET_MUTED.equals(action)) {
+        service.setMuted(enabled);
+        mutedState = enabled;
+        service.refreshCallOverlayForCurrent();
+      } else if (ACTION_SET_SPEAKER.equals(action)) {
+        service.setAudioRoute(enabled ? CallAudioState.ROUTE_SPEAKER : CallAudioState.ROUTE_EARPIECE);
+        speakerEnabledState = enabled;
+        service.refreshCallOverlayForCurrent();
+      } else {
+        return false;
+      }
+    } catch (RuntimeException error) {
+      Log.e(TAG, "Telecom rejected call action " + action, error);
       return false;
     }
     return true;
@@ -196,6 +223,23 @@ public class MurshidInCallService extends InCallService {
     if (service != null) service.refreshCallOverlayForCurrent();
   }
 
+  public static boolean bringCallScreenToFront() {
+    MurshidInCallService service = activeService;
+    Call call = currentCall;
+    if (service == null || call == null) return false;
+    MurshidCallerInfo info = service.callerInfoFor(call);
+    String action = call.getState() == Call.STATE_RINGING
+        ? MurshidDialerActivity.ACTION_INCOMING : MurshidDialerActivity.ACTION_ONGOING;
+    try {
+      service.startActivity(service.createCallScreenIntent(info, action)
+          .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
+      return true;
+    } catch (RuntimeException error) {
+      Log.w(TAG, "Android blocked launching the call screen; notification UI remains available", error);
+      return false;
+    }
+  }
+
   private void refreshCallOverlayForCurrent() {
     Call call = currentCall;
     if (call == null) {
@@ -203,6 +247,29 @@ public class MurshidInCallService extends InCallService {
       return;
     }
     updateCallOverlay(call, call.getState());
+  }
+
+  private MurshidCallerInfo callerInfoFor(Call call) {
+    if (call == currentCall && currentCallerInfo != null) return currentCallerInfo;
+    return MurshidCallerInfo.basicFrom(call);
+  }
+
+  private void enrichCallerInfoAsync(Call call) {
+    try {
+      callerInfoExecutor.execute(() -> {
+        MurshidCallerInfo enriched = MurshidCallerInfo.safeFrom(this, call);
+        overlayHandler.post(() -> {
+          if (currentCall != call || call.getState() == Call.STATE_DISCONNECTED) return;
+          currentCallerInfo = enriched;
+          int state = call.getState();
+          showCallNotification(enriched, state == Call.STATE_RINGING);
+          updateCallOverlay(call, state);
+          broadcastCallState(call, state);
+        });
+      });
+    } catch (RejectedExecutionException error) {
+      Log.w(TAG, "Caller enrichment executor is unavailable; using basic call details", error);
+    }
   }
 
   private void updateCallOverlay(Call call, int state) {
@@ -213,10 +280,18 @@ public class MurshidInCallService extends InCallService {
       callOverlay.hide();
       return;
     }
-    callOverlay.show(MurshidCallerInfo.from(this, call), state == Call.STATE_RINGING);
+    callOverlay.show(callerInfoFor(call), state == Call.STATE_RINGING);
   }
 
   private void showCallNotification(MurshidCallerInfo info, boolean incoming) {
+    try {
+      showCallNotificationInternal(info, incoming);
+    } catch (RuntimeException error) {
+      Log.e(TAG, "Unable to post call notification; keeping InCallService alive", error);
+    }
+  }
+
+  private void showCallNotificationInternal(MurshidCallerInfo info, boolean incoming) {
     createChannel();
     Intent fullScreenIntent = createCallScreenIntent(info,
         incoming ? MurshidDialerActivity.ACTION_INCOMING : MurshidDialerActivity.ACTION_ONGOING);
@@ -245,7 +320,15 @@ public class MurshidInCallService extends InCallService {
         builder.addAction(new Notification.Action.Builder(android.R.drawable.sym_action_call, "رد", answer).build());
       }
     }
-    ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(NOTIFICATION_ID, builder.build());
+    NotificationManager manager = getSystemService(NotificationManager.class);
+    if (manager == null) {
+      Log.e(TAG, "NotificationManager unavailable; the Telecom call remains active without a notification");
+      return;
+    }
+    if (incoming && Build.VERSION.SDK_INT >= 34 && !manager.canUseFullScreenIntent()) {
+      Log.w(TAG, "Full-screen intent access is disabled; Android may show the call as a heads-up notification only");
+    }
+    manager.notify(NOTIFICATION_ID, builder.build());
   }
 
   private Intent createCallScreenIntent(MurshidCallerInfo info, String action) {
@@ -282,7 +365,7 @@ public class MurshidInCallService extends InCallService {
     Intent update = new Intent(ACTION_CALL_STATE_CHANGED);
     update.setPackage(getPackageName());
     update.putExtra(EXTRA_CALL_STATE, state);
-    MurshidCallerInfo info = MurshidCallerInfo.from(this, call);
+    MurshidCallerInfo info = callerInfoFor(call);
     update.putExtra(MurshidDialerActivity.EXTRA_CALLER_NAME, info.displayName);
     update.putExtra(MurshidDialerActivity.EXTRA_LINE_LABEL, info.lineLabel);
     update.putExtra(MurshidDialerActivity.EXTRA_CONTACT_TYPE, info.contactType);
@@ -304,50 +387,107 @@ public class MurshidInCallService extends InCallService {
   }
 
   private void announceThenRing(MurshidCallerInfo info) {
-    String caller = info.displayName == null || info.displayName.trim().isEmpty() ? "رقم غير معروف" : info.displayName;
+    String caller = info.displayName == null ? "" : info.displayName.trim();
     String number = info.number == null || info.number.trim().isEmpty() ? "رقم غير معروف" : info.number;
-    String spoken = "لديك الآن اتصال وارد من " + caller + "، رقم جهة الاتصال " + number;
-    speech = new TextToSpeech(this, status -> {
-      if (status != TextToSpeech.SUCCESS) { playRingtone(); return; }
-      int arabicStatus = speech.setLanguage(new Locale("ar"));
-      if (arabicStatus == TextToSpeech.LANG_MISSING_DATA || arabicStatus == TextToSpeech.LANG_NOT_SUPPORTED) speech.setLanguage(Locale.getDefault());
-      speech.setSpeechRate(0.95f);
-      if (Build.VERSION.SDK_INT >= 21) speech.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
-        @Override public void onStart(String utteranceId) { }
-        @Override public void onDone(String utteranceId) { playRingtone(); }
-        @Override public void onError(String utteranceId) { playRingtone(); }
-      });
-      if (Build.VERSION.SDK_INT >= 21) speech.speak(spoken, TextToSpeech.QUEUE_FLUSH, null, "murshid-caller");
-      else { speech.speak(spoken, TextToSpeech.QUEUE_FLUSH, null); playRingtone(); }
-    });
+    String spoken = caller.isEmpty()
+        ? "لديك الآن اتصال وارد من رقم " + number
+        : "لديك الآن اتصال وارد من " + caller + "، رقم جهة الاتصال " + number;
+    stopSpeech();
+    int generation = speechGeneration;
+    try {
+      speech = new TextToSpeech(this, status -> overlayHandler.post(
+          () -> handleSpeechInitialized(generation, status, spoken)));
+    } catch (RuntimeException error) {
+      Log.w(TAG, "Text-to-speech unavailable; starting the ringtone", error);
+      playRingtone();
+    }
+  }
+
+  private void handleSpeechInitialized(int generation, int status, String spoken) {
+    TextToSpeech engine = speech;
+    if (generation != speechGeneration || engine == null || currentCall == null
+        || currentCall.getState() != Call.STATE_RINGING) return;
+    if (status != TextToSpeech.SUCCESS) {
+      stopSpeech();
+      playRingtone();
+      return;
+    }
+    try {
+      int arabicStatus = engine.setLanguage(new Locale("ar"));
+      if (arabicStatus == TextToSpeech.LANG_MISSING_DATA || arabicStatus == TextToSpeech.LANG_NOT_SUPPORTED) {
+        engine.setLanguage(Locale.getDefault());
+      }
+      engine.setSpeechRate(0.95f);
+      if (Build.VERSION.SDK_INT >= 21) {
+        engine.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
+          @Override public void onStart(String utteranceId) { }
+          @Override public void onDone(String utteranceId) {
+            overlayHandler.post(() -> { if (isCurrentSpeech(generation)) playRingtone(); });
+          }
+          @Override public void onError(String utteranceId) {
+            overlayHandler.post(() -> { if (isCurrentSpeech(generation)) playRingtone(); });
+          }
+        });
+        if (engine.speak(spoken, TextToSpeech.QUEUE_FLUSH, null, "murshid-caller") == TextToSpeech.ERROR) {
+          playRingtone();
+        }
+      } else {
+        engine.speak(spoken, TextToSpeech.QUEUE_FLUSH, null);
+        playRingtone();
+      }
+    } catch (RuntimeException error) {
+      Log.w(TAG, "Text-to-speech failed during incoming call", error);
+      stopSpeech();
+      playRingtone();
+    }
+  }
+
+  private boolean isCurrentSpeech(int generation) {
+    return generation == speechGeneration && speech != null && currentCall != null
+        && currentCall.getState() == Call.STATE_RINGING;
+  }
+
+  private void stopSpeech() {
+    speechGeneration++;
+    TextToSpeech activeSpeech = speech;
+    speech = null;
+    if (activeSpeech != null) {
+      try { activeSpeech.stop(); } catch (RuntimeException error) { Log.w(TAG, "Unable to stop TTS", error); }
+      try { activeSpeech.shutdown(); } catch (RuntimeException error) { Log.w(TAG, "Unable to shut down TTS", error); }
+    }
   }
 
   private void playRingtone() {
     if (currentCall == null || currentCall.getState() != Call.STATE_RINGING || ringtone != null) return;
-    Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
-    ringtone = RingtoneManager.getRingtone(this, uri);
-    if (ringtone != null) {
-      ringtone.play();
-      ringtoneStartedAtElapsedRealtime = SystemClock.elapsedRealtime();
-      startSynchronizedVibration();
+    try {
+      Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
+      ringtone = RingtoneManager.getRingtone(this, uri);
+      if (ringtone != null) {
+        ringtone.play();
+        ringtoneStartedAtElapsedRealtime = SystemClock.elapsedRealtime();
+        startSynchronizedVibration();
+      }
+    } catch (RuntimeException error) {
+      ringtone = null;
+      Log.w(TAG, "Unable to start custom ringtone; Telecom call UI remains active", error);
     }
   }
 
   private void startSynchronizedVibration() {
-    if (callVibrator == null || !callVibrator.hasVibrator()) return;
-    AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
-    if (audio != null && audio.getRingerMode() == AudioManager.RINGER_MODE_SILENT) return;
-    // Three short taps at 0, 250 and 500 ms, followed by the same 3.39 s quiet
-    // interval used by the visual waveform's four-second ring cycle.
-    long[] timings = { 0L, 110L, 140L, 110L, 140L, 110L, 3390L };
     try {
+      if (callVibrator == null || !callVibrator.hasVibrator()) return;
+      AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
+      if (audio != null && audio.getRingerMode() == AudioManager.RINGER_MODE_SILENT) return;
+      // Three short taps at 0, 250 and 500 ms, followed by the same 3.39 s quiet
+      // interval used by the visual waveform's four-second ring cycle.
+      long[] timings = { 0L, 110L, 140L, 110L, 140L, 110L, 3390L };
       if (Build.VERSION.SDK_INT >= 26) {
         callVibrator.vibrate(VibrationEffect.createWaveform(timings, 0));
       } else {
         callVibrator.vibrate(timings, 0);
       }
-    } catch (RuntimeException ignored) {
-      // Vibration is an optional haptic cue; never interrupt call handling if the device blocks it.
+    } catch (RuntimeException error) {
+      Log.w(TAG, "Synchronized vibration unavailable; call UI and ringtone continue", error);
     }
   }
 
@@ -356,13 +496,20 @@ public class MurshidInCallService extends InCallService {
     if (callVibrator != null) {
       try { callVibrator.cancel(); } catch (RuntimeException ignored) { }
     }
-    if (speech != null) { speech.stop(); speech.shutdown(); speech = null; }
-    if (ringtone != null) { ringtone.stop(); ringtone = null; }
+    stopSpeech();
+    if (ringtone != null) {
+      try { ringtone.stop(); } catch (RuntimeException error) { Log.w(TAG, "Unable to stop ringtone", error); }
+      ringtone = null;
+    }
   }
 
   private void createChannel() {
     if (Build.VERSION.SDK_INT < 26) return;
     NotificationManager manager = getSystemService(NotificationManager.class);
+    if (manager == null) {
+      Log.e(TAG, "NotificationManager unavailable; cannot create incoming-call channel");
+      return;
+    }
     if (manager.getNotificationChannel(CHANNEL_ID) != null) return;
     NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "مكالمات مُرشد الواردة", NotificationManager.IMPORTANCE_HIGH);
     channel.setSound(null, null);
@@ -378,6 +525,7 @@ public class MurshidInCallService extends InCallService {
     if (currentCall != null && currentCallCallback != null) currentCall.unregisterCallback(currentCallCallback);
     currentCallCallback = null;
     currentCall = null;
+    currentCallerInfo = null;
     mutedState = false;
     speakerEnabledState = false;
     NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);

@@ -3,6 +3,7 @@ import * as Speech from 'expo-speech';
 import { useMemo, useState } from 'react';
 import { Linking, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { showAppError } from '../components/AppDialogProvider';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { radii, spacing, typography, ThemeColors } from '../theme';
@@ -33,7 +34,6 @@ export function NawawiSection({ colors }: { colors: ThemeColors }) {
   const [selectedIndex, setSelectedIndex] = useState(1);
   const [selectedCollection, setSelectedCollection] = useState('nawawi');
   const [status, setStatus] = useState<StatusFilter>('all');
-  const [notice, setNotice] = useState<string | null>(null);
   const localCollection = LIBRARY.collections.find((item) => item.id === selectedCollection) ?? LIBRARY.collections[10];
   const filtered = useMemo(() => {
     const term = normalize(query.trim());
@@ -43,17 +43,24 @@ export function NawawiSection({ colors }: { colors: ThemeColors }) {
     return DATA.hadiths.filter((item) => normalize(`${item.index} ${item.title} ${item.hadith} ${item.explanation}`).includes(term));
   }, [query, selectedCollection, status]);
   const selected = filtered.find((item) => item.index === selectedIndex) ?? filtered[0] ?? DATA.hadiths[0];
-  const showNotice = (message: string) => { setNotice(message); setTimeout(() => setNotice(null), 3500); };
-  const shareText = async () => { await Share.share({ message: `${selected.title}\n\n${hadithBody(selected)}\n\nالمصدر: ${DATA.source.title}\nفريق مطورين مُرشد\n${LIBRARY.officialSite}` }); };
+  const shareText = async () => {
+    try { await Share.share({ message: `${selected.title}\n\n${hadithBody(selected)}\n\nالمصدر: ${DATA.source.title}\nفريق مطورين مُرشد\n${LIBRARY.officialSite}` }); }
+    catch { showAppError('تعذر مشاركة الحديث', 'حاول مرة تانية أو انسخ نص الحديث يدويًا.'); }
+  };
   const readAloud = () => { Speech.stop(); Speech.speak(`${selected.title}. ${hadithBody(selected)}`, { language: 'ar-SA', rate: 0.85 }); };
   const shareImage = async () => {
     const directory = FileSystem.cacheDirectory;
-    if (!directory) { showNotice('تعذر إنشاء ملف الصورة على هذا الجهاز.'); return; }
-    const uri = `${directory}murshid-hadith-${selected.index}.svg`;
-    await FileSystem.writeAsStringAsync(uri, createSvg(selected), { encoding: FileSystem.EncodingType.UTF8 });
-    await Share.share({ url: uri, message: 'حديث من مُرشد — ملف صورة SVG قابل للمشاركة' });
+    if (!directory) { showAppError('تعذر تجهيز صورة الحديث', 'مساحة الملفات المؤقتة غير متاحة على هذا الجهاز.'); return; }
+    try {
+      const uri = `${directory}murshid-hadith-${selected.index}.svg`;
+      await FileSystem.writeAsStringAsync(uri, createSvg(selected), { encoding: FileSystem.EncodingType.UTF8 });
+      await Share.share({ url: uri, message: 'حديث من مُرشد — ملف صورة SVG قابل للمشاركة' });
+    } catch { showAppError('تعذر مشاركة صورة الحديث', 'ماقدرناش نجهز الصورة أو نفتح قائمة المشاركة. حاول مرة تانية.'); }
   };
-  const openCollection = async () => { await Linking.openURL(localCollection.url); };
+  const openCollection = async () => {
+    try { await Linking.openURL(localCollection.url); }
+    catch { showAppError('تعذر فتح المصدر', 'تحقق من اتصال الإنترنت أو وجود متصفح على الجهاز.'); }
+  };
 
   return (
     <>
@@ -89,7 +96,6 @@ export function NawawiSection({ colors }: { colors: ThemeColors }) {
           <Text style={styles.footer}>فريق مطورين مُرشد · {LIBRARY.officialSite}</Text>
         </SurfaceCard>
       </>}
-      {notice ? <Text style={styles.notice}>{notice}</Text> : null}
       <Text style={styles.source}>{DATA.source.notice} المصدر المحلي: {DATA.source.title}. {LIBRARY.sourcePolicy}</Text>
     </>
   );

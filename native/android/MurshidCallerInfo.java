@@ -12,6 +12,7 @@ import android.telecom.Call;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
+import android.util.Log;
 import androidx.core.content.ContextCompat;
 import java.util.Collections;
 import java.util.HashSet;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class MurshidCallerInfo {
+  private static final String TAG = "MurshidCallerInfo";
   public final String number;
   public final String displayName;
   public final String lineLabel;
@@ -58,6 +60,30 @@ public final class MurshidCallerInfo {
     return new MurshidCallerInfo(number, contact.name, lineLabel, contact.type,
         contact.saved, contact.favorite, contact.lookupAvailable, verified,
         recentCallSummary, recentSmsSummary);
+  }
+
+  /** Fast, provider-free data for rendering a call before optional lookups finish. */
+  public static MurshidCallerInfo basicFrom(Call call) {
+    String number = "رقم غير معروف";
+    try {
+      Uri handle = call == null || call.getDetails() == null ? null : call.getDetails().getHandle();
+      String candidate = handle == null ? null : handle.getSchemeSpecificPart();
+      if (candidate != null && !candidate.trim().isEmpty()) number = candidate;
+    } catch (RuntimeException error) {
+      Log.w(TAG, "Unable to read incoming call handle", error);
+    }
+    return new MurshidCallerInfo(number, "", "خط الهاتف", "", false, false,
+        false, false, "", "");
+  }
+
+  /** Optional contact, call-log and SMS data must never take down Telecom's call UI. */
+  public static MurshidCallerInfo safeFrom(Context context, Call call) {
+    try {
+      return from(context, call);
+    } catch (RuntimeException error) {
+      Log.e(TAG, "Caller enrichment failed; keeping the call UI available", error);
+      return basicFrom(call);
+    }
   }
 
   private static String recentCalls(Context context, String number) {

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { showAppError } from '../components/AppDialogProvider';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { SupportWebsiteModal } from './SupportWebsiteModal';
 import { spacing, typography, ThemeColors } from '../theme';
@@ -21,7 +22,7 @@ export function SettingsScreen() {
     try {
       await IntentLauncher.startActivityAsync('com.murshid.s7.OPEN_DIALER');
     } catch {
-      Alert.alert('تعذر فتح الإعداد', 'افتح تطبيق مُرشد على Android ثم أعد المحاولة.');
+      showAppError('تعذر فتح الإعداد', 'افتح تطبيق مُرشد على Android ثم أعد المحاولة.', { retryLabel: 'إعادة المحاولة', onRetry: () => { void openCallSetup(); } });
     }
   };
   const enableCallSummary = async () => {
@@ -32,7 +33,7 @@ export function SettingsScreen() {
     try {
       await IntentLauncher.startActivityAsync('com.murshid.s7.REQUEST_CALL_SUMMARY_PERMISSION');
     } catch {
-      Alert.alert('تعذر فتح الإعداد', 'افتح مُرشد على Android ثم أعد المحاولة.');
+      showAppError('تعذر فتح الإعداد', 'افتح مُرشد على Android ثم أعد المحاولة.', { retryLabel: 'إعادة المحاولة', onRetry: () => { void enableCallSummary(); } });
     }
   };
 

@@ -7,16 +7,43 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "environment": "development",
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDeWSZVjm9NDTZ9fqXma318xxyKMKqMEUc",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "chat-5e935.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "chat-5e935",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "chat-5e935.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "231307311782",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:231307311782:web:27bdf39b82e8a6b4899267"
+      },
       "channel": "development"
     },
     "preview": {
       "distribution": "internal",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDeWSZVjm9NDTZ9fqXma318xxyKMKqMEUc",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "chat-5e935.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "chat-5e935",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "chat-5e935.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "231307311782",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:231307311782:web:27bdf39b82e8a6b4899267"
+      },
       "channel": "preview",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDeWSZVjm9NDTZ9fqXma318xxyKMKqMEUc",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "chat-5e935.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "chat-5e935",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "chat-5e935.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "231307311782",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:231307311782:web:27bdf39b82e8a6b4899267"
+      },
       "channel": "production",
       "android": {
         "buildType": "apk"
