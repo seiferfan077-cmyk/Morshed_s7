@@ -7,7 +7,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.19.2",
     "@react-navigation/native": "^7.4.1",
-    "expo": "~57.0.30",
+    "expo": "~57.0.31",
     "expo-asset": "~57.0.20",
     "expo-audio": "~57.0.5",
     "expo-auth-session": "~57.0.16",
@@ -18,9 +18,9 @@
     "expo-font": "~57.0.4",
     "expo-image": "~57.0.5",
     "expo-intent-launcher": "~57.0.1",
-    "expo-location": "~57.0.21",
+    "expo-location": "~57.0.22",
     "expo-media-library": "~57.0.5",
-    "expo-notifications": "~57.0.23",
+    "expo-notifications": "~57.0.24",
     "expo-secure-store": "~57.0.4",
     "expo-speech": "^57.0.3",
     "expo-sqlite": "~57.0.4",
@@ -62,7 +62,8 @@
     "backend:test": "npm --prefix backend test",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "check": "npm run lint && npm run typecheck && npm run notifications:test && npm run dua:test && npm run tasbih:test && npm run tasbih:data:test && npm run quran:test && npm run nawawi:test"
+    "check": "npm run lint && npm run typecheck && npm run notifications:test && npm run dua:test && npm run tasbih:test && npm run tasbih:data:test && npm run quran:test && npm run nawawi:test",
+    "pomodoro:test": "rm -rf .tmp-pomodoro-test && ./node_modules/.bin/tsc --ignoreConfig --types node --rootDir src/services --outDir .tmp-pomodoro-test --module commonjs --target es2022 --skipLibCheck src/services/pomodoro/pomodoroPolicy.ts src/services/ai/chatHistoryStorage.ts && node tests/pomodoro-policy.test.js && node tests/chat-history-storage.test.js && rm -rf .tmp-pomodoro-test"
   },
   "private": true
 }

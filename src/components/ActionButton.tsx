@@ -10,14 +10,16 @@ type ActionButtonProps = PropsWithChildren<{
   themeColors?: ThemeColors;
   buttonStyle?: StyleProp<ViewStyle>;
   labelStyle?: StyleProp<TextStyle>;
+  accessibilityLabel?: string;
 }>;
 
-export function ActionButton({ children, onPress, tone = 'primary', themeColors, buttonStyle, labelStyle }: ActionButtonProps) {
+export function ActionButton({ children, onPress, tone = 'primary', themeColors, buttonStyle, labelStyle, accessibilityLabel }: ActionButtonProps) {
   const { colors: appColors } = useAppTheme();
   const styles = createStyles(themeColors ?? appColors);
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       style={({ pressed }) => [styles.base, tone === 'quiet' ? styles.quiet : styles.primary, buttonStyle, pressed && styles.pressed]}
     >

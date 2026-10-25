@@ -263,10 +263,17 @@ module.exports = function withMurshidDialer(config) {
 
   config = withAppBuildGradle(config, (config) => {
     const contents = config.modResults.contents;
-    if (!contents.includes('androidx.work:work-runtime')) {
+    const requiredDependencies = [
+      ['androidx.work:work-runtime', 'implementation("androidx.work:work-runtime:2.10.0")'],
+      ['com.google.guava:listenablefuture', 'implementation("com.google.guava:listenablefuture:1.0")'],
+    ];
+    const missingDependencies = requiredDependencies
+      .filter(([coordinate]) => !contents.includes(coordinate))
+      .map(([, declaration]) => `    ${declaration}`);
+    if (missingDependencies.length > 0) {
       const dependencyBlock = /dependencies\s*\{/;
       if (!dependencyBlock.test(contents)) throw new Error('withMurshidDialer: app Gradle dependencies block was not found.');
-      config.modResults.contents = contents.replace(dependencyBlock, (match) => `${match}\n    implementation("androidx.work:work-runtime:2.10.0")`);
+      config.modResults.contents = contents.replace(dependencyBlock, (match) => `${match}\n${missingDependencies.join('\n')}`);
     }
     return config;
   });
