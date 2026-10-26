@@ -262,19 +262,32 @@ module.exports = function withMurshidDialer(config) {
   });
 
   config = withAppBuildGradle(config, (config) => {
-    const contents = config.modResults.contents;
+    let contents = config.modResults.contents;
+    contents = contents.replace(
+      /^[ \t]*implementation\(["']com\.google\.guava:listenablefuture:1\.0["']\)[ \t]*(?:\/\/[^\r\n]*)?(?:\r?\n|$)/gm,
+      '',
+    );
     const requiredDependencies = [
-      ['androidx.work:work-runtime', 'implementation("androidx.work:work-runtime:2.10.0")'],
-      ['com.google.guava:listenablefuture', 'implementation("com.google.guava:listenablefuture:1.0")'],
+      ['androidx.work:work-runtime:2.10.0', 'implementation("androidx.work:work-runtime:2.10.0")'],
+      ['com.google.guava:guava:33.7.2-android', 'implementation("com.google.guava:guava:33.7.2-android")'],
     ];
+    const hasActiveDependency = (notation) => {
+      const escapedNotation = notation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const declarationPattern = new RegExp(
+        `^[\\t ]*(?:implementation|api|compileOnly|runtimeOnly)\\s*(?:\\(\\s*)?["']${escapedNotation}["']\\s*\\)?[\\t ]*(?:\\/\\/[^\\r\\n]*)?$`,
+        'm',
+      );
+      return declarationPattern.test(contents);
+    };
     const missingDependencies = requiredDependencies
-      .filter(([coordinate]) => !contents.includes(coordinate))
+      .filter(([notation]) => !hasActiveDependency(notation))
       .map(([, declaration]) => `    ${declaration}`);
     if (missingDependencies.length > 0) {
       const dependencyBlock = /dependencies\s*\{/;
       if (!dependencyBlock.test(contents)) throw new Error('withMurshidDialer: app Gradle dependencies block was not found.');
-      config.modResults.contents = contents.replace(dependencyBlock, (match) => `${match}\n${missingDependencies.join('\n')}`);
+      contents = contents.replace(dependencyBlock, (match) => `${match}\n${missingDependencies.join('\n')}`);
     }
+    config.modResults.contents = contents;
     return config;
   });
 
