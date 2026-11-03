@@ -1,18 +1,36 @@
 import { useAppTheme } from '../theme/ThemeProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { RuqaaText as Text } from '../components/RuqaaText';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import * as IntentLauncher from 'expo-intent-launcher';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { showAppError } from '../components/AppDialogProvider';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { SupportWebsiteModal } from './SupportWebsiteModal';
 import { spacing, typography, ThemeColors } from '../theme';
+import { TabOrderEditor } from '../navigation/TabOrderEditor';
+import { useTabPreferences } from '../navigation/TabPreferences';
+import type { RootTabParamList } from '../navigation/AppNavigator';
 
 export function SettingsScreen() {
   const { colors, mode, setMode } = useAppTheme();
   const styles = createStyles(colors);
+  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
+  const { tabOrder } = useTabPreferences();
+  const settingsIndex = tabOrder.indexOf('الإعدادات');
+  const swipeResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponderCapture: (_event, gesture) => Math.abs(gesture.dx) > 42 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.3,
+    onPanResponderRelease: (_event, gesture) => {
+      if (Math.abs(gesture.dx) < 68 || Math.abs(gesture.dx) <= Math.abs(gesture.dy) * 1.3) return;
+      const step = gesture.dx > 0 ? -1 : 1;
+      const destination = tabOrder[settingsIndex + step];
+      if (destination) navigation.navigate(destination);
+    },
+  }), [navigation, settingsIndex, tabOrder]);
   const [supportVisible, setSupportVisible] = useState(false);
   const openCallSetup = async () => {
     if (Platform.OS !== 'android') {
@@ -38,8 +56,10 @@ export function SettingsScreen() {
   };
 
   return (
+    <View style={styles.screen} {...swipeResponder.panHandlers}>
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <ScreenHeader eyebrow="Settings" title="الإعدادات" detail="تحكم في السلوك والاتصالات ومظهر التطبيق." />
+      <Text style={{ ...typography.body, color: colors.inkMuted, textAlign: 'center', fontSize: 12 }}>اسحب يمين أو شمال للتنقل بين صفحات التطبيق.</Text>
       <View style={styles.themeSection}>
         <View style={styles.themeCopy}>
           <Text style={styles.title}>مظهر التطبيق</Text>
@@ -56,6 +76,7 @@ export function SettingsScreen() {
           </Pressable>
         </View>
       </View>
+      <TabOrderEditor />
       <SurfaceCard>
         <Pressable
           accessibilityRole="button"
@@ -103,6 +124,7 @@ export function SettingsScreen() {
       </SurfaceCard>
       <SupportWebsiteModal visible={supportVisible} onClose={() => setSupportVisible(false)} />
     </ScrollView>
+    </View>
   );
 }
 

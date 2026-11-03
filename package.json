@@ -13,6 +13,7 @@
     "expo-auth-session": "~57.0.16",
     "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.22",
+    "expo-dev-client": "~57.0.20",
     "expo-document-picker": "~57.0.3",
     "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
@@ -32,8 +33,11 @@
     "firebase": "^12.19.0",
     "react": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-nitro-google-signin": "~2.3.1",
+    "react-native-nitro-modules": "^0.37.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4",
     "react-native-webview": "13.16.1"
   },
   "devDependencies": {

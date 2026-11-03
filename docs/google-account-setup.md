@@ -6,7 +6,7 @@
 
 1. في Firebase Console، افتح **Authentication → Sign-in method** وفعّل مزوّد **Google** للمشروع نفسه الذي يستخدمه التطبيق.
 2. في Google Cloud Console، استخدم المشروع نفسه، وأكمل إعداد شاشة موافقة OAuth، ثم أنشئ معرّفات OAuth المناسبة للتطبيق.
-3. اضبط معرّف Android لتطابق حزمة التطبيق `com.murshid.s7` وبصمة SHA-1 لشهادة التوقيع المستخدمة في البناء. معرّف iOS اختياري إلى أن تُحدد حزمة iOS النهائية للتطبيق.
+3. تأكد من وجود OAuth client مستقل من نوع **Android** مربوط بالحزمة `com.murshid.s7` وبصمة SHA-1 الصحيحة لشهادة توقيع EAS، وأضف أيضًا SHA-1 الخاص بـ **Google Play App Signing** عند النشر عبر المتجر. معرّف Android يجب أن يكون من نوع Android، وليس نسخة من معرّف Web.
 4. تُقرأ القيم المحلية من `.env`، كما أُضيفت معرّفات Android والويب وصور Google إلى بروفايل EAS الإنتاجي. هذه **معرّفات عميل عامة وليست أسرارًا**، وستكون مضمنة في التطبيق:
 
 ```text
@@ -15,7 +15,9 @@ EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=
 ```
 
-يحتاج Android إلى `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`، ويحتاج iOS إلى `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`. لا تضع Client Secret أو مفتاح خدمة Google داخل التطبيق أو في متغير يبدأ بـ `EXPO_PUBLIC_`.
+في Android، يستخدم التطبيق الآن Google Credential Manager من خلال وحدة أصلية ويطلب `idToken` باستخدام `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`؛ لذلك لا يفتح تدفق OAuth داخل المتصفح ولا يعتمد على custom URI redirect الذي تسبب بالخطأ. يجب أن يكون معرّف Web من نوع **Web application**، وأن يكون مزود Google مفعّلًا في Firebase للمشروع نفسه. معرّف Android يظل مطلوبًا ومسجلًا في Google Cloud للتحقق من package + SHA-1، لكنه لا يُمرر إلى تدفق Android الأصلي. أما iOS فيبقى على تدفقه السابق ويتطلب `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`. لا تضع Client Secret أو مفتاح خدمة Google داخل التطبيق أو في متغير يبدأ بـ `EXPO_PUBLIC_`.
+
+حزمة `react-native-nitro-google-signin` لا تعمل داخل Expo Go. سجّل الدخول واختبره في نسخة Android مبنية من المشروع. لا يحتاج مسار Android ذي معرّف Web الصريح إلى `google-services.json`، لكنه يحتاج إلى بناء native جديد حتى تُضمّن وحدة Google وNitro.
 
 ## Google Photos
 
@@ -30,4 +32,4 @@ npx eas-cli build --platform android --profile production
 npx eas-cli build --platform android --profile production-aab
 ```
 
-قبل البناء، تأكد أن قيمة `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` هي فعلًا معرّف OAuth من نوع Android المسجل للحزمة `com.murshid.s7` وبصمة SHA-1 الخاصة بشهادة التوقيع. إذا ظهر تنبيه الإعداد غير مكتمل، راجع تفعيل Google في Firebase ومعرّف OAuth المطابق لنظام الهاتف.
+قبل البناء، تأكد أن `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` هو معرّف Web الصحيح، وأن Android OAuth client في Google Cloud مربوط بـ`com.murshid.s7` وبصمات SHA-1 لشهادة EAS وGoogle Play. لا تستخدم Web client ID مكان Android client في Google Cloud. بعد تثبيت APK الجديد، جرّب اختيار الحساب وتحقق من ظهور البريد في بطاقة الحساب؛ لا يكفي تصدير JavaScript أو نشر OTA لإثبات نجاح التدفق الأصلي.

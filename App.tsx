@@ -12,6 +12,7 @@ import { showDailyUpdateNotificationIfDue } from './src/services/notifications/d
 import { hasSeenWelcome, WelcomeScreen } from './src/screens/WelcomeScreen';
 import { hasOpenedRequiredWebsite, WebsiteLaunchGate } from './src/screens/WebsiteLaunchGate';
 import { ThemeProvider, useAppTheme } from './src/theme/ThemeProvider';
+import { TabPreferencesProvider } from './src/navigation/TabPreferences';
 
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({
@@ -104,5 +105,5 @@ function ThemedApp({ websiteGateRequired, onWebsiteGateComplete }: { websiteGate
   const { colors, mode, ready } = useAppTheme();
   useEffect(() => { void SystemUI.setBackgroundColorAsync(colors.surface).catch(() => undefined); }, [colors.surface]);
   if (!ready) return null;
-  return <View style={{ flex: 1, backgroundColor: colors.surface }}><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{websiteGateRequired ? <WebsiteLaunchGate onComplete={onWebsiteGateComplete} /> : <AppNavigator />}</View>;
+  return <TabPreferencesProvider><View style={{ flex: 1, backgroundColor: colors.surface }}><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{websiteGateRequired ? <WebsiteLaunchGate onComplete={onWebsiteGateComplete} /> : <AppNavigator />}</View></TabPreferencesProvider>;
 }

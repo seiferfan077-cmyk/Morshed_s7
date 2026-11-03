@@ -9,7 +9,8 @@ import { ActionButton } from '../components/ActionButton';
 import { showAppError } from '../components/AppDialogProvider';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { useIdTokenAuthRequest } from 'expo-auth-session/providers/google';
-import { User } from 'firebase/auth';
+import { GoogleOneTapSignIn, isCancelledResponse, isNoSavedCredentialFoundResponse, isSuccessResponse } from 'react-native-nitro-google-signin';
+import type { User } from 'firebase/auth';
 import { signInWithGoogleIdToken, signOutFirebaseUser, subscribeToFirebaseUser } from '../services/firebase/firebaseAuthService';
 import { MURSHID_FEATURES_URL, SupportWebsiteModal } from './SupportWebsiteModal';
 import { RootTabParamList } from '../navigation/AppNavigator';
@@ -17,8 +18,7 @@ import { radii, spacing, typography, ThemeColors } from '../theme';
 
 type QuickTarget = 'Browser' | 'Media' | 'Files' | 'Channel';
 const ANNOUNCEMENT_TEXT = 'عزيزي مستخدم مُرشد،\n\nمُرشد المتكامل يجمع لك المساعد الذكي، ومكتبة الوسائط، والرسائل، والمتصفح، والميزات اليومية في تطبيق واحد. تابع موقعنا الإلكتروني لمعرفة آخر التحديثات والمميزات الجديدة.\n\nشكرًا لثقتكم ودعمكم.';
-const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? process.env.EXPO_PUBLIC_GOOGLE_PHOTOS_CLIENT_ID ?? '';
-const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '';
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '';
 const GOOGLE_CLIENT_ID_FALLBACK = 'google-oauth-not-configured.apps.googleusercontent.com';
 
@@ -61,14 +61,13 @@ function GoogleAccountCard() {
   const [user, setUser] = useState<User | null>(null);
   const [busy, setBusy] = useState(false);
   const [request, , promptAsync] = useIdTokenAuthRequest({
-    clientId: Platform.OS === 'android' ? GOOGLE_ANDROID_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK : Platform.OS === 'ios' ? GOOGLE_IOS_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK : GOOGLE_WEB_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK,
+    clientId: Platform.OS === 'ios' ? GOOGLE_IOS_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK : GOOGLE_WEB_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK,
     webClientId: GOOGLE_WEB_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK,
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK,
     iosClientId: GOOGLE_IOS_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK,
     selectAccount: true,
-  }, { scheme: 'murshid' });
+  }, Platform.OS === 'android' ? {} : { scheme: 'murshid' });
   const hasPlatformClientId = Platform.OS === 'android'
-    ? Boolean(GOOGLE_ANDROID_CLIENT_ID)
+    ? Boolean(GOOGLE_WEB_CLIENT_ID)
     : Platform.OS === 'ios'
       ? Boolean(GOOGLE_IOS_CLIENT_ID)
       : Boolean(GOOGLE_WEB_CLIENT_ID);
@@ -81,13 +80,26 @@ function GoogleAccountCard() {
       showAppError('تسجيل الدخول بحساب Google غير جاهز', 'يلزم ضبط معرّف OAuth الخاص بنظام هاتفك، وتفعيل Google في مصادقة Firebase. بعد ضبطهما هيظهر اختيار الحساب هنا.');
       return;
     }
-    if (!request || busy) return;
+    if (busy) return;
+    if (Platform.OS !== 'android' && !request) return;
     setBusy(true);
     try {
-      const result = await promptAsync();
-      if (result.type === 'cancel' || result.type === 'dismiss') return;
-      if (result.type !== 'success') throw result.type === 'error' ? result.error ?? new Error('google_oauth_failed') : new Error('google_oauth_incomplete');
-      const idToken = result.authentication?.idToken ?? result.params.id_token;
+      let idToken: string | null | undefined;
+      if (Platform.OS === 'android') {
+        GoogleOneTapSignIn.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
+        await GoogleOneTapSignIn.checkPlayServices();
+        let result = await GoogleOneTapSignIn.signIn();
+        if (isNoSavedCredentialFoundResponse(result)) result = await GoogleOneTapSignIn.createAccount();
+        if (isNoSavedCredentialFoundResponse(result)) result = await GoogleOneTapSignIn.presentExplicitSignIn();
+        if (isCancelledResponse(result)) return;
+        if (!isSuccessResponse(result)) throw new Error('google_signin_incomplete');
+        idToken = result.data.idToken;
+      } else {
+        const result = await promptAsync();
+        if (result.type === 'cancel' || result.type === 'dismiss') return;
+        if (result.type !== 'success') throw result.type === 'error' ? result.error ?? new Error('google_oauth_failed') : new Error('google_oauth_incomplete');
+        idToken = result.authentication?.idToken ?? result.params.id_token;
+      }
       if (!idToken) throw new Error('google_id_token_missing');
       await signInWithGoogleIdToken(idToken);
     } catch {
@@ -100,6 +112,7 @@ function GoogleAccountCard() {
   const signOut = async () => {
     try {
       await signOutFirebaseUser();
+      if (Platform.OS === 'android') await GoogleOneTapSignIn.signOut();
     } catch {
       showAppError('تعذر تسجيل الخروج', 'حاول تسجيل الخروج مرة تانية.');
     }

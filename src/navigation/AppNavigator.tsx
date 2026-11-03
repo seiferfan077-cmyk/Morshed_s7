@@ -1,6 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
-import * as Notifications from 'expo-notifications';
 import { useEffect, useRef } from 'react';
+import * as Notifications from 'expo-notifications';
 import { createNavigationContainerRef, NavigationContainer, type LinkingOptions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -14,6 +13,8 @@ import { MurshidAIScreen } from '../screens/MurshidAIScreen';
 import { ChannelScreen } from '../screens/ChannelScreen';
 import { typography } from '../theme';
 import { useAppTheme } from '../theme/ThemeProvider';
+import { MurshidTabIcon } from './MurshidTabIcon';
+import { AppTabName, useTabPreferences } from './TabPreferences';
 
 export type RootTabParamList = {
   الرئيسية: undefined;
@@ -36,6 +37,7 @@ const linking: LinkingOptions<RootTabParamList> = {
 
 export function AppNavigator() {
   const { colors } = useAppTheme();
+  const { tabOrder } = useTabPreferences();
   const pendingChannelOpen = useRef(false);
   useEffect(() => {
     const openChannel = () => {
@@ -71,35 +73,28 @@ export function AppNavigator() {
             tabBarHideOnKeyboard: true,
             tabBarActiveTintColor: isMurshidAI ? '#56D8C9' : colors.tealDark,
             tabBarInactiveTintColor: isMurshidAI ? '#71808A' : colors.inkFaint,
-            tabBarLabelStyle: { ...typography.label, fontSize: 11, marginBottom: 5 },
-            tabBarStyle: { height: 72, paddingTop: 8, borderTopColor: isMurshidAI ? '#26313A' : colors.line, backgroundColor: isMurshidAI ? '#080B0F' : colors.paper },
-            tabBarIcon: ({ color, size }) => {
-              const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
-                الرئيسية: 'grid-outline',
-                'مُرشد AI': 'sparkles-outline',
-                'القناة الرسمية': 'megaphone-outline',
-                الرسائل: 'chatbubbles-outline',
-                المتصفح: 'compass-outline',
-                المعرض: 'images-outline',
-                الذاكرة: 'bookmark-outline',
-                المميزات: 'star-outline',
-                الإعدادات: 'settings-outline',
-              };
-              return <Ionicons name={icons[route.name]} size={size} color={color} />;
-            },
+            tabBarLabelStyle: { ...typography.label, fontSize: 9, marginBottom: 4 },
+            tabBarStyle: { height: 76, paddingTop: 7, borderTopColor: isMurshidAI ? '#26313A' : colors.line, backgroundColor: isMurshidAI ? '#080B0F' : colors.paper },
+            tabBarIcon: ({ focused, size }) => <MurshidTabIcon name={route.name as AppTabName} size={size + 4} active={focused} />,
           };
         }}
       >
-        <Tabs.Screen name="الرئيسية" component={HomeScreen} />
-        <Tabs.Screen name="مُرشد AI" component={MurshidAIScreen} />
-        <Tabs.Screen name="القناة الرسمية" component={ChannelScreen} />
-        <Tabs.Screen name="الرسائل" component={MessagesScreen} />
-        <Tabs.Screen name="المتصفح" component={BrowserScreen} />
-        <Tabs.Screen name="المعرض" component={MediaScreen} />
-        <Tabs.Screen name="الذاكرة" component={MemoryScreen} />
-        <Tabs.Screen name="المميزات" component={FeaturesScreen} />
-        <Tabs.Screen name="الإعدادات" component={SettingsScreen} />
+        {tabOrder.map((tab) => renderTab(tab))}
       </Tabs.Navigator>
     </NavigationContainer>
   );
+}
+
+function renderTab(tab: AppTabName) {
+  switch (tab) {
+    case 'الرئيسية': return <Tabs.Screen key={tab} name="الرئيسية" component={HomeScreen} />;
+    case 'مُرشد AI': return <Tabs.Screen key={tab} name="مُرشد AI" component={MurshidAIScreen} />;
+    case 'القناة الرسمية': return <Tabs.Screen key={tab} name="القناة الرسمية" component={ChannelScreen} />;
+    case 'الرسائل': return <Tabs.Screen key={tab} name="الرسائل" component={MessagesScreen} />;
+    case 'المتصفح': return <Tabs.Screen key={tab} name="المتصفح" component={BrowserScreen} />;
+    case 'المعرض': return <Tabs.Screen key={tab} name="المعرض" component={MediaScreen} />;
+    case 'الذاكرة': return <Tabs.Screen key={tab} name="الذاكرة" component={MemoryScreen} />;
+    case 'المميزات': return <Tabs.Screen key={tab} name="المميزات" component={FeaturesScreen} />;
+    case 'الإعدادات': return <Tabs.Screen key={tab} name="الإعدادات" component={SettingsScreen} />;
+  }
 }
