@@ -16,7 +16,7 @@ const request = (path, method = 'GET', body, token = 'token', extraHeaders = {})
   body: body === undefined ? undefined : JSON.stringify(body),
 });
 
-function fakeDb({ first, all, runs = [] } = {}) {
+function fakeDb({ first, all, runs = [], runError } = {}) {
   return {
     runs,
     prepare(sql) {
@@ -25,7 +25,11 @@ function fakeDb({ first, all, runs = [] } = {}) {
         bind(...parameters) { values = parameters; return statement; },
         async first() { return first ? first(sql, values) : null; },
         async all() { return all ? all(sql, values) : { results: [] }; },
-        async run() { runs.push({ sql, values }); return { success: true }; },
+        async run() {
+          if (runError) throw runError;
+          runs.push({ sql, values });
+          return { success: true, meta: { changes: 1 } };
+        },
       };
       return statement;
     },
@@ -53,6 +57,62 @@ test('both owner and admin bootstrap require setting a permanent password', asyn
   const response = await handleChannelAdminRequest(request('/api/channel/admin/bootstrap', 'POST', { role: 'admin', password: 'admin-temp' }), { ...baseEnv, CHANNEL_DB: fakeDb() }, async () => ({ uid: 'admin-1' }));
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { ok: true, role: 'admin', requiresPasswordChange: true });
+});
+
+test('permanent owner password is hashed before it is stored', async () => {
+  const db = fakeDb({ first: (sql) => sql.includes('FROM channel_admins') ? { uid: 'user-1', role: 'owner', bootstrap_used: 0 } : null });
+  const response = await handleChannelAdminRequest(request('/api/channel/admin/password', 'POST', { password: 'long-test-password', confirmation: 'long-test-password' }), { ...baseEnv, CHANNEL_DB: db }, verify);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { ok: true });
+  const update = db.runs.find(({ sql }) => sql.startsWith('UPDATE channel_admins SET password_hash'));
+  assert.ok(update);
+  assert.equal(update.values[3], 'user-1');
+  assert.equal(update.values[0].length, 64);
+  assert.notEqual(update.values[0], 'long-test-password');
+});
+
+test('password hash exceptions expose only a safe error class', async () => {
+  const db = fakeDb({ first: (sql) => sql.includes('FROM channel_admins') ? { uid: 'user-1', role: 'owner', bootstrap_used: 0 } : null });
+  const originalImportKey = crypto.subtle.importKey;
+  const originalError = console.error;
+  const logs = [];
+  crypto.subtle.importKey = async () => {
+    const caught = new Error('synthetic-crypto-detail');
+    caught.name = 'NotSupportedError';
+    throw caught;
+  };
+  console.error = (...args) => logs.push(args);
+  let response;
+  try {
+    response = await handleChannelAdminRequest(request('/api/channel/admin/password', 'POST', { password: 'long-test-password', confirmation: 'long-test-password' }), { ...baseEnv, CHANNEL_DB: db }, verify);
+  } finally {
+    crypto.subtle.importKey = originalImportKey;
+    console.error = originalError;
+  }
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { error: { code: 'password_hash_failed_not_supported' } });
+  assert.deepEqual(logs[0][1], { stage: 'password_hash', errorName: 'NotSupportedError' });
+  assert.equal(JSON.stringify(logs).includes('synthetic-crypto-detail'), false);
+});
+
+test('password storage exceptions return a safe stage diagnostic without exception text', async () => {
+  const db = fakeDb({
+    first: (sql) => sql.includes('FROM channel_admins') ? { uid: 'user-1', role: 'owner', bootstrap_used: 0 } : null,
+    runError: new Error('synthetic-database-detail'),
+  });
+  const originalError = console.error;
+  const logs = [];
+  console.error = (...args) => logs.push(args);
+  let response;
+  try {
+    response = await handleChannelAdminRequest(request('/api/channel/admin/password', 'POST', { password: 'long-test-password', confirmation: 'long-test-password' }), { ...baseEnv, CHANNEL_DB: db }, verify);
+  } finally {
+    console.error = originalError;
+  }
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { error: { code: 'password_storage_failed' } });
+  assert.deepEqual(logs[0][1], { stage: 'password_update', errorName: 'Error' });
+  assert.equal(JSON.stringify(logs).includes('synthetic-database-detail'), false);
 });
 
 test('a passwordless Firebase user cannot publish even if the UID has an admin record', async () => {

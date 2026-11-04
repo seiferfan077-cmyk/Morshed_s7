@@ -146,9 +146,11 @@ export async function handleChannelRequest(request, env, verify = verifyFirebase
 }
 
 export async function handleChannelAdminRequest(request, env, verify = verifyFirebaseIdToken, ctx) {
+  let stage = 'auth';
   try {
     const user = await auth(request, env, verify);
     if (!user?.uid) return error(401, 'unauthorized');
+    stage = 'database_setup';
     const database = requireDb(env);
     const url = new URL(request.url);
     const body = await readJson(request) ?? {};
@@ -171,14 +173,21 @@ export async function handleChannelAdminRequest(request, env, verify = verifyFir
     }
 
     if (url.pathname === '/api/channel/admin/password' && request.method === 'POST') {
+      stage = 'password_admin_lookup';
       const record = await adminRecord(env, user.uid);
       if (!adminRole(record)) return error(403, 'admin_required');
       if (Number(record.bootstrap_used)) return error(409, 'password_already_set');
       if (!validText(body.password) || body.password !== body.confirmation || body.password.length < 10) return error(400, 'invalid_password');
+      stage = 'password_hash';
       const hashed = await hashPassword(body.password);
       const stamp = now();
-      await database.prepare('UPDATE channel_admins SET password_hash = ?, password_salt = ?, bootstrap_used = 1, failed_attempts = 0, locked_until = 0, updated_at = ? WHERE uid = ?')
+      stage = 'password_update';
+      const updateResult = await database.prepare('UPDATE channel_admins SET password_hash = ?, password_salt = ?, bootstrap_used = 1, failed_attempts = 0, locked_until = 0, updated_at = ? WHERE uid = ?')
         .bind(hashed.hash, hashed.salt, stamp, user.uid).run();
+      if (typeof updateResult?.meta?.changes === 'number' && updateResult.meta.changes !== 1) {
+        console.error('[channel-admin] password update did not affect one row', { stage, changes: updateResult.meta.changes });
+        return error(409, 'password_storage_no_change');
+      }
       return json({ ok: true });
     }
 
@@ -235,7 +244,26 @@ export async function handleChannelAdminRequest(request, env, verify = verifyFir
     }
     return error(404, 'not_found');
   } catch (caught) {
+    const errorName = typeof caught?.name === 'string' ? caught.name : 'unknown';
+    console.error('[channel-admin] request failed', { stage, errorName });
     const missing = caught?.message === 'channel_db_not_configured';
-    return error(missing ? 503 : 500, missing ? 'channel_not_configured' : 'channel_unavailable');
+    const errorType = ({
+      Error: 'error',
+      TypeError: 'type',
+      NotSupportedError: 'not_supported',
+      OperationError: 'operation',
+      DataError: 'data',
+      InvalidAccessError: 'invalid_access',
+      RangeError: 'range',
+      SecurityError: 'security',
+    })[errorName] || 'other';
+    const diagnosticCode = stage === 'password_admin_lookup'
+      ? 'password_admin_lookup_failed'
+      : stage === 'password_hash'
+        ? `password_hash_failed_${errorType}`
+        : stage === 'password_update'
+          ? 'password_storage_failed'
+          : 'channel_unavailable';
+    return error(missing ? 503 : 500, missing ? 'channel_not_configured' : diagnosticCode);
   }
 }
