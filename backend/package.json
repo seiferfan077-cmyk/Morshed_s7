@@ -9,7 +9,8 @@
   "scripts": {
     "test": "node --test",
     "channel:test": "node --test tests/channel-handler.test.mjs",
-    "channel:migrate": "wrangler d1 execute murshid-channel-db --remote --file=channel-schema.sql"
+    "channel:schema": "wrangler d1 execute murshid-channel-db --remote --file=channel-schema.sql",
+    "channel:migrate": "wrangler d1 migrations apply murshid-channel-db --remote"
   },
   "dependencies": {
     "jose": "^6.2.12"

@@ -4,6 +4,7 @@ import { sendChannelPostNotifications } from './channel-push.js';
 const MAX_BODY = 8_000;
 const MAX_PAGE_SIZE = 100;
 const ALLOWED_EMOJI = new Set(['❤️', '👍', '👏', 'جزاك الله خيرًا', '🤍']);
+const POST_FIELDS = 'id, body, audio_key, file_key, pinned_at, created_at, updated_at';
 const json = (body, status = 200, extra = {}) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...extra } });
 const error = (status, code) => json({ error: { code } }, status);
 const now = () => Date.now();
@@ -48,32 +49,67 @@ async function requireAdmin(request, env, user) {
   if (!role) return { response: error(401, 'invalid_admin_password') };
   return { user, record: { role } };
 }
+
 async function readFeed(database, url) {
   const requested = Number.parseInt(url.searchParams.get('limit') ?? '50', 10);
   const limit = Number.isFinite(requested) ? Math.max(1, Math.min(MAX_PAGE_SIZE, requested)) : 50;
   const before = Number(url.searchParams.get('before'));
   const beforeId = url.searchParams.get('beforeId') ?? '';
+  const hasPinnedCursor = url.searchParams.has('beforePinned');
+  const beforePinned = url.searchParams.get('beforePinned') === '1';
+  const beforePinnedAt = Number(url.searchParams.get('beforePinnedAt'));
   let query;
-  if (Number.isFinite(before) && before > 0 && beforeId) {
-    query = database.prepare(`SELECT id, body, audio_key, file_key, created_at, updated_at FROM channel_posts
+
+  if (hasPinnedCursor && Number.isFinite(before) && before > 0 && beforeId && (!beforePinned || (Number.isFinite(beforePinnedAt) && beforePinnedAt > 0))) {
+    if (beforePinned) {
+      query = database.prepare(`SELECT ${POST_FIELDS} FROM channel_posts
+        WHERE deleted_at IS NULL AND (
+          pinned_at IS NULL OR (pinned_at IS NOT NULL AND (
+            pinned_at < ? OR (pinned_at = ? AND (created_at < ? OR (created_at = ? AND id < ?)))
+          ))
+        )
+        ORDER BY (pinned_at IS NOT NULL) DESC, pinned_at DESC, created_at DESC, id DESC LIMIT ?`)
+        .bind(beforePinnedAt, beforePinnedAt, before, before, beforeId, limit + 1);
+    } else {
+      query = database.prepare(`SELECT ${POST_FIELDS} FROM channel_posts
+        WHERE deleted_at IS NULL AND pinned_at IS NULL AND (created_at < ? OR (created_at = ? AND id < ?))
+        ORDER BY (pinned_at IS NOT NULL) DESC, pinned_at DESC, created_at DESC, id DESC LIMIT ?`)
+        .bind(before, before, beforeId, limit + 1);
+    }
+  } else if (Number.isFinite(before) && before > 0 && beforeId) {
+    // Backward compatibility for app versions that do not yet send the pinned cursor fields.
+    query = database.prepare(`SELECT ${POST_FIELDS} FROM channel_posts
       WHERE deleted_at IS NULL AND (created_at < ? OR (created_at = ? AND id < ?))
-      ORDER BY created_at DESC, id DESC LIMIT ?`).bind(before, before, beforeId, limit + 1);
+      ORDER BY (pinned_at IS NOT NULL) DESC, pinned_at DESC, created_at DESC, id DESC LIMIT ?`)
+      .bind(before, before, beforeId, limit + 1);
   } else {
-    query = database.prepare(`SELECT id, body, audio_key, file_key, created_at, updated_at FROM channel_posts
-      WHERE deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT ?`).bind(limit + 1);
+    query = database.prepare(`SELECT ${POST_FIELDS} FROM channel_posts
+      WHERE deleted_at IS NULL
+      ORDER BY (pinned_at IS NOT NULL) DESC, pinned_at DESC, created_at DESC, id DESC LIMIT ?`)
+      .bind(limit + 1);
   }
+
   const result = await query.all();
   const rows = result.results ?? [];
   const hasMore = rows.length > limit;
   const posts = rows.slice(0, limit);
   const oldest = posts.at(-1);
-  return { posts, nextCursor: hasMore && oldest ? { createdAt: oldest.created_at, id: oldest.id } : null };
+  const deletedResult = await database.prepare('SELECT id FROM channel_posts WHERE deleted_at IS NOT NULL').all();
+  return {
+    posts,
+    nextCursor: hasMore && oldest ? {
+      createdAt: oldest.created_at,
+      id: oldest.id,
+      pinnedAt: oldest.pinned_at == null ? null : Number(oldest.pinned_at),
+    } : null,
+    deletedIds: (deletedResult.results ?? []).map((row) => row.id).filter((postId) => typeof postId === 'string'),
+  };
 }
 
 async function createPost(database, user, body) {
   if (!validText(body?.body)) return { response: error(400, 'invalid_post') };
   const timestamp = now();
-  const post = { id: id(), body: body.body.trim(), created_at: timestamp, updated_at: timestamp };
+  const post = { id: id(), body: body.body.trim(), pinned_at: null, created_at: timestamp, updated_at: timestamp };
   await database.prepare('INSERT INTO channel_posts (id, author_uid, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
     .bind(post.id, user.uid, post.body, timestamp, timestamp).run();
   return { post };
@@ -159,17 +195,36 @@ export async function handleChannelAdminRequest(request, env, verify = verifyFir
       await queuePostNotifications(env, result.post, ctx);
       return json({ post: result.post }, 201);
     }
+
+    const pinMatch = url.pathname.match(/^\/api\/channel\/admin\/posts\/([^/]+)\/pin$/);
+    if (pinMatch && request.method === 'POST') {
+      if (typeof body.pinned !== 'boolean') return error(400, 'invalid_pin_state');
+      const postId = pinMatch[1];
+      const target = await database.prepare('SELECT id FROM channel_posts WHERE id = ? AND deleted_at IS NULL').bind(postId).first();
+      if (!target) return error(404, 'post_not_found');
+      const timestamp = now();
+      await database.prepare('UPDATE channel_posts SET pinned_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL')
+        .bind(body.pinned ? timestamp : null, timestamp, postId).run();
+      const post = await database.prepare(`SELECT ${POST_FIELDS} FROM channel_posts WHERE id = ? AND deleted_at IS NULL`).bind(postId).first();
+      return json({ post });
+    }
+
     const postMatch = url.pathname.match(/^\/api\/channel\/admin\/posts\/([^/]+)$/);
     if (postMatch && ['PATCH', 'DELETE'].includes(request.method)) {
-      const target = await database.prepare('SELECT author_uid FROM channel_posts WHERE id = ? AND deleted_at IS NULL').bind(postMatch[1]).first();
+      const postId = postMatch[1];
+      const target = await database.prepare('SELECT author_uid FROM channel_posts WHERE id = ? AND deleted_at IS NULL').bind(postId).first();
       if (!target) return error(404, 'post_not_found');
       if (request.method === 'PATCH') {
         if (!validText(body.body)) return error(400, 'invalid_post');
-        await database.prepare('UPDATE channel_posts SET body = ?, updated_at = ? WHERE id = ?').bind(body.body.trim(), now(), postMatch[1]).run();
-      } else {
-        await database.prepare('UPDATE channel_posts SET deleted_at = ?, updated_at = ? WHERE id = ?').bind(now(), now(), postMatch[1]).run();
+        await database.prepare('UPDATE channel_posts SET body = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL')
+          .bind(body.body.trim(), now(), postId).run();
+        const post = await database.prepare(`SELECT ${POST_FIELDS} FROM channel_posts WHERE id = ? AND deleted_at IS NULL`).bind(postId).first();
+        return json({ post });
       }
-      return json({ ok: true });
+      const timestamp = now();
+      await database.prepare('UPDATE channel_posts SET body = ?, audio_key = NULL, file_key = NULL, deleted_at = ?, pinned_at = NULL, updated_at = ? WHERE id = ? AND deleted_at IS NULL')
+        .bind('', timestamp, timestamp, postId).run();
+      return json({ ok: true, deletedId: postId });
     }
     return error(404, 'not_found');
   } catch (caught) {

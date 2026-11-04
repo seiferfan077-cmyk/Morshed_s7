@@ -15,6 +15,7 @@ import { typography } from '../theme';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { MurshidTabIcon } from './MurshidTabIcon';
 import { AppTabName, useTabPreferences } from './TabPreferences';
+import { registerForChannelNotifications } from '../services/channel/channelNotifications';
 
 export type RootTabParamList = {
   الرئيسية: undefined;
@@ -40,6 +41,7 @@ export function AppNavigator() {
   const { tabOrder } = useTabPreferences();
   const pendingChannelOpen = useRef(false);
   useEffect(() => {
+    void registerForChannelNotifications().catch(() => undefined);
     const openChannel = () => {
       if (navigationRef.isReady()) navigationRef.navigate('القناة الرسمية');
       else pendingChannelOpen.current = true;
@@ -80,7 +82,21 @@ export function AppNavigator() {
             tabBarActiveTintColor: isMurshidAI ? '#56D8C9' : colors.tealDark,
             tabBarInactiveTintColor: isMurshidAI ? '#71808A' : colors.inkFaint,
             tabBarLabelStyle: { ...typography.label, fontSize: 9, marginBottom: 4 },
-            tabBarStyle: { height: 76, paddingTop: 7, borderTopColor: isMurshidAI ? '#26313A' : colors.line, backgroundColor: isMurshidAI ? '#080B0F' : colors.paper },
+            tabBarStyle: {
+              height: 76,
+              marginHorizontal: 12,
+              marginBottom: 8,
+              paddingTop: 7,
+              borderTopWidth: 0,
+              borderTopColor: 'transparent',
+              borderRadius: 26,
+              backgroundColor: isMurshidAI ? '#080B0F' : colors.paper,
+              shadowColor: '#10252B',
+              shadowOpacity: 0.13,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 10,
+            },
             tabBarIcon: ({ focused, size }) => <MurshidTabIcon name={route.name as AppTabName} size={size + 4} active={focused} />,
           };
         }}

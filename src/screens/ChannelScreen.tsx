@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { ActionButton } from '../components/ActionButton';
@@ -11,15 +12,21 @@ import {
   type ChannelCursor,
   type ChannelPost,
   type ChannelAdminRole,
+  deleteChannelPost,
+  editChannelPost,
   hasChannelAdminAccess,
   listChannelPosts,
   loginChannelAdmin,
   logoutChannelAdmin,
   publishChannelPost,
   reactToChannelPost,
+  setChannelPostPinned,
 } from '../services/channel/channelService';
-import { cacheChannelPosts, getCachedChannelPosts } from '../services/channel/channelCache';
+import { cacheChannelPosts, getCachedChannelPosts, removeCachedChannelPosts } from '../services/channel/channelCache';
 import { registerForChannelNotifications } from '../services/channel/channelNotifications';
+
+const FEED_REFRESH_INTERVAL_MS = 30_000;
+const HIDDEN_ADMIN_TAPS = 30;
 
 export function ChannelScreen() {
   const { colors } = useAppTheme();
@@ -32,25 +39,35 @@ export function ChannelScreen() {
   const [adminBusy, setAdminBusy] = useState(false);
   const [adminRole, setAdminRole] = useState<ChannelAdminRole | null>(null);
   const [adminPassword, setAdminPassword] = useState('');
+  const [adminModalVisible, setAdminModalVisible] = useState(false);
   const [newPost, setNewPost] = useState('');
   const [loggedIn, setLoggedIn] = useState(false);
+  const [editingPost, setEditingPost] = useState<ChannelPost | null>(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [editBusy, setEditBusy] = useState(false);
+  const hiddenTapCount = useRef(0);
+  const loadBusy = useRef(false);
 
-  const load = useCallback(async () => {
-    setRefreshing(true);
+  const load = useCallback(async (showLoading = true) => {
+    if (loadBusy.current) return;
+    loadBusy.current = true;
+    if (showLoading) setRefreshing(true);
     try {
       const feed = await listChannelPosts();
-      await cacheChannelPosts(feed.posts);
-      setPosts(feed.posts);
+      await cacheChannelPosts(feed.posts, feed.deletedIds);
+      const deleted = new Set(feed.deletedIds);
+      setPosts((current) => mergePosts(current.filter((post) => !deleted.has(post.id)), feed.posts));
       setNextCursor(feed.nextCursor);
       setHasMore(Boolean(feed.nextCursor));
     } catch (error) {
       const cached = await getCachedChannelPosts().catch(() => []);
       setPosts((current) => current.length ? current : cached);
-      if (!cached.length && !(error instanceof Error && error.message === 'channel_not_configured')) {
+      if (showLoading && !cached.length && !(error instanceof Error && error.message === 'channel_not_configured')) {
         showAppError('تعذر تحميل القناة', 'افحص اتصال الإنترنت وحاول مرة تانية. اسحب الشاشة لتحديث المنشورات.');
       }
     } finally {
-      setRefreshing(false);
+      loadBusy.current = false;
+      if (showLoading) setRefreshing(false);
     }
   }, []);
 
@@ -65,18 +82,24 @@ export function ChannelScreen() {
         if (!hasAccess) setAdminRole(null);
       }
       void registerForChannelNotifications().catch(() => undefined);
-      if (active) await load();
     })();
     return () => { active = false; };
-  }, [load]);
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    void load();
+    const interval = setInterval(() => { void load(false); }, FEED_REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [load]));
 
   const loadOlder = async () => {
     if (!nextCursor || loadingOlder) return;
     setLoadingOlder(true);
     try {
       const feed = await listChannelPosts(nextCursor);
-      await cacheChannelPosts(feed.posts);
-      setPosts((current) => mergePosts(current, feed.posts));
+      await cacheChannelPosts(feed.posts, feed.deletedIds);
+      const deleted = new Set(feed.deletedIds);
+      setPosts((current) => mergePosts(current.filter((post) => !deleted.has(post.id)), feed.posts));
       setNextCursor(feed.nextCursor);
       setHasMore(Boolean(feed.nextCursor));
     } catch {
@@ -98,6 +121,7 @@ export function ChannelScreen() {
       setAdminRole(access.role);
       setLoggedIn(true);
       setAdminPassword('');
+      setAdminModalVisible(false);
     } catch (error) {
       const code = error instanceof Error ? error.message : '';
       if (code === 'invalid_admin_password') {
@@ -111,24 +135,28 @@ export function ChannelScreen() {
       setAdminBusy(false);
     }
   };
+
   const publish = async () => {
     const body = newPost.trim();
     if (!body) return;
     try {
       await publishChannelPost(body);
       setNewPost('');
-      await load();
+      await load(false);
     } catch (error) {
       const code = error instanceof Error ? error.message : '';
-      if (code === 'invalid_admin_password' || code === 'channel_admin_password_not_configured') {
-        await logoutChannelAdmin().catch(() => undefined);
-        setLoggedIn(false);
-        setAdminRole(null);
-      }
+      await clearExpiredAdmin(code);
       showAppError('تعذر النشر', code === 'invalid_admin_password'
         ? 'انتهت صلاحية كلمة المرور على الخادم. أدخل كلمة المرور الحالية مرة أخرى.'
         : 'تحقق من اتصال الإنترنت وإعداد كلمة المرور على الخادم ثم حاول مجددًا.');
     }
+  };
+
+  const clearExpiredAdmin = async (code: string) => {
+    if (code !== 'invalid_admin_password' && code !== 'channel_admin_password_not_configured') return;
+    await logoutChannelAdmin().catch(() => undefined);
+    setLoggedIn(false);
+    setAdminRole(null);
   };
 
   const leaveAdmin = async () => {
@@ -137,111 +165,246 @@ export function ChannelScreen() {
     setAdminRole(null);
   };
 
+  const openEditor = (post: ChannelPost) => {
+    setEditingPost(post);
+    setEditDraft(post.body);
+  };
+
+  const saveEdit = async () => {
+    if (!editingPost || editBusy) return;
+    const body = editDraft.trim();
+    if (!body) {
+      showAppError('الرسالة فارغة', 'اكتب نص الرسالة قبل حفظ التعديل.');
+      return;
+    }
+    setEditBusy(true);
+    try {
+      const result = await editChannelPost(editingPost.id, body);
+      if (result.post) setPosts((current) => mergePosts(current, [result.post as ChannelPost]));
+      setEditingPost(null);
+      setEditDraft('');
+      await load(false);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      await clearExpiredAdmin(code);
+      showAppError('تعذر تعديل الرسالة', code === 'invalid_admin_password'
+        ? 'انتهت صلاحية كلمة المرور على الخادم. سجّل دخول المسؤول مرة أخرى.'
+        : 'لم يُحفظ التعديل. تحقق من الاتصال ثم حاول مجددًا.');
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
+  const confirmDelete = (post: ChannelPost) => {
+    Alert.alert('حذف الرسالة؟', 'ستختفي الرسالة من القناة على جميع الأجهزة بعد مزامنة القناة.', [
+      { text: 'إلغاء', style: 'cancel' },
+      { text: 'حذف للجميع', style: 'destructive', onPress: () => { void removePost(post); } },
+    ]);
+  };
+
+  const removePost = async (post: ChannelPost) => {
+    try {
+      await deleteChannelPost(post.id);
+      setPosts((current) => current.filter((item) => item.id !== post.id));
+      await removeCachedChannelPosts([post.id]);
+      await load(false);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      await clearExpiredAdmin(code);
+      showAppError('تعذر حذف الرسالة', code === 'invalid_admin_password'
+        ? 'انتهت صلاحية كلمة المرور على الخادم. سجّل دخول المسؤول مرة أخرى.'
+        : 'لم يُحذف المنشور. تحقق من الاتصال ثم حاول مجددًا.');
+    }
+  };
+
+  const togglePinned = async (post: ChannelPost) => {
+    try {
+      const result = await setChannelPostPinned(post.id, !post.pinned_at);
+      if (result.post) setPosts((current) => mergePosts(current, [result.post as ChannelPost]));
+      await load(false);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      await clearExpiredAdmin(code);
+      showAppError('تعذر تحديث التثبيت', code === 'invalid_admin_password'
+        ? 'انتهت صلاحية كلمة المرور على الخادم. سجّل دخول المسؤول مرة أخرى.'
+        : 'تحقق من الاتصال ثم حاول مرة أخرى.');
+    }
+  };
+
+  const openHiddenAdmin = () => {
+    hiddenTapCount.current += 1;
+    if (hiddenTapCount.current >= HIDDEN_ADMIN_TAPS) {
+      hiddenTapCount.current = 0;
+      setAdminModalVisible(true);
+    }
+  };
+
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
-    >
-      <View style={styles.header}>
-        <View style={styles.logo}><Text style={styles.logoText}>م</Text></View>
-        <View style={styles.headerCopy}>
-          <Text style={styles.kicker}>القناة الرسمية</Text>
-          <Text style={styles.title}>مُرشد</Text>
-          <Text style={styles.subtitle}>آخر أخبار وتحديثات فريق مُرشد</Text>
+    <>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void load(); }} />}
+      >
+        <View style={styles.header}>
+          <View style={styles.logo}><Text style={styles.logoText}>م</Text></View>
+          <View style={styles.headerCopy}>
+            <Text style={styles.kicker}>القناة الرسمية</Text>
+            <Text style={styles.title}>مُرشد</Text>
+            <Text style={styles.subtitle}>آخر أخبار وتحديثات فريق مُرشد</Text>
+          </View>
+          <Ionicons name="checkmark-circle" size={25} color="#2f80ed" />
         </View>
-        <Ionicons name="checkmark-circle" size={25} color="#2f80ed" />
-      </View>
 
-      <View style={styles.syncNote}>
-        <Ionicons name="cloud-done-outline" size={17} color={colors.tealDark} />
-        <Text style={styles.syncText}>الرسائل محفوظة على الخادم، ونسخة منها متاحة على جهازك عند انقطاع النت.</Text>
-      </View>
+        <View style={styles.syncNote}>
+          <Ionicons name="cloud-done-outline" size={17} color={colors.tealDark} />
+          <Text style={styles.syncText}>الرسائل محفوظة على الخادم، ونسخة منها متاحة على جهازك عند انقطاع النت.</Text>
+        </View>
 
-      {!loggedIn && (
-        <SurfaceCard accent={colors.teal}>
-          <Text style={styles.cardTitle}>دخول المسؤول</Text>
-          <TextInput
-            value={adminPassword}
-            onChangeText={setAdminPassword}
-            placeholder="كلمة المرور المؤقتة"
-            placeholderTextColor={colors.inkFaint}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            maxLength={256}
-            returnKeyType="go"
-            onSubmitEditing={() => { void enterAdmin(); }}
-            style={styles.input}
-          />
-          <ActionButton onPress={enterAdmin}>{adminBusy ? 'جارٍ التحقق…' : 'فتح لوحة النشر'}</ActionButton>
-        </SurfaceCard>
-      )}
-
-      {loggedIn && (
-        <SurfaceCard accent={colors.teal}>
-          <View style={styles.adminHeader}>
-            <View>
-              <Text style={styles.cardTitle}>لوحة النشر</Text>
-              {adminRole && <Text style={styles.footerText}>{adminRole === 'owner' ? 'مسؤول القناة' : 'أدمن القناة'}</Text>}
+        {loggedIn && (
+          <SurfaceCard accent={colors.teal}>
+            <View style={styles.adminHeader}>
+              <View>
+                <Text style={styles.cardTitle}>لوحة النشر</Text>
+                {adminRole && <Text style={styles.footerText}>{adminRole === 'owner' ? 'مسؤول القناة' : 'أدمن القناة'}</Text>}
+              </View>
+              <Pressable onPress={leaveAdmin} accessibilityRole="button" style={styles.logoutButton}>
+                <Text style={styles.logoutText}>خروج</Text>
+              </Pressable>
             </View>
-            <Pressable onPress={leaveAdmin} accessibilityRole="button" style={styles.logoutButton}>
-              <Text style={styles.logoutText}>خروج</Text>
+            <TextInput
+              value={newPost}
+              onChangeText={setNewPost}
+              placeholder="اكتب رسالة رسمية للقناة..."
+              placeholderTextColor={colors.inkFaint}
+              multiline
+              maxLength={8_000}
+              textAlignVertical="top"
+              style={[styles.input, styles.composer]}
+            />
+            <ActionButton onPress={publish}>نشر الرسالة وإشعار المتابعين</ActionButton>
+          </SurfaceCard>
+        )}
+
+        {posts.length === 0 ? (
+          <SurfaceCard><Text style={styles.empty}>لا توجد منشورات منشورة بعد.</Text></SurfaceCard>
+        ) : posts.map((post) => (
+          <View key={post.id} style={styles.messageRow}>
+            <View style={styles.messageBubble}>
+              {Boolean(post.pinned_at) && (
+                <View style={styles.pinnedLabel}>
+                  <Ionicons name="pin" size={13} color={colors.tealDark} />
+                  <Text style={styles.pinnedLabelText}>رسالة مثبتة</Text>
+                </View>
+              )}
+              <Text style={styles.post}>{post.body}</Text>
+              <View style={styles.messageMeta}>
+                <Text style={styles.messageTime}>{formatPostDate(post.created_at)}</Text>
+                {post.updated_at > post.created_at && <Text style={styles.editedText}>تم التعديل</Text>}
+                <Ionicons name="checkmark-done" size={14} color={colors.tealDark} />
+              </View>
+              <View style={styles.reactions}>
+                {['❤️', '👍', '👏', '🤍'].map((emoji) => (
+                  <Pressable key={emoji} onPress={() => reactToChannelPost(post.id, emoji).catch(() => undefined)} style={styles.reaction}>
+                    <Text>{emoji}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {loggedIn && (
+                <View style={styles.adminMessageActions}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={post.pinned_at ? 'إلغاء تثبيت الرسالة' : 'تثبيت الرسالة'} onPress={() => { void togglePinned(post); }} style={styles.messageAction}>
+                    <Ionicons name={post.pinned_at ? 'pin' : 'pin-outline'} size={16} color={colors.tealDark} />
+                    <Text style={styles.messageActionText}>{post.pinned_at ? 'إلغاء التثبيت' : 'تثبيت'}</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="تعديل الرسالة" onPress={() => openEditor(post)} style={styles.messageAction}>
+                    <Ionicons name="create-outline" size={16} color={colors.tealDark} />
+                    <Text style={styles.messageActionText}>تعديل</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="حذف الرسالة" onPress={() => confirmDelete(post)} style={[styles.messageAction, styles.deleteAction]}>
+                    <Ionicons name="trash-outline" size={16} color={colors.coral} />
+                    <Text style={[styles.messageActionText, styles.deleteText]}>حذف</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          </View>
+        ))}
+
+        {hasMore && (
+          <ActionButton tone="quiet" onPress={loadOlder}>
+            {loadingOlder ? 'جارٍ تحميل الرسائل الأقدم...' : 'تحميل الرسائل الأقدم'}
+          </ActionButton>
+        )}
+
+        <Pressable accessibilityRole="button" onPress={openHiddenAdmin} style={styles.footer}>
+          <Text style={styles.footerText}>لا يسمح سوى لمرشد بإرسال الرسائل</Text>
+          <Ionicons name="checkmark-circle" size={14} color="#2f80ed" />
+        </Pressable>
+      </ScrollView>
+
+      <Modal visible={adminModalVisible} animationType="fade" transparent onRequestClose={() => setAdminModalVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalTitleRow}>
+              <View style={styles.modalIcon}><Ionicons name="lock-closed-outline" size={20} color={colors.tealDark} /></View>
+              <Text style={styles.cardTitle}>دخول المسؤول</Text>
+            </View>
+            <Text style={styles.modalDescription}>أدخل كلمة المرور لفتح أدوات إدارة القناة.</Text>
+            <TextInput
+              value={adminPassword}
+              onChangeText={setAdminPassword}
+              placeholder="كلمة المرور"
+              placeholderTextColor={colors.inkFaint}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={256}
+              returnKeyType="go"
+              onSubmitEditing={() => { void enterAdmin(); }}
+              style={styles.input}
+            />
+            <ActionButton onPress={enterAdmin}>{adminBusy ? 'جارٍ التحقق…' : 'دخول المسؤول'}</ActionButton>
+            <Pressable accessibilityRole="button" onPress={() => { setAdminModalVisible(false); setAdminPassword(''); }} style={styles.modalCancel}>
+              <Text style={styles.modalCancelText}>إلغاء</Text>
             </Pressable>
           </View>
-          <TextInput
-            value={newPost}
-            onChangeText={setNewPost}
-            placeholder="اكتب رسالة رسمية للقناة..."
-            placeholderTextColor={colors.inkFaint}
-            multiline
-            maxLength={8_000}
-            textAlignVertical="top"
-            style={[styles.input, styles.composer]}
-          />
-          <ActionButton onPress={publish}>نشر الرسالة وإشعار المتابعين</ActionButton>
-        </SurfaceCard>
-      )}
+        </View>
+      </Modal>
 
-      {posts.length === 0 ? (
-        <SurfaceCard><Text style={styles.empty}>لا توجد منشورات منشورة بعد.</Text></SurfaceCard>
-      ) : posts.map((post) => (
-        <View key={post.id} style={styles.messageRow}>
-          <View style={styles.messageBubble}>
-            <Text style={styles.post}>{post.body}</Text>
-            <View style={styles.messageMeta}>
-              <Text style={styles.messageTime}>{formatPostDate(post.created_at)}</Text>
-              <Ionicons name="checkmark-done" size={14} color={colors.tealDark} />
-            </View>
-            <View style={styles.reactions}>
-              {['❤️', '👍', '👏', '🤍'].map((emoji) => (
-                <Pressable key={emoji} onPress={() => reactToChannelPost(post.id, emoji).catch(() => undefined)} style={styles.reaction}>
-                  <Text>{emoji}</Text>
-                </Pressable>
-              ))}
-            </View>
+      <Modal visible={Boolean(editingPost)} animationType="fade" transparent onRequestClose={() => setEditingPost(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.cardTitle}>تعديل الرسالة</Text>
+            <TextInput
+              value={editDraft}
+              onChangeText={setEditDraft}
+              placeholder="نص الرسالة"
+              placeholderTextColor={colors.inkFaint}
+              multiline
+              maxLength={8_000}
+              textAlignVertical="top"
+              style={[styles.input, styles.editComposer]}
+            />
+            <ActionButton onPress={saveEdit}>{editBusy ? 'جارٍ الحفظ…' : 'حفظ التعديل'}</ActionButton>
+            <Pressable accessibilityRole="button" onPress={() => { setEditingPost(null); setEditDraft(''); }} style={styles.modalCancel}>
+              <Text style={styles.modalCancelText}>إلغاء</Text>
+            </Pressable>
           </View>
         </View>
-      ))}
-
-      {hasMore && (
-        <ActionButton tone="quiet" onPress={loadOlder}>
-          {loadingOlder ? 'جارٍ تحميل الرسائل الأقدم...' : 'تحميل الرسائل الأقدم'}
-        </ActionButton>
-      )}
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>لا يُسمح بالنشر إلا بكلمة المرور المهيأة على الخادم</Text>
-        <Ionicons name="checkmark-circle" size={14} color="#2f80ed" />
-      </View>
-    </ScrollView>
+      </Modal>
+    </>
   );
 }
 
 function mergePosts(current: ChannelPost[], incoming: ChannelPost[]) {
   const unique = new Map(current.map((post) => [post.id, post]));
   for (const post of incoming) unique.set(post.id, post);
-  return [...unique.values()].sort((a, b) => Number(b.created_at) - Number(a.created_at) || b.id.localeCompare(a.id));
+  return [...unique.values()].sort((a, b) => {
+    const pinOrder = Number(Boolean(b.pinned_at)) - Number(Boolean(a.pinned_at));
+    if (pinOrder) return pinOrder;
+    const pinTimeOrder = Number(b.pinned_at ?? 0) - Number(a.pinned_at ?? 0);
+    return pinTimeOrder || Number(b.created_at) - Number(a.created_at) || b.id.localeCompare(a.id);
+  });
 }
 
 function formatPostDate(timestamp: number) {
@@ -265,23 +428,37 @@ function createStyles(colors: ThemeColors) {
     subtitle: { ...typography.body, color: colors.inkMuted },
     syncNote: { flexDirection: 'row-reverse', alignItems: 'center', gap: 7, borderRadius: radii.md, backgroundColor: colors.tealSoft, padding: spacing.sm },
     syncText: { ...typography.body, color: colors.tealDark, fontSize: 11, flex: 1, textAlign: 'right' },
-    adminEntry: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, borderColor: colors.line, borderRadius: radii.md, backgroundColor: colors.paper, paddingVertical: spacing.sm },
-    adminEntryText: { ...typography.label, color: colors.tealDark, fontSize: 12 },
     adminHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     cardTitle: { ...typography.h2, color: colors.ink, marginBottom: spacing.sm },
     logoutButton: { paddingHorizontal: spacing.sm, paddingVertical: 4 },
     logoutText: { ...typography.label, color: colors.coral },
     input: { borderWidth: 1, borderColor: colors.line, borderRadius: radii.md, color: colors.ink, padding: spacing.sm, minHeight: 48, textAlign: 'right', writingDirection: 'rtl', marginBottom: spacing.sm },
     composer: { minHeight: 108 },
+    editComposer: { minHeight: 170 },
     messageRow: { width: '100%', alignItems: 'flex-end' },
     messageBubble: { maxWidth: '96%', minWidth: '72%', borderRadius: 19, borderBottomRightRadius: 5, backgroundColor: '#E6F4EE', borderWidth: 1, borderColor: '#D2E9DE', padding: spacing.md, shadowColor: '#0d2730', shadowOpacity: 0.06, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
     post: { ...typography.body, color: '#18352C', lineHeight: 25, textAlign: 'right', writingDirection: 'rtl' },
-    messageMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 4, marginTop: spacing.sm },
+    messageMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 5, marginTop: spacing.sm },
     messageTime: { ...typography.body, color: '#58786C', fontSize: 10 },
+    editedText: { ...typography.body, color: '#58786C', fontSize: 10 },
+    pinnedLabel: { flexDirection: 'row-reverse', alignItems: 'center', alignSelf: 'flex-start', gap: 4, borderRadius: radii.pill, backgroundColor: '#D5ECE2', paddingHorizontal: 9, paddingVertical: 4, marginBottom: spacing.xs },
+    pinnedLabelText: { ...typography.label, color: colors.tealDark, fontSize: 10 },
     reactions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.xs, marginTop: spacing.sm },
     reaction: { borderWidth: 1, borderColor: '#C6DFD3', backgroundColor: '#F7FCF9', borderRadius: radii.pill, paddingHorizontal: spacing.sm, paddingVertical: 4 },
+    adminMessageActions: { flexDirection: 'row-reverse', justifyContent: 'flex-start', flexWrap: 'wrap', gap: 7, borderTopWidth: 1, borderTopColor: '#D2E9DE', marginTop: spacing.sm, paddingTop: spacing.sm },
+    messageAction: { flexDirection: 'row-reverse', alignItems: 'center', gap: 4, borderRadius: radii.pill, backgroundColor: '#F7FCF9', borderWidth: 1, borderColor: '#C6DFD3', paddingHorizontal: 9, paddingVertical: 6 },
+    messageActionText: { ...typography.label, color: colors.tealDark, fontSize: 10 },
+    deleteAction: { borderColor: '#F0D2CB', backgroundColor: '#FFF8F6' },
+    deleteText: { color: colors.coral },
     empty: { ...typography.body, color: colors.inkMuted, textAlign: 'center' },
     footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: spacing.lg },
     footerText: { ...typography.body, color: colors.inkMuted, fontSize: 12 },
+    modalBackdrop: { flex: 1, justifyContent: 'center', padding: spacing.lg, backgroundColor: 'rgba(7, 20, 24, 0.56)' },
+    modalCard: { borderRadius: radii.lg, backgroundColor: colors.paper, padding: spacing.lg, shadowColor: colors.ink, shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
+    modalTitleRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
+    modalIcon: { width: 38, height: 38, borderRadius: radii.md, backgroundColor: colors.tealSoft, alignItems: 'center', justifyContent: 'center' },
+    modalDescription: { ...typography.body, color: colors.inkMuted, textAlign: 'right', marginBottom: spacing.md },
+    modalCancel: { alignItems: 'center', paddingVertical: spacing.md },
+    modalCancelText: { ...typography.label, color: colors.inkMuted },
   });
 }

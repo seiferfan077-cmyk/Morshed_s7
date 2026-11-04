@@ -34,6 +34,7 @@ type SupportWebsiteModalProps = {
 export function SupportWebsiteModal({ visible, onClose, url = SUPPORT_URL, title = 'الدعم عبر الموقع الإلكتروني' }: SupportWebsiteModalProps) {
   const { colors } = useAppTheme();
   const styles = createStyles(colors);
+  const isRashidAddition = url === RASHID_FROM_MURSHID_URL;
   const webViewRef = useRef<WebView>(null);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -70,7 +71,7 @@ export function SupportWebsiteModal({ visible, onClose, url = SUPPORT_URL, title
             <Ionicons name="arrow-back" size={22} color={colors.ink} />
           </Pressable>
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>MURSHID WEBSITE</Text>
+            <Text style={styles.eyebrow}>{isRashidAddition ? 'إضافة جديدة' : 'مُرشد'}</Text>
             <Text style={styles.title}>{title}</Text>
           </View>
         </View>
@@ -119,12 +120,12 @@ export function SupportWebsiteModal({ visible, onClose, url = SUPPORT_URL, title
               </View>
               <View style={styles.statusCopy}>
                 <Text style={[styles.statusTitle, hasError && styles.errorTitle]}>
-                  {hasError ? 'تعذّر فتح الموقع الإلكتروني' : 'لحظات من فضلك'}
+                  {hasError ? (isRashidAddition ? 'تعذّر فتح الإضافة' : 'تعذّر فتح الموقع الإلكتروني') : 'لحظات من فضلك'}
                 </Text>
                 <Text style={styles.statusBody}>
                   {hasError
                     ? 'تحقق من اتصال الإنترنت وحاول مرة أخرى.'
-                    : 'ستُفتح الصفحة داخل مُرشد خلال ثوانٍ معدودة.'}
+                    : isRashidAddition ? 'جارٍ تجهيز الإضافة داخل مُرشد.' : 'ستُفتح الصفحة داخل مُرشد خلال ثوانٍ معدودة.'}
                 </Text>
               </View>
               {hasError ? (
