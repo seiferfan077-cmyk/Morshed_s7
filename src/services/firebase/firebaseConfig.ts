@@ -18,7 +18,8 @@ const readPublicConfig = (): FirebaseConfig | null => {
     appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '',
     measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || undefined,
   };
-  return Object.values(values).every(Boolean) ? values : null;
+  const requiredValues = [values.apiKey, values.authDomain, values.projectId, values.storageBucket, values.messagingSenderId, values.appId];
+  return requiredValues.every((value) => value.trim().length > 0) ? values : null;
 };
 
 export const firebaseConfig = readPublicConfig();
