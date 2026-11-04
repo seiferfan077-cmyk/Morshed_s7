@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { ActionButton } from '../components/ActionButton';
@@ -8,16 +8,15 @@ import { SurfaceCard } from '../components/SurfaceCard';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { radii, spacing, typography, type ThemeColors } from '../theme';
 import {
-  bootstrapChannelAdmin,
   type ChannelCursor,
   type ChannelPost,
-  hasChannelAdminSession,
+  type ChannelAdminRole,
+  hasChannelAdminAccess,
   listChannelPosts,
   loginChannelAdmin,
   logoutChannelAdmin,
   publishChannelPost,
   reactToChannelPost,
-  setAdminPassword,
 } from '../services/channel/channelService';
 import { cacheChannelPosts, getCachedChannelPosts } from '../services/channel/channelCache';
 import { registerForChannelNotifications } from '../services/channel/channelNotifications';
@@ -30,16 +29,10 @@ export function ChannelScreen() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [nextCursor, setNextCursor] = useState<ChannelCursor | null>(null);
   const [hasMore, setHasMore] = useState(false);
-  const [taps, setTaps] = useState(0);
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [role, setRole] = useState<'owner' | 'admin'>('owner');
-  const [password, setPassword] = useState('');
-  const [confirmation, setConfirmation] = useState('');
-  const [passwordSetupRequired, setPasswordSetupRequired] = useState(false);
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [adminRole, setAdminRole] = useState<ChannelAdminRole | null>(null);
   const [newPost, setNewPost] = useState('');
   const [loggedIn, setLoggedIn] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -64,10 +57,11 @@ export function ChannelScreen() {
     let active = true;
     void (async () => {
       const cached = await getCachedChannelPosts().catch(() => []);
-      const hasSession = await hasChannelAdminSession().catch(() => false);
+      const hasAccess = await hasChannelAdminAccess().catch(() => false);
       if (active) {
         if (cached.length) setPosts(cached);
-        setLoggedIn(hasSession);
+        setLoggedIn(hasAccess);
+        if (!hasAccess) setAdminRole(null);
       }
       void registerForChannelNotifications().catch(() => undefined);
       if (active) await load();
@@ -91,114 +85,26 @@ export function ChannelScreen() {
     }
   };
 
-  const hiddenGate = () => {
-    const next = taps + 1;
-    setTaps(next);
-    if (next >= 30) {
-      setTaps(0);
-      setPasswordSetupRequired(false);
-      setPassword('');
-      setConfirmation('');
-      setShowPassword(false);
-      setShowConfirmation(false);
-      setAdminOpen(true);
-    }
-  };
-
-  const openAdmin = () => {
-    setPasswordSetupRequired(false);
-    setPassword('');
-    setConfirmation('');
-    setShowPassword(false);
-    setShowConfirmation(false);
-    setAdminOpen(true);
-  };
-
   const enterAdmin = async () => {
-    if (!password) {
-      showAppError('كلمة المرور مطلوبة', 'اكتب كلمة المرور المؤقتة لأول تهيئة، أو كلمة المرور الدائمة لو الحساب متجهز.');
-      return;
-    }
-    let bootstrapCode = '';
+    if (adminBusy) return;
+    setAdminBusy(true);
     try {
-      const bootstrap = await bootstrapChannelAdmin(role, password);
-      if (bootstrap.requiresPasswordChange) {
-        setPassword('');
-        setConfirmation('');
-        setShowPassword(false);
-        setShowConfirmation(false);
-        setPasswordSetupRequired(true);
-        return;
-      }
-    } catch (error) {
-      bootstrapCode = error instanceof Error ? error.message : '';
-      if (bootstrapCode === 'bootstrap_not_authorized') {
-        showAppError('الحساب غير مسموح له بالتهيئة', 'أضف Firebase UID الخاص بالحساب المستخدم داخل التطبيق إلى CHANNEL_OWNER_BOOTSTRAP_UIDS في Cloudflare، ثم اضغط Deploy.');
-        return;
-      }
-      if (bootstrapCode === 'invalid_bootstrap') {
-        showAppError('كلمة المرور المؤقتة غير صحيحة', 'تحقق من Secret CHANNEL_OWNER_TEMP_PASSWORD في Cloudflare، واختر مسؤول وليس أدمن.');
-        return;
-      }
-      if (bootstrapCode === 'bootstrap_already_used') {
-        // Continue below: an already initialized account should authenticate with its permanent password.
-      }
-      // A previously initialized admin bypasses bootstrap and authenticates below.
-    }
-    try {
-      await loginChannelAdmin(password);
+      const access = await loginChannelAdmin();
+      setAdminRole(access.role);
       setLoggedIn(true);
-      setAdminOpen(false);
-      setPassword('');
-      setConfirmation('');
-      setShowPassword(false);
-      setShowConfirmation(false);
-    } catch (error) {
-      if (error instanceof Error && error.message === 'password_setup_required') {
-        setPasswordSetupRequired(true);
-        setPassword('');
-        setConfirmation('');
-        setShowPassword(false);
-        setShowConfirmation(false);
-        return;
-      }
-      const code = error instanceof Error ? error.message : '';
-      showAppError('تعذر دخول الإدارة', code === 'admin_required' && bootstrapCode === 'bootstrap_already_used'
-        ? 'التهيئة تمت من قبل. استخدم كلمة المرور الدائمة التي أنشأتها، وليس كلمة المرور المؤقتة.'
-        : 'كلمة المرور غير صحيحة أو الحساب غير مهيأ للنشر. راجع رسالة الخطأ السابقة وإعدادات Cloudflare.');
-    }
-  };
-
-  const savePermanentPassword = async () => {
-    if (password.length < 10 || password !== confirmation) {
-      showAppError('راجع كلمة المرور', 'لازم تكون 10 أحرف على الأقل، وتأكيدها مطابق لها بالضبط.');
-      return;
-    }
-    try {
-      await setAdminPassword(password, confirmation);
-      await loginChannelAdmin(password);
-      setLoggedIn(true);
-      setAdminOpen(false);
-      setPasswordSetupRequired(false);
-      setPassword('');
-      setConfirmation('');
-      setShowPassword(false);
-      setShowConfirmation(false);
     } catch (error) {
       const code = error instanceof Error ? error.message : '';
-      const diagnosticCode = /^[a-zA-Z0-9:_-]{1,80}$/.test(code) ? code : 'unknown_error';
-      showAppError('ماقدرناش نحفظ كلمة المرور', code === 'password_already_set'
-        ? 'الحساب متجهز بالفعل. اقفل النافذة وادخل بكلمة المرور الدائمة.'
-        : code === 'invalid_password'
-          ? 'كلمة المرور الجديدة لازم تكون 10 أحرف أو أكثر، ولازم الحقلان يكونان متطابقين.'
-          : code === 'admin_required'
-            ? 'حساب Firebase الحالي غير مسجل كمسؤول. ارجع للتهيئة باستخدام كلمة المرور المؤقتة.'
-            : code === 'unauthorized'
-              ? 'انتهت جلسة Firebase. أغلق القناة وافتحها من جديد ثم جرّب.'
-              : `تعذر الاتصال بالخادم أو القناة غير مهيأة. تأكد من الإنترنت وحاول مرة أخرى. (رمز التشخيص: ${diagnosticCode})`);
+      if (code === 'firebase_account_signin_required') {
+        showAppError('سجّل الدخول بحسابك', 'افتح الصفحة الرئيسية وسجّل الدخول بحساب Firebase المصرّح له، ثم ارجع إلى القناة واضغط فتح لوحة النشر.');
+      } else if (code === 'admin_required') {
+        showAppError('الحساب غير مخوّل للنشر', 'تم التحقق من هوية Firebase، لكن UID هذا الحساب غير مسجل كمسؤول للقناة.');
+      } else {
+        showAppError('تعذر التحقق من الصلاحية', 'تحقق من اتصال الإنترنت ثم أعد المحاولة. لم يتم حفظ كلمة مرور أو جلسة إدارية على الخادم.');
+      }
+    } finally {
+      setAdminBusy(false);
     }
   };
-
   const publish = async () => {
     const body = newPost.trim();
     if (!body) return;
@@ -208,20 +114,21 @@ export function ChannelScreen() {
       await load();
     } catch (error) {
       const code = error instanceof Error ? error.message : '';
-      if (code === 'admin_session_expired' || code === 'admin_session_required') {
+      if (code === 'admin_required' || code === 'unauthorized' || code === 'firebase_account_signin_required') {
         await logoutChannelAdmin().catch(() => undefined);
         setLoggedIn(false);
-        setAdminOpen(true);
+        setAdminRole(null);
       }
-      showAppError('تعذر النشر', code === 'admin_session_expired'
-        ? 'انتهت جلسة الإدارة؛ سجّل دخولك مرة تانية.'
-        : 'لازم تسجّل دخولك بصلاحية إدارية معتمدة قبل النشر.');
+      showAppError('تعذر النشر', code === 'admin_required'
+        ? 'الحساب الحالي لم يعد مخولًا للنشر. سجّل الدخول بالحساب المعتمد أو تواصل مع مالك القناة.'
+        : 'تعذر التحقق من هوية Firebase أو اتصال الخادم. تحقق من الحساب والإنترنت ثم حاول مجددًا.');
     }
   };
 
   const leaveAdmin = async () => {
     await logoutChannelAdmin().catch(() => undefined);
     setLoggedIn(false);
+    setAdminRole(null);
   };
 
   return (
@@ -245,15 +152,18 @@ export function ChannelScreen() {
         <Text style={styles.syncText}>الرسائل محفوظة على الخادم، ونسخة منها متاحة على جهازك عند انقطاع النت.</Text>
       </View>
 
-      <Pressable onPress={openAdmin} accessibilityRole="button" style={styles.adminEntry}>
-        <Ionicons name="lock-closed-outline" size={17} color={colors.tealDark} />
-        <Text style={styles.adminEntryText}>إدخال كلمة المرور وفتح لوحة نشر القناة</Text>
+      <Pressable onPress={() => { void enterAdmin(); }} accessibilityRole="button" style={styles.adminEntry} disabled={adminBusy}>
+        <Ionicons name={loggedIn ? 'shield-checkmark-outline' : 'person-circle-outline'} size={17} color={colors.tealDark} />
+        <Text style={styles.adminEntryText}>{adminBusy ? 'جارٍ التحقق من حساب Firebase…' : loggedIn ? 'إعادة التحقق من صلاحية النشر' : 'فتح لوحة النشر بحساب Firebase'}</Text>
       </Pressable>
 
       {loggedIn && (
         <SurfaceCard accent={colors.teal}>
           <View style={styles.adminHeader}>
-            <Text style={styles.cardTitle}>لوحة النشر</Text>
+            <View>
+              <Text style={styles.cardTitle}>لوحة النشر</Text>
+              {adminRole && <Text style={styles.footerText}>{adminRole === 'owner' ? 'مسؤول القناة' : 'أدمن القناة'}</Text>}
+            </View>
             <Pressable onPress={leaveAdmin} accessibilityRole="button" style={styles.logoutButton}>
               <Text style={styles.logoutText}>خروج</Text>
             </Pressable>
@@ -299,69 +209,10 @@ export function ChannelScreen() {
         </ActionButton>
       )}
 
-      <Pressable onPress={hiddenGate} hitSlop={8}>
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>لا يُسمح إلا للمسؤول المعتمد بإرسال الرسائل</Text>
-          <Ionicons name="checkmark-circle" size={14} color="#2f80ed" />
-        </View>
-      </Pressable>
-
-      <Modal visible={adminOpen} transparent animationType="slide" onRequestClose={() => setAdminOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>{passwordSetupRequired ? 'تعيين كلمة مرور دائمة' : 'بوابة الإدارة'}</Text>
-            <Text style={styles.modalBody}>
-              {passwordSetupRequired
-                ? 'اكتب كلمة مرور جديدة من 10 أحرف على الأقل، ثم أكدها. ينطبق الإعداد على المسؤول والأدمن.'
-                : 'اختر صفتك. أول دخول يحتاج كلمة المرور المؤقتة من الخادم، وبعدها تختار كلمة دائمة.'}
-            </Text>
-            {!passwordSetupRequired && (
-              <View style={styles.roleRow}>
-                <ActionButton tone={role === 'owner' ? 'primary' : 'quiet'} onPress={() => setRole('owner')}>مسؤول</ActionButton>
-                <ActionButton tone={role === 'admin' ? 'primary' : 'quiet'} onPress={() => setRole('admin')}>أدمن</ActionButton>
-              </View>
-            )}
-            <View style={styles.passwordRow}>
-              <TextInput
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-                placeholder={passwordSetupRequired ? 'كلمة المرور الجديدة' : 'المؤقتة أو الدائمة'}
-                placeholderTextColor={colors.inkFaint}
-                style={styles.passwordInput}
-                autoCapitalize="none"
-                autoCorrect={false}
-                maxLength={128}
-              />
-              <Pressable onPress={() => setShowPassword((current) => !current)} accessibilityRole="button" accessibilityLabel={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'} style={styles.eyeButton}>
-                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={21} color={colors.inkMuted} />
-              </Pressable>
-            </View>
-            {passwordSetupRequired && (
-              <View style={styles.passwordRow}>
-                <TextInput
-                  secureTextEntry={!showConfirmation}
-                  value={confirmation}
-                  onChangeText={setConfirmation}
-                  placeholder="تأكيد كلمة المرور الجديدة"
-                  placeholderTextColor={colors.inkFaint}
-                  style={styles.passwordInput}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  maxLength={128}
-                />
-                <Pressable onPress={() => setShowConfirmation((current) => !current)} accessibilityRole="button" accessibilityLabel={showConfirmation ? 'إخفاء تأكيد كلمة المرور' : 'إظهار تأكيد كلمة المرور'} style={styles.eyeButton}>
-                  <Ionicons name={showConfirmation ? 'eye-off-outline' : 'eye-outline'} size={21} color={colors.inkMuted} />
-                </Pressable>
-              </View>
-            )}
-            <ActionButton onPress={passwordSetupRequired ? savePermanentPassword : enterAdmin}>
-              {passwordSetupRequired ? 'حفظ كلمة المرور والدخول' : 'دخول'}
-            </ActionButton>
-            <Pressable onPress={() => setAdminOpen(false)}><Text style={styles.cancel}>إلغاء</Text></Pressable>
-          </View>
-        </View>
-      </Modal>
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>لا يُسمح إلا لمعرّف Firebase المسجّل كمسؤول بإرسال الرسائل</Text>
+        <Ionicons name="checkmark-circle" size={14} color="#2f80ed" />
+      </View>
     </ScrollView>
   );
 }
@@ -400,9 +251,6 @@ function createStyles(colors: ThemeColors) {
     logoutButton: { paddingHorizontal: spacing.sm, paddingVertical: 4 },
     logoutText: { ...typography.label, color: colors.coral },
     input: { borderWidth: 1, borderColor: colors.line, borderRadius: radii.md, color: colors.ink, padding: spacing.sm, minHeight: 48, textAlign: 'right', writingDirection: 'rtl', marginBottom: spacing.sm },
-    passwordRow: { flexDirection: 'row-reverse', alignItems: 'center', borderWidth: 1, borderColor: colors.line, borderRadius: radii.md, marginBottom: spacing.sm, paddingRight: spacing.xs },
-    passwordInput: { flex: 1, color: colors.ink, padding: spacing.sm, minHeight: 48, textAlign: 'right', writingDirection: 'rtl' },
-    eyeButton: { padding: spacing.sm },
     composer: { minHeight: 108 },
     messageRow: { width: '100%', alignItems: 'flex-end' },
     messageBubble: { maxWidth: '96%', minWidth: '72%', borderRadius: 19, borderBottomRightRadius: 5, backgroundColor: '#E6F4EE', borderWidth: 1, borderColor: '#D2E9DE', padding: spacing.md, shadowColor: '#0d2730', shadowOpacity: 0.06, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
@@ -412,13 +260,7 @@ function createStyles(colors: ThemeColors) {
     reactions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.xs, marginTop: spacing.sm },
     reaction: { borderWidth: 1, borderColor: '#C6DFD3', backgroundColor: '#F7FCF9', borderRadius: radii.pill, paddingHorizontal: spacing.sm, paddingVertical: 4 },
     empty: { ...typography.body, color: colors.inkMuted, textAlign: 'center' },
-    roleRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
     footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: spacing.lg },
     footerText: { ...typography.body, color: colors.inkMuted, fontSize: 12 },
-    modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: '#0008' },
-    modal: { backgroundColor: colors.paper, padding: spacing.lg, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
-    modalTitle: { ...typography.h2, color: colors.ink },
-    modalBody: { ...typography.body, color: colors.inkMuted, marginVertical: spacing.sm },
-    cancel: { ...typography.label, color: colors.inkMuted, textAlign: 'center', padding: spacing.md },
   });
 }

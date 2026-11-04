@@ -22,6 +22,13 @@ export async function getFirebaseAIIdToken() {
   }
 }
 
+export async function getFirebaseSignedInIdToken() {
+  const auth = getFirebaseAuth();
+  if (!auth) throw new Error('firebase_auth_not_configured');
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) throw new Error('firebase_account_signin_required');
+  return user.getIdToken();
+}
 export async function signInAdmin(email: string, password: string) {
   const auth = getFirebaseAuth();
   if (!auth) throw new Error('Firebase is not configured');

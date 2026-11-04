@@ -26,7 +26,7 @@ npx wrangler deploy
 
 بعد نشر الـWorker وضبط إعداداته، عيّن `EXPO_PUBLIC_API_BASE_URL` في بيئة بناء Expo/EAS على أصل نطاقه دون `/` في النهاية، مثل `https://murshid-ai-backend.<subdomain>.workers.dev`. اضبط إعدادات Firebase العامة في Expo، وفعّل **Anonymous** من Firebase Console → Authentication → Sign-in method. ينشئ التطبيق هوية Firebase للمستخدم تلقائيًا؛ لا يحتاج المستخدم إلى مفتاح Gemini خاص به.
 
-### القناة الرسمية وكلمات مرور الإدارة
+### القناة الرسمية وصلاحيات الإدارة عبر Firebase UID
 
 المنشورات محفوظة في D1 على الخادم، وهو المصدر المشترك بين الأجهزة وإصدارات التطبيق؛ ويحتفظ كل جهاز بنسخة SQLite محلية للقراءة عند انقطاع الاتصال. طبّق مخطط القناة مرة واحدة:
 
@@ -34,7 +34,20 @@ npx wrangler deploy
 npm --prefix backend run channel:migrate
 ```
 
-على Worker عيّن `CHANNEL_OWNER_TEMP_PASSWORD` و/أو `CHANNEL_ADMIN_TEMP_PASSWORD` كـSecrets قوية للاستخدام مرة واحدة. بعد إدخال السر المؤقت في التطبيق، يختار المسؤول كلمة مرور دائمة من 10 أحرف على الأقل، وتُحفظ مشتقة ومملّحة في D1. يمكن تشديد التهيئة بقوائم UID اختيارية `CHANNEL_OWNER_BOOTSTRAP_UIDS` و`CHANNEL_ADMIN_BOOTSTRAP_UIDS`. جلسة النشر تصدر بعد التحقق من كلمة المرور وتنتهي بعد 12 ساعة.
+تفويض النشر يعتمد على رمز Firebase ID موثّق وعلى مطابقة UID في جدول `channel_admins` بدور `owner` أو `admin`. يتحقق الـWorker من الصلاحية عند كل طلب نشر؛ لا توجد كلمة مرور للقناة أو كلمة مرور مؤقتة أو جلسة إدارية على الخادم. يحتفظ التطبيق فقط بعلامة تفعيل محلية آمنة على الجهاز، ولا تعتبر هذه العلامة بديلًا عن التحقق الخادمي. سجّل دخول Firebase بحساب UID المخوّل من الصفحة الرئيسية للتطبيق، ثم اضغط «فتح لوحة النشر بحساب Firebase» داخل القناة.
+
+لا توجد واجهة عامة لرفع صلاحية المستخدم إلى مسؤول. يهيّئ مسؤول Cloudflare المخوّل أول مالك أو مسؤول جديد مباشرة في D1 بعد التحقق من Firebase UID. من جذر المستودع، استبدل القيمة بـUID الموثوق ثم نفّذ:
+
+```bash
+cd backend
+OWNER_UID='<verified Firebase UID>'
+NOW_MS="$(node -p 'Date.now()')"
+npx wrangler d1 execute murshid-channel-db --remote --command "INSERT INTO channel_admins (uid, role, created_at, updated_at) VALUES ('$OWNER_UID', 'owner', $NOW_MS, $NOW_MS) ON CONFLICT(uid) DO UPDATE SET role = excluded.role, updated_at = excluded.updated_at;" --yes
+```
+
+لإضافة مسؤول عادي بدل المالك، غيّر قيمة `owner` إلى `admin`. لا تستخدم UID مجهولًا أو غير متحقق منه. حساب مالك القناة الحالي مُسجّل مسبقًا في D1 بالإعداد الإنتاجي.
+
+لم يعد `CHANNEL_OWNER_TEMP_PASSWORD` أو `CHANNEL_ADMIN_TEMP_PASSWORD` ولا مسارا `/api/channel/admin/bootstrap` و`/password` و`/login` مستخدمين. يمكن أن تبقى أعمدة كلمات المرور وجدول الجلسات القديم في قواعد D1 القائمة للتوافق؛ الشيفرة الجديدة لا تقرأها أو تكتب إليها. لا يلزم حذف بيانات أو تنفيذ ترحيل تخريبي لتفعيل آلية UID.
 
 لإشعارات المنشورات، يسجّل التطبيق رمز Expo Push للجهاز بعد منح إذن الإشعارات وفتح القناة، ويحفظه Worker في `channel_devices`. عند النشر يرسل Worker إشعارًا للأجهزة المسجلة؛ يمكن ضبط `EXPO_ACCESS_TOKEN` كـSecret اختياري على Worker. يحتاج بناء Android إلى بيانات Firebase Cloud Messaging الخاصة بـEAS، كما يلزم أن يسمح المستخدم بإشعارات التطبيق. الضغط على الإشعار يفتح تبويب القناة.
 

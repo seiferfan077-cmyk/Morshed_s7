@@ -30,7 +30,8 @@
 
 - تفتح القناة من تبويب **القناة الرسمية** أو زر **فتح القناة** في الصفحة الرئيسية. يرسل التطبيق Firebase ID token إلى المسار `/api/channel/feed` على عنوان `EXPO_PUBLIC_API_BASE_URL`.
 - يحتاج Cloudflare Worker إلى `FIREBASE_PROJECT_ID` مطابق لمشروع التطبيق، وربط D1 باسم `CHANNEL_DB`، ثم تطبيق `backend/channel-schema.sql` مرة واحدة.
-- قراءة المنشورات لا تحتاج كلمة مرور إدارة. النشر الإداري فقط يحتاج أسرار التهيئة `CHANNEL_OWNER_TEMP_PASSWORD` أو `CHANNEL_ADMIN_TEMP_PASSWORD` وقائمة UID المسموح بها على Worker؛ لا تحفظ هذه القيم داخل التطبيق.
+- قراءة المنشورات متاحة لمستخدم Firebase، لكن النشر يتطلب تسجيل الدخول بحساب Firebase غير مجهول، وأن يكون UID الخاص به مسجلًا بدور `owner` أو `admin` في جدول D1 `channel_admins`.
+- لإضافة المسؤول الأول أو مسؤول جديد، استخدم اتصال Wrangler المصرح به وشغّل أمر تهيئة UID الوارد في [دليل Backend](../backend/README.md). لا توجد كلمة مرور للقناة أو أسرار تهيئة أو مسار bootstrap؛ لا تمنح الدور إلا لUID موثوق.
 
 ## المحادثة والخصوصية
 
