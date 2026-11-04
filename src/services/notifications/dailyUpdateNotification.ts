@@ -7,20 +7,20 @@ const LAST_SENT_KEY = '@murshid/daily-update-notification/last-sent-at';
 const PERMISSION_PROMPTED_KEY = '@murshid/daily-update-notification/permission-prompted';
 const ANDROID_CHANNEL_ID = 'murshid-daily-updates';
 
-const NOTIFICATION_TITLE = 'أهــلًا بيك ✿ في مُرشد ۝';
+const NOTIFICATION_TITLE = 'إضافة جديدة في مُرشد ✿';
 const NOTIFICATION_BODY = `رفيقك اليومي ♡ علشان تستخدم موبايلك بسهولة، وتستمتع بتجربة أسهل وأوضح! (◔‿◔)
 
 ♥️ عزيزنا مستخدم مُرشد،
 
-علشان نقدر نقدّم لك أفضل تجربة، بننصحك تزور موقع مُرشد الإلكتروني من وقت للتاني، علشان تتابع أحدث الإصدارات والتحديثات أول بأول. 💫
+أضفنا قسم «راشد من مرشد» داخل التطبيق، يفتح خلال لحظات وبطريقة مريحة للقراءة. 💫
 
-📌 إزاي تتابع آخر تحديثات مُرشد؟
+📌 إزاي تفتحه؟
 
 ١. افتح تطبيق مُرشد.
-٢. ادخل على الإعدادات.
-٣. اضغط على «زيارة الموقع الإلكتروني»، واستنى شوية.
+٢. ادخل على الشاشة الرئيسية أو قسم «المميزات».
+٣. اضغط على «راشد من مرشد» واستنى شوية لحد ما يفتح.
 
-أول ما يتوفر إصدار جديد من مُرشد، هتلاقي تفاصيله واضحة على الموقع، وكمان هيوصلك إشعار من التطبيق نفسه علشان تفضل عارف كل جديد! 🚀
+القسم بيشتغل جنب مُرشد من غير تكبير أو نسخ أو قوائم مطولة، علشان تفضل التجربة بسيطة وواضحة. 🚀
 
 ومتنساش تتابع القناة الرسمية لمُرشد الموجودة جوه التطبيق، علشان يوصلك كل جديد وتستمتع بتجربة أسهل وأفضل معانا. ♥️
 
@@ -108,7 +108,7 @@ async function deliverDailyUpdateNotification(): Promise<boolean> {
       content: {
         title: NOTIFICATION_TITLE,
         body: NOTIFICATION_BODY,
-        data: { kind: 'murshid-daily-update' },
+        data: { kind: 'murshid-daily-update', route: 'rashid' },
         sound: false,
         color: '#E53935',
       },

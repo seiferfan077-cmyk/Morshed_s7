@@ -9,6 +9,20 @@ import { radii, spacing, typography, ThemeColors } from '../theme';
 
 const SUPPORT_URL = 'https://setr-seif-ai.vercel.app/';
 export const MURSHID_FEATURES_URL = 'https://setr-seif-ai.vercel.app/#features';
+export const RASHID_FROM_MURSHID_URL = 'https://morshed-website.vercel.app/';
+
+const RASHID_KIOSK_SCRIPT = `
+  (function () {
+    var style = document.createElement('style');
+    style.textContent = '* { -webkit-user-select: none !important; user-select: none !important; -webkit-touch-callout: none !important; } html, body { -webkit-text-size-adjust: 100% !important; touch-action: pan-y !important; }';
+    document.head.appendChild(style);
+    document.addEventListener('contextmenu', function (event) { event.preventDefault(); }, true);
+    document.addEventListener('copy', function (event) { event.preventDefault(); }, true);
+    document.addEventListener('cut', function (event) { event.preventDefault(); }, true);
+    document.addEventListener('selectstart', function (event) { event.preventDefault(); }, true);
+  }());
+  true;
+`;
 
 type SupportWebsiteModalProps = {
   visible: boolean;
@@ -87,6 +101,10 @@ export function SupportWebsiteModal({ visible, onClose, url = SUPPORT_URL, title
             domStorageEnabled
             setSupportMultipleWindows={false}
             allowsBackForwardNavigationGestures={false}
+            textInteractionEnabled={false}
+            setBuiltInZoomControls={false}
+            setDisplayZoomControls={false}
+            injectedJavaScriptBeforeContentLoaded={RASHID_KIOSK_SCRIPT}
             startInLoadingState={false}
           />
 

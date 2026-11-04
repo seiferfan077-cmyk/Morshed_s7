@@ -24,7 +24,7 @@ export type RootTabParamList = {
   المتصفح: undefined;
   المعرض: undefined;
   الذاكرة: undefined;
-  المميزات: undefined;
+  المميزات: { openRashid?: boolean } | undefined;
   الإعدادات: undefined;
 };
 
@@ -44,12 +44,18 @@ export function AppNavigator() {
       if (navigationRef.isReady()) navigationRef.navigate('القناة الرسمية');
       else pendingChannelOpen.current = true;
     };
+    const openRashid = () => {
+      if (navigationRef.isReady()) navigationRef.navigate('المميزات', { openRashid: true });
+    };
     const isChannelResponse = (response: Notifications.NotificationResponse | null) => response?.notification.request.content.data?.route === 'channel';
+    const isRashidResponse = (response: Notifications.NotificationResponse | null) => response?.notification.request.content.data?.route === 'rashid';
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       if (isChannelResponse(response)) openChannel();
+      if (isRashidResponse(response)) openRashid();
     });
     void Notifications.getLastNotificationResponseAsync().then(async (response) => {
       if (isChannelResponse(response)) openChannel();
+      if (isRashidResponse(response)) openRashid();
       if (response) await Notifications.clearLastNotificationResponseAsync();
     }).catch(() => undefined);
     return () => subscription.remove();

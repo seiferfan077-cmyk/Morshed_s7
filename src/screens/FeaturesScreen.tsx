@@ -1,18 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { SurfaceCard } from '../components/SurfaceCard';
 import { radii, spacing, typography, ThemeColors } from '../theme';
 import { useAppTheme } from '../theme/ThemeProvider';
+import { useRoute, type RouteProp } from '@react-navigation/native';
+import type { RootTabParamList } from '../navigation/AppNavigator';
 import { QuranReader } from './QuranReader';
 import { IslamicSection } from './IslamicSection';
+import { RASHID_FROM_MURSHID_URL, SupportWebsiteModal } from './SupportWebsiteModal';
 
 export function FeaturesScreen() {
   const { colors } = useAppTheme();
   const styles = createStyles(colors);
+  const route = useRoute<RouteProp<RootTabParamList, 'المميزات'>>();
   const [showIslamicSection, setShowIslamicSection] = useState(false);
   const [showQuranReader, setShowQuranReader] = useState(false);
+  const [showRashid, setShowRashid] = useState(false);
+  useEffect(() => {
+    if (route.params?.openRashid) setShowRashid(true);
+  }, [route.params?.openRashid]);
 
   if (showQuranReader) return <QuranReader onClose={() => setShowQuranReader(false)} />;
   if (showIslamicSection) {
@@ -58,6 +66,16 @@ export function FeaturesScreen() {
         <Ionicons name="chevron-forward-outline" size={22} color="#7ee1d1" />
       </Pressable>
 
+      <Pressable accessibilityRole="button" accessibilityLabel="فتح راشد من مرشد" onPress={() => setShowRashid(true)} style={({ pressed }) => [styles.rashidCard, pressed && styles.pressed]}>
+        <View style={styles.rashidIcon}><Ionicons name="compass-outline" size={29} color={colors.paper} /></View>
+        <View style={styles.cardCopy}>
+          <Text style={styles.rashidTitle}>راشد من مرشد</Text>
+          <Text style={styles.rashidDetail}>قسم خفيف داخل مُرشد، يفتح خلال لحظات وبطريقة مريحة للقراءة.</Text>
+          <Text style={styles.rashidHint}>اضغط للفتح داخل التطبيق</Text>
+        </View>
+        <Ionicons name="chevron-forward-outline" size={22} color={colors.amber} />
+      </Pressable>
+
       <SurfaceCard>
         <View style={styles.infoRow}>
           <View style={styles.infoIcon}><Ionicons name="sparkles-outline" size={20} color={colors.tealDark} /></View>
@@ -67,6 +85,7 @@ export function FeaturesScreen() {
           </View>
         </View>
       </SurfaceCard>
+      <SupportWebsiteModal visible={showRashid} onClose={() => setShowRashid(false)} url={RASHID_FROM_MURSHID_URL} title="راشد من مرشد" />
     </ScrollView>
   );
 }
@@ -90,6 +109,11 @@ function createStyles(colors: ThemeColors) { return StyleSheet.create({
   callTitle: { ...typography.h2, color: colors.paper, fontSize: 19 },
   callDetail: { ...typography.body, color: '#C8E3DE', fontSize: 12, lineHeight: 20, marginTop: 4 },
   callHint: { ...typography.label, color: '#7EE1D1', fontSize: 11, marginTop: 8 },
+  rashidCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.amberSoft, borderRadius: radii.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.amber, marginBottom: spacing.xl },
+  rashidIcon: { width: 58, height: 58, borderRadius: 20, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center' },
+  rashidTitle: { ...typography.h2, color: colors.ink, fontSize: 19 },
+  rashidDetail: { ...typography.body, color: colors.inkMuted, fontSize: 12, lineHeight: 20, marginTop: 4 },
+  rashidHint: { ...typography.label, color: colors.amber, fontSize: 11, marginTop: 8 },
   cardCopy: { flex: 1, marginHorizontal: spacing.sm },
   infoRow: { flexDirection: 'row', alignItems: 'center' },
   infoIcon: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.tealSoft, alignItems: 'center', justifyContent: 'center' },
