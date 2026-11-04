@@ -6,6 +6,7 @@ import { sendChannelPostNotifications } from '../lib/channel-push.js';
 
 const baseEnv = {
   FIREBASE_PROJECT_ID: 'test-project',
+  CHANNEL_OWNER_TEMP_PASSWORD: 'test-owner-password',
 };
 const verify = async () => ({ uid: 'user-1' });
 const request = (path, method = 'GET', body, token = 'token', extraHeaders = {}) => new Request(`https://example.test${path}`, {
@@ -46,38 +47,41 @@ test('channel routes require D1 configuration', async () => {
   assert.deepEqual(await response.json(), { error: { code: 'channel_not_configured' } });
 });
 
-test('Firebase UID with an owner role can verify access without password setup or a session', async () => {
-  const db = fakeDb({ first: (sql) => sql.includes('FROM channel_admins') ? { uid: 'user-1', role: 'owner', bootstrap_used: 0, password_hash: null } : null });
-  const response = await handleChannelAdminRequest(request('/api/channel/admin/access'), { ...baseEnv, CHANNEL_DB: db }, verify);
+test('the configured temporary password opens the admin panel without creating a server session', async () => {
+  const response = await handleChannelAdminRequest(request('/api/channel/admin/login', 'POST', { password: 'test-owner-password' }), baseEnv, verify);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { ok: true, role: 'owner' });
-  assert.equal(db.runs.length, 0);
 });
-test('Firebase UID without a D1 admin role cannot activate the publishing panel', async () => {
-  const db = fakeDb({ first: () => null });
-  const response = await handleChannelAdminRequest(request('/api/channel/admin/access'), { ...baseEnv, CHANNEL_DB: db }, verify);
-  assert.equal(response.status, 403);
-  assert.deepEqual(await response.json(), { error: { code: 'admin_required' } });
+test('an incorrect temporary password cannot open the admin panel', async () => {
+  const response = await handleChannelAdminRequest(request('/api/channel/admin/login', 'POST', { password: 'wrong-password' }), baseEnv, verify);
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { error: { code: 'invalid_admin_password' } });
 });
-test('approved Firebase UID can publish without a password or admin session token', async () => {
-  const db = fakeDb({ first: (sql) => sql.includes('FROM channel_admins') ? { uid: 'user-1', role: 'owner', bootstrap_used: 0, password_hash: null } : null });
-  const response = await handleChannelAdminRequest(request('/api/channel/admin/posts', 'POST', { body: 'رسالة من المسؤول' }), { ...baseEnv, CHANNEL_DB: db }, verify);
+test('the configured password verifies stored local access without a server-side session', async () => {
+  const response = await handleChannelAdminRequest(request('/api/channel/admin/access', 'GET', undefined, 'token', { 'x-channel-admin-password': 'test-owner-password' }), baseEnv, verify);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { ok: true, role: 'owner' });
+});
+test('the configured temporary password can publish a post', async () => {
+  const db = fakeDb();
+  const response = await handleChannelAdminRequest(request('/api/channel/admin/posts', 'POST', { body: 'رسالة من المسؤول' }, 'token', { 'x-channel-admin-password': 'test-owner-password' }), { ...baseEnv, CHANNEL_DB: db }, verify);
   assert.equal(response.status, 201);
   assert.equal((await response.json()).post.body, 'رسالة من المسؤول');
   assert.ok(db.runs.some(({ sql }) => sql.includes('INSERT INTO channel_posts')));
   assert.equal(db.runs.some(({ sql }) => sql.includes('channel_admin_sessions')), false);
 });
-test('unapproved Firebase UID cannot publish even with a valid Firebase token', async () => {
-  const db = fakeDb({ first: () => null });
-  const response = await handleChannelRequest(request('/api/channel/posts', 'POST', { body: 'محاولة نشر' }), { ...baseEnv, CHANNEL_DB: db }, verify);
-  assert.equal(response.status, 403);
-  assert.deepEqual(await response.json(), { error: { code: 'admin_required' } });
+test('publishing is rejected if the temporary password header is missing or wrong', async () => {
+  const db = fakeDb();
+  const missing = await handleChannelRequest(request('/api/channel/posts', 'POST', { body: 'محاولة نشر' }), { ...baseEnv, CHANNEL_DB: db }, verify);
+  const wrong = await handleChannelRequest(request('/api/channel/posts', 'POST', { body: 'محاولة نشر' }, 'token', { 'x-channel-admin-password': 'wrong-password' }), { ...baseEnv, CHANNEL_DB: db }, verify);
+  assert.equal(missing.status, 401);
+  assert.equal(wrong.status, 401);
+  assert.equal(db.runs.some(({ sql }) => sql.includes('INSERT INTO channel_posts')), false);
 });
-test('legacy password bootstrap and login endpoints are disabled', async () => {
-  const db = fakeDb({ first: (sql) => sql.includes('FROM channel_admins') ? { uid: 'user-1', role: 'owner' } : null });
-  const response = await handleChannelAdminRequest(request('/api/channel/admin/login', 'POST', { password: 'ignored' }), { ...baseEnv, CHANNEL_DB: db }, verify);
-  assert.equal(response.status, 404);
-  assert.deepEqual(await response.json(), { error: { code: 'not_found' } });
+test('admin login fails closed when the temporary password secret is not configured', async () => {
+  const response = await handleChannelAdminRequest(request('/api/channel/admin/login', 'POST', { password: 'test-owner-password' }), { FIREBASE_PROJECT_ID: 'test-project' }, verify);
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: { code: 'channel_admin_password_not_configured' } });
 });
 test('device registration requires a valid Expo push token and stores it in D1', async () => {
   const db = fakeDb();

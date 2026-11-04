@@ -1,10 +1,3 @@
-CREATE TABLE IF NOT EXISTS channel_admins (
-  uid TEXT PRIMARY KEY,
-  role TEXT NOT NULL CHECK (role IN ('owner', 'admin')),
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS channel_posts (
   id TEXT PRIMARY KEY,
   author_uid TEXT NOT NULL,

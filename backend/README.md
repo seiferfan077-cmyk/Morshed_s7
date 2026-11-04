@@ -21,12 +21,22 @@ npx wrangler deploy
 
 - `GEMINI_API_KEY` بالنوع **Secret**؛ لا تضعه في التطبيق أو Git.
 - `FIREBASE_PROJECT_ID` كمتغير عادي؛ يجب أن يطابق معرّف مشروع Firebase المستخدم في التطبيق.
+- `CHANNEL_OWNER_TEMP_PASSWORD` بالنوع **Secret** لفتح لوحة نشر القناة؛ ويمكن ضبط `CHANNEL_ADMIN_TEMP_PASSWORD` كسر منفصل لدور الأدمن.
 
-يحدد `wrangler.toml` مسبقًا `AI_PROVIDER=gemini` و`GEMINI_MODEL=gemini-3.8-flash`. ويمكن إضافة السر من الطرفية بدل لوحة Cloudflare عبر `npx wrangler secret put GEMINI_API_KEY`؛ لا تكتب قيمته داخل الملفات. ملفات `.dev.vars*` مستثناة من Git محليًا.
+يحدد `wrangler.toml` مسبقًا `AI_PROVIDER=gemini` و`GEMINI_MODEL=gemini-3.8-flash`. ويمكن إضافة الأسرار من الطرفية بدل لوحة Cloudflare، من دون كتابة القيم داخل ملفات المشروع:
+
+```bash
+npx wrangler secret put GEMINI_API_KEY
+npx wrangler secret put CHANNEL_OWNER_TEMP_PASSWORD
+# اختياري:
+npx wrangler secret put CHANNEL_ADMIN_TEMP_PASSWORD
+```
+
+ملفات `.dev.vars*` مستثناة من Git محليًا.
 
 بعد نشر الـWorker وضبط إعداداته، عيّن `EXPO_PUBLIC_API_BASE_URL` في بيئة بناء Expo/EAS على أصل نطاقه دون `/` في النهاية، مثل `https://murshid-ai-backend.<subdomain>.workers.dev`. اضبط إعدادات Firebase العامة في Expo، وفعّل **Anonymous** من Firebase Console → Authentication → Sign-in method. ينشئ التطبيق هوية Firebase للمستخدم تلقائيًا؛ لا يحتاج المستخدم إلى مفتاح Gemini خاص به.
 
-### القناة الرسمية وصلاحيات الإدارة عبر Firebase UID
+### القناة الرسمية ولوحة النشر بكلمة المرور المؤقتة
 
 المنشورات محفوظة في D1 على الخادم، وهو المصدر المشترك بين الأجهزة وإصدارات التطبيق؛ ويحتفظ كل جهاز بنسخة SQLite محلية للقراءة عند انقطاع الاتصال. طبّق مخطط القناة مرة واحدة:
 
@@ -34,20 +44,9 @@ npx wrangler deploy
 npm --prefix backend run channel:migrate
 ```
 
-تفويض النشر يعتمد على رمز Firebase ID موثّق وعلى مطابقة UID في جدول `channel_admins` بدور `owner` أو `admin`. يتحقق الـWorker من الصلاحية عند كل طلب نشر؛ لا توجد كلمة مرور للقناة أو كلمة مرور مؤقتة أو جلسة إدارية على الخادم. يحتفظ التطبيق فقط بعلامة تفعيل محلية آمنة على الجهاز، ولا تعتبر هذه العلامة بديلًا عن التحقق الخادمي. سجّل دخول Firebase بحساب UID المخوّل من الصفحة الرئيسية للتطبيق، ثم اضغط «فتح لوحة النشر بحساب Firebase» داخل القناة.
+تظهر شاشة كلمة المرور داخل القناة نفسها. اكتب `CHANNEL_OWNER_TEMP_PASSWORD` واضغط «فتح لوحة النشر»؛ لا حاجة لتسجيل دخول Google أو إنشاء كلمة مرور دائمة. بعد قبولها يحفظ التطبيق القيمة في `expo-secure-store` على الجهاز، ويقدمها عبر HTTPS مع كل طلب إداري. يتحقق Worker من السر عند الدخول وكل نشر أو تعديل أو حذف، ولا ينشئ جلسة إدارية في D1 أو يخزن hash هناك. تتطلب طلبات القناة أيضًا Firebase ID token المعتاد، ويُنشئ التطبيق هوية Firebase مجهولة تلقائيًا عند عدم وجود مستخدم مسجل.
 
-لا توجد واجهة عامة لرفع صلاحية المستخدم إلى مسؤول. يهيّئ مسؤول Cloudflare المخوّل أول مالك أو مسؤول جديد مباشرة في D1 بعد التحقق من Firebase UID. من جذر المستودع، استبدل القيمة بـUID الموثوق ثم نفّذ:
-
-```bash
-cd backend
-OWNER_UID='<verified Firebase UID>'
-NOW_MS="$(node -p 'Date.now()')"
-npx wrangler d1 execute murshid-channel-db --remote --command "INSERT INTO channel_admins (uid, role, created_at, updated_at) VALUES ('$OWNER_UID', 'owner', $NOW_MS, $NOW_MS) ON CONFLICT(uid) DO UPDATE SET role = excluded.role, updated_at = excluded.updated_at;" --yes
-```
-
-لإضافة مسؤول عادي بدل المالك، غيّر قيمة `owner` إلى `admin`. لا تستخدم UID مجهولًا أو غير متحقق منه. حساب مالك القناة الحالي مُسجّل مسبقًا في D1 بالإعداد الإنتاجي.
-
-لم يعد `CHANNEL_OWNER_TEMP_PASSWORD` أو `CHANNEL_ADMIN_TEMP_PASSWORD` ولا مسارا `/api/channel/admin/bootstrap` و`/password` و`/login` مستخدمين. يمكن أن تبقى أعمدة كلمات المرور وجدول الجلسات القديم في قواعد D1 القائمة للتوافق؛ الشيفرة الجديدة لا تقرأها أو تكتب إليها. لا يلزم حذف بيانات أو تنفيذ ترحيل تخريبي لتفعيل آلية UID.
+لا تحفظ كلمة المرور في Git أو متغيرات `EXPO_PUBLIC_*` أو داخل جدول D1. لا توجد خطوة تعيين كلمة مرور دائمة؛ تتوقف صلاحية الأجهزة التي خزنتها محليًا عند تدوير الـSecret أو حذفه. قد تبقى جداول الإدارة القديمة في D1 لكنها لا تُستخدم في التفويض الجديد، ولا يلزم ترحيل بيانات أو حذفها.
 
 لإشعارات المنشورات، يسجّل التطبيق رمز Expo Push للجهاز بعد منح إذن الإشعارات وفتح القناة، ويحفظه Worker في `channel_devices`. عند النشر يرسل Worker إشعارًا للأجهزة المسجلة؛ يمكن ضبط `EXPO_ACCESS_TOKEN` كـSecret اختياري على Worker. يحتاج بناء Android إلى بيانات Firebase Cloud Messaging الخاصة بـEAS، كما يلزم أن يسمح المستخدم بإشعارات التطبيق. الضغط على الإشعار يفتح تبويب القناة.
 

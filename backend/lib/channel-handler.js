@@ -18,20 +18,35 @@ function db(env) { return env.CHANNEL_DB; }
 function requireDb(env) { if (!db(env)) throw new Error('channel_db_not_configured'); return db(env); }
 function validText(value) { return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= MAX_BODY; }
 async function readJson(request) { try { return await request.json(); } catch { return null; } }
-async function adminRecord(env, uid) {
-  // Password hashes/sessions are legacy schema only; authorization uses the verified Firebase UID and stored role.
-  return requireDb(env).prepare('SELECT uid, role FROM channel_admins WHERE uid = ?').bind(uid).first();
+function passwordMatches(candidate, expected) {
+  if (typeof candidate !== 'string' || candidate.length === 0 || candidate.length > 256 || typeof expected !== 'string' || !expected) return false;
+  const encoder = new TextEncoder();
+  const left = encoder.encode(candidate);
+  const right = encoder.encode(expected);
+  let difference = left.length ^ right.length;
+  for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+    difference |= (left[index] ?? 0) ^ (right[index] ?? 0);
+  }
+  return difference === 0;
 }
-function adminRole(record) { return record?.role === 'owner' || record?.role === 'admin' ? record.role : null; }
+function adminRoleForPassword(env, password) {
+  if (passwordMatches(password, env.CHANNEL_OWNER_TEMP_PASSWORD)) return 'owner';
+  if (passwordMatches(password, env.CHANNEL_ADMIN_TEMP_PASSWORD)) return 'admin';
+  return null;
+}
+function passwordNotConfigured(env) {
+  return !env.CHANNEL_OWNER_TEMP_PASSWORD && !env.CHANNEL_ADMIN_TEMP_PASSWORD;
+}
 function validExpoPushToken(token) {
   return typeof token === 'string' && token.length <= 512 && /^(?:ExponentPushToken|ExpoPushToken)\[[^\]]{10,480}\]$/.test(token);
 }
 
-async function requireAdmin(env, user) {
+async function requireAdmin(request, env, user) {
   if (!user?.uid) return { response: error(401, 'unauthorized') };
-  const record = await adminRecord(env, user.uid);
-  if (!adminRole(record)) return { response: error(403, 'admin_required') };
-  return { user, record };
+  if (passwordNotConfigured(env)) return { response: error(503, 'channel_admin_password_not_configured') };
+  const role = adminRoleForPassword(env, request.headers.get('x-channel-admin-password') ?? '');
+  if (!role) return { response: error(401, 'invalid_admin_password') };
+  return { user, record: { role } };
 }
 async function readFeed(database, url) {
   const requested = Number.parseInt(url.searchParams.get('limit') ?? '50', 10);
@@ -91,7 +106,7 @@ export async function handleChannelRequest(request, env, verify = verifyFirebase
       return json({ ok: true }, 201);
     }
     if (url.pathname === '/api/channel/posts' && request.method === 'POST') {
-      const admin = await requireAdmin(env, user);
+      const admin = await requireAdmin(request, env, user);
       if (admin.response) return admin.response;
       const result = await createPost(database, user, await readJson(request) ?? {});
       if (result.response) return result.response;
@@ -119,15 +134,21 @@ export async function handleChannelAdminRequest(request, env, verify = verifyFir
     if (!user?.uid) return error(401, 'unauthorized');
     const url = new URL(request.url);
 
-    // A Firebase ID token proves identity; D1 decides whether this UID has an owner/admin role.
-    if (url.pathname === '/api/channel/admin/access' && request.method === 'GET') {
-      const record = await adminRecord(env, user.uid);
-      const role = adminRole(record);
-      if (!role) return error(403, 'admin_required');
+    if (url.pathname === '/api/channel/admin/login' && request.method === 'POST') {
+      if (passwordNotConfigured(env)) return error(503, 'channel_admin_password_not_configured');
+      const body = await readJson(request) ?? {};
+      const role = adminRoleForPassword(env, body.password);
+      if (!role) return error(401, 'invalid_admin_password');
       return json({ ok: true, role });
     }
 
-    const authorization = await requireAdmin(env, user);
+    if (url.pathname === '/api/channel/admin/access' && request.method === 'GET') {
+      const authorization = await requireAdmin(request, env, user);
+      if (authorization.response) return authorization.response;
+      return json({ ok: true, role: authorization.record.role });
+    }
+
+    const authorization = await requireAdmin(request, env, user);
     if (authorization.response) return authorization.response;
     const database = requireDb(env);
     const body = await readJson(request) ?? {};
