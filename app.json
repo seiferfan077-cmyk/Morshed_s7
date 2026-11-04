@@ -2,7 +2,7 @@
   "expo": {
     "name": "مُرشد - S7",
     "slug": "murshid-s7",
-    "version": "0.4.0",
+    "version": "0.4.1",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -25,7 +25,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.murshid.s7",
-      "versionCode": 8,
+    "versionCode": 9,
       "permissions": [
         "com.android.launcher.permission.INSTALL_SHORTCUT"
       ]
@@ -70,7 +70,7 @@
     "owner": "seif07",
     "updates": {
       "url": "https://u.expo.dev/c4512276-2c5f-4cd5-8c32-ef4550c79cf4",
-      "checkAutomatically": "NEVER"
+      "checkAutomatically": "ON_LOAD"
     },
     "scheme": "murshid"
   }
