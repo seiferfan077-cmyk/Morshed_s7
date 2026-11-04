@@ -101,6 +101,13 @@ export function ChannelScreen() {
     }
   };
 
+  const openAdmin = () => {
+    setPasswordSetupRequired(false);
+    setPassword('');
+    setConfirmation('');
+    setAdminOpen(true);
+  };
+
   const enterAdmin = async () => {
     if (!password) {
       showAppError('كلمة المرور مطلوبة', 'اكتب كلمة المرور المؤقتة لأول تهيئة، أو كلمة المرور الدائمة لو الحساب متجهز.');
@@ -200,6 +207,11 @@ export function ChannelScreen() {
         <Ionicons name="cloud-done-outline" size={17} color={colors.tealDark} />
         <Text style={styles.syncText}>الرسائل محفوظة على الخادم، ونسخة منها متاحة على جهازك عند انقطاع النت.</Text>
       </View>
+
+      <Pressable onPress={openAdmin} accessibilityRole="button" style={styles.adminEntry}>
+        <Ionicons name="lock-closed-outline" size={17} color={colors.tealDark} />
+        <Text style={styles.adminEntryText}>إدخال كلمة المرور وفتح لوحة نشر القناة</Text>
+      </Pressable>
 
       {loggedIn && (
         <SurfaceCard accent={colors.teal}>
@@ -334,6 +346,8 @@ function createStyles(colors: ThemeColors) {
     subtitle: { ...typography.body, color: colors.inkMuted },
     syncNote: { flexDirection: 'row-reverse', alignItems: 'center', gap: 7, borderRadius: radii.md, backgroundColor: colors.tealSoft, padding: spacing.sm },
     syncText: { ...typography.body, color: colors.tealDark, fontSize: 11, flex: 1, textAlign: 'right' },
+    adminEntry: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, borderColor: colors.line, borderRadius: radii.md, backgroundColor: colors.paper, paddingVertical: spacing.sm },
+    adminEntryText: { ...typography.label, color: colors.tealDark, fontSize: 12 },
     adminHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     cardTitle: { ...typography.h2, color: colors.ink, marginBottom: spacing.sm },
     logoutButton: { paddingHorizontal: spacing.sm, paddingVertical: 4 },
