@@ -113,6 +113,7 @@ export function ChannelScreen() {
       showAppError('كلمة المرور مطلوبة', 'اكتب كلمة المرور المؤقتة لأول تهيئة، أو كلمة المرور الدائمة لو الحساب متجهز.');
       return;
     }
+    let bootstrapCode = '';
     try {
       const bootstrap = await bootstrapChannelAdmin(role, password);
       if (bootstrap.requiresPasswordChange) {
@@ -121,7 +122,19 @@ export function ChannelScreen() {
         setPasswordSetupRequired(true);
         return;
       }
-    } catch {
+    } catch (error) {
+      bootstrapCode = error instanceof Error ? error.message : '';
+      if (bootstrapCode === 'bootstrap_not_authorized') {
+        showAppError('الحساب غير مسموح له بالتهيئة', 'أضف Firebase UID الخاص بالحساب المستخدم داخل التطبيق إلى CHANNEL_OWNER_BOOTSTRAP_UIDS في Cloudflare، ثم اضغط Deploy.');
+        return;
+      }
+      if (bootstrapCode === 'invalid_bootstrap') {
+        showAppError('كلمة المرور المؤقتة غير صحيحة', 'تحقق من Secret CHANNEL_OWNER_TEMP_PASSWORD في Cloudflare، واختر مسؤول وليس أدمن.');
+        return;
+      }
+      if (bootstrapCode === 'bootstrap_already_used') {
+        // Continue below: an already initialized account should authenticate with its permanent password.
+      }
       // A previously initialized admin bypasses bootstrap and authenticates below.
     }
     try {
@@ -137,7 +150,10 @@ export function ChannelScreen() {
         setConfirmation('');
         return;
       }
-      showAppError('تعذر دخول الإدارة', 'كلمة المرور غير صحيحة أو الحساب غير مهيأ للنشر. لو دي أول مرة، استخدم كلمة المرور المؤقتة المضبوطة على الخادم.');
+      const code = error instanceof Error ? error.message : '';
+      showAppError('تعذر دخول الإدارة', code === 'admin_required' && bootstrapCode === 'bootstrap_already_used'
+        ? 'التهيئة تمت من قبل. استخدم كلمة المرور الدائمة التي أنشأتها، وليس كلمة المرور المؤقتة.'
+        : 'كلمة المرور غير صحيحة أو الحساب غير مهيأ للنشر. راجع رسالة الخطأ السابقة وإعدادات Cloudflare.');
     }
   };
 
