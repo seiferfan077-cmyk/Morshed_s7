@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useIdTokenAuthRequest } from 'expo-auth-session/providers/google';
+import { GoogleOneTapSignIn, isCancelledResponse, isNoSavedCredentialFoundResponse, isSuccessResponse } from 'react-native-nitro-google-signin';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { ActionButton } from '../components/ActionButton';
 import { showAppError } from '../components/AppDialogProvider';
@@ -20,10 +22,21 @@ import {
 } from '../services/channel/channelService';
 import { cacheChannelPosts, getCachedChannelPosts } from '../services/channel/channelCache';
 import { registerForChannelNotifications } from '../services/channel/channelNotifications';
+import { signInWithGoogleIdToken } from '../services/firebase/firebaseAuthService';
+
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '';
+const GOOGLE_CLIENT_ID_FALLBACK = 'google-oauth-not-configured.apps.googleusercontent.com';
 
 export function ChannelScreen() {
   const { colors } = useAppTheme();
   const styles = createStyles(colors);
+  const [googleRequest, , promptGoogleSignIn] = useIdTokenAuthRequest({
+    clientId: Platform.OS === 'ios' ? GOOGLE_IOS_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK : GOOGLE_WEB_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK,
+    webClientId: GOOGLE_WEB_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK,
+    iosClientId: GOOGLE_IOS_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK,
+    selectAccount: true,
+  }, Platform.OS === 'android' ? {} : { scheme: 'murshid' });
   const [posts, setPosts] = useState<ChannelPost[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -33,6 +46,30 @@ export function ChannelScreen() {
   const [adminRole, setAdminRole] = useState<ChannelAdminRole | null>(null);
   const [newPost, setNewPost] = useState('');
   const [loggedIn, setLoggedIn] = useState(false);
+
+  const signInGoogleAccount = async () => {
+    let idToken: string | null | undefined;
+    if (Platform.OS === 'android') {
+      if (!GOOGLE_WEB_CLIENT_ID) throw new Error('google_signin_not_configured');
+      GoogleOneTapSignIn.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
+      await GoogleOneTapSignIn.checkPlayServices();
+      let result = await GoogleOneTapSignIn.signIn();
+      if (isNoSavedCredentialFoundResponse(result)) result = await GoogleOneTapSignIn.createAccount();
+      if (isNoSavedCredentialFoundResponse(result)) result = await GoogleOneTapSignIn.presentExplicitSignIn();
+      if (isCancelledResponse(result)) return false;
+      if (!isSuccessResponse(result)) throw new Error('google_signin_incomplete');
+      idToken = result.data.idToken;
+    } else {
+      if (!googleRequest) throw new Error('google_signin_not_ready');
+      const result = await promptGoogleSignIn();
+      if (result.type === 'cancel' || result.type === 'dismiss') return false;
+      if (result.type !== 'success') throw result.type === 'error' ? result.error ?? new Error('google_oauth_failed') : new Error('google_oauth_incomplete');
+      idToken = result.authentication?.idToken ?? result.params.id_token;
+    }
+    if (!idToken) throw new Error('google_id_token_missing');
+    await signInWithGoogleIdToken(idToken);
+    return true;
+  };
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -89,17 +126,25 @@ export function ChannelScreen() {
     if (adminBusy) return;
     setAdminBusy(true);
     try {
-      const access = await loginChannelAdmin();
+      let access: { role: ChannelAdminRole };
+      try {
+        access = await loginChannelAdmin();
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== 'firebase_account_signin_required') throw error;
+        const signedIn = await signInGoogleAccount();
+        if (!signedIn) return;
+        access = await loginChannelAdmin();
+      }
       setAdminRole(access.role);
       setLoggedIn(true);
     } catch (error) {
       const code = error instanceof Error ? error.message : '';
-      if (code === 'firebase_account_signin_required') {
-        showAppError('سجّل الدخول بحسابك', 'افتح الصفحة الرئيسية وسجّل الدخول بحساب Firebase المصرّح له، ثم ارجع إلى القناة واضغط فتح لوحة النشر.');
+      if (code === 'google_signin_not_configured' || code === 'google_signin_not_ready') {
+        showAppError('تسجيل الدخول غير مهيأ', 'يلزم ضبط إعداد Google OAuth لهذا الإصدار من التطبيق.');
       } else if (code === 'admin_required') {
-        showAppError('الحساب غير مخوّل للنشر', 'تم التحقق من هوية Firebase، لكن UID هذا الحساب غير مسجل كمسؤول للقناة.');
+        showAppError('الحساب غير مخوّل للنشر', 'حساب Google الذي اخترته غير مسجّل كمسؤول للقناة. اختر حساب Firebase المخوّل أو تواصل مع مالك القناة.');
       } else {
-        showAppError('تعذر التحقق من الصلاحية', 'تحقق من اتصال الإنترنت ثم أعد المحاولة. لم يتم حفظ كلمة مرور أو جلسة إدارية على الخادم.');
+        showAppError('تعذر تسجيل الدخول', 'تعذر تسجيل الدخول بحساب Google أو التحقق من صلاحية UID. تحقق من الاتصال واختر حساب Firebase المخوّل ثم أعد المحاولة.');
       }
     } finally {
       setAdminBusy(false);
@@ -154,7 +199,7 @@ export function ChannelScreen() {
 
       <Pressable onPress={() => { void enterAdmin(); }} accessibilityRole="button" style={styles.adminEntry} disabled={adminBusy}>
         <Ionicons name={loggedIn ? 'shield-checkmark-outline' : 'person-circle-outline'} size={17} color={colors.tealDark} />
-        <Text style={styles.adminEntryText}>{adminBusy ? 'جارٍ التحقق من حساب Firebase…' : loggedIn ? 'إعادة التحقق من صلاحية النشر' : 'فتح لوحة النشر بحساب Firebase'}</Text>
+        <Text style={styles.adminEntryText}>{adminBusy ? 'جارٍ تسجيل الدخول والتحقق…' : loggedIn ? 'إعادة التحقق من صلاحية النشر' : 'فتح لوحة النشر بحساب Google'}</Text>
       </Pressable>
 
       {loggedIn && (
