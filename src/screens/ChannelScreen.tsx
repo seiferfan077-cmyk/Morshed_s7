@@ -38,6 +38,8 @@ export function ChannelScreen() {
   const [passwordSetupRequired, setPasswordSetupRequired] = useState(false);
   const [newPost, setNewPost] = useState('');
   const [loggedIn, setLoggedIn] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -97,6 +99,8 @@ export function ChannelScreen() {
       setPasswordSetupRequired(false);
       setPassword('');
       setConfirmation('');
+      setShowPassword(false);
+      setShowConfirmation(false);
       setAdminOpen(true);
     }
   };
@@ -105,6 +109,8 @@ export function ChannelScreen() {
     setPasswordSetupRequired(false);
     setPassword('');
     setConfirmation('');
+    setShowPassword(false);
+    setShowConfirmation(false);
     setAdminOpen(true);
   };
 
@@ -119,6 +125,8 @@ export function ChannelScreen() {
       if (bootstrap.requiresPasswordChange) {
         setPassword('');
         setConfirmation('');
+        setShowPassword(false);
+        setShowConfirmation(false);
         setPasswordSetupRequired(true);
         return;
       }
@@ -143,11 +151,15 @@ export function ChannelScreen() {
       setAdminOpen(false);
       setPassword('');
       setConfirmation('');
+      setShowPassword(false);
+      setShowConfirmation(false);
     } catch (error) {
       if (error instanceof Error && error.message === 'password_setup_required') {
         setPasswordSetupRequired(true);
         setPassword('');
         setConfirmation('');
+        setShowPassword(false);
+        setShowConfirmation(false);
         return;
       }
       const code = error instanceof Error ? error.message : '';
@@ -170,11 +182,19 @@ export function ChannelScreen() {
       setPasswordSetupRequired(false);
       setPassword('');
       setConfirmation('');
+      setShowPassword(false);
+      setShowConfirmation(false);
     } catch (error) {
       const code = error instanceof Error ? error.message : '';
       showAppError('ماقدرناش نحفظ كلمة المرور', code === 'password_already_set'
         ? 'الحساب متجهز بالفعل. اقفل النافذة وادخل بكلمة المرور الدائمة.'
-        : 'راجع كلمة المرور المؤقتة وإعدادات الخادم، ثم جرّب تاني.');
+        : code === 'invalid_password'
+          ? 'كلمة المرور الجديدة لازم تكون 10 أحرف أو أكثر، ولازم الحقلان يكونان متطابقين.'
+          : code === 'admin_required'
+            ? 'حساب Firebase الحالي غير مسجل كمسؤول. ارجع للتهيئة باستخدام كلمة المرور المؤقتة.'
+            : code === 'unauthorized'
+              ? 'انتهت جلسة Firebase. أغلق القناة وافتحها من جديد ثم جرّب.'
+              : 'تعذر الاتصال بالخادم أو القناة غير مهيأة. تأكد من الإنترنت وحاول مرة أخرى.');
     }
   };
 
@@ -300,29 +320,39 @@ export function ChannelScreen() {
                 <ActionButton tone={role === 'admin' ? 'primary' : 'quiet'} onPress={() => setRole('admin')}>أدمن</ActionButton>
               </View>
             )}
-            <TextInput
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              placeholder={passwordSetupRequired ? 'كلمة المرور الجديدة' : 'المؤقتة أو الدائمة'}
-              placeholderTextColor={colors.inkFaint}
-              style={styles.input}
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={128}
-            />
-            {passwordSetupRequired && (
+            <View style={styles.passwordRow}>
               <TextInput
-                secureTextEntry
-                value={confirmation}
-                onChangeText={setConfirmation}
-                placeholder="تأكيد كلمة المرور الجديدة"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                placeholder={passwordSetupRequired ? 'كلمة المرور الجديدة' : 'المؤقتة أو الدائمة'}
                 placeholderTextColor={colors.inkFaint}
-                style={styles.input}
+                style={styles.passwordInput}
                 autoCapitalize="none"
                 autoCorrect={false}
                 maxLength={128}
               />
+              <Pressable onPress={() => setShowPassword((current) => !current)} accessibilityRole="button" accessibilityLabel={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'} style={styles.eyeButton}>
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={21} color={colors.inkMuted} />
+              </Pressable>
+            </View>
+            {passwordSetupRequired && (
+              <View style={styles.passwordRow}>
+                <TextInput
+                  secureTextEntry={!showConfirmation}
+                  value={confirmation}
+                  onChangeText={setConfirmation}
+                  placeholder="تأكيد كلمة المرور الجديدة"
+                  placeholderTextColor={colors.inkFaint}
+                  style={styles.passwordInput}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxLength={128}
+                />
+                <Pressable onPress={() => setShowConfirmation((current) => !current)} accessibilityRole="button" accessibilityLabel={showConfirmation ? 'إخفاء تأكيد كلمة المرور' : 'إظهار تأكيد كلمة المرور'} style={styles.eyeButton}>
+                  <Ionicons name={showConfirmation ? 'eye-off-outline' : 'eye-outline'} size={21} color={colors.inkMuted} />
+                </Pressable>
+              </View>
             )}
             <ActionButton onPress={passwordSetupRequired ? savePermanentPassword : enterAdmin}>
               {passwordSetupRequired ? 'حفظ كلمة المرور والدخول' : 'دخول'}
@@ -369,6 +399,9 @@ function createStyles(colors: ThemeColors) {
     logoutButton: { paddingHorizontal: spacing.sm, paddingVertical: 4 },
     logoutText: { ...typography.label, color: colors.coral },
     input: { borderWidth: 1, borderColor: colors.line, borderRadius: radii.md, color: colors.ink, padding: spacing.sm, minHeight: 48, textAlign: 'right', writingDirection: 'rtl', marginBottom: spacing.sm },
+    passwordRow: { flexDirection: 'row-reverse', alignItems: 'center', borderWidth: 1, borderColor: colors.line, borderRadius: radii.md, marginBottom: spacing.sm, paddingRight: spacing.xs },
+    passwordInput: { flex: 1, color: colors.ink, padding: spacing.sm, minHeight: 48, textAlign: 'right', writingDirection: 'rtl' },
+    eyeButton: { padding: spacing.sm },
     composer: { minHeight: 108 },
     messageRow: { width: '100%', alignItems: 'flex-end' },
     messageBubble: { maxWidth: '96%', minWidth: '72%', borderRadius: 19, borderBottomRightRadius: 5, backgroundColor: '#E6F4EE', borderWidth: 1, borderColor: '#D2E9DE', padding: spacing.md, shadowColor: '#0d2730', shadowOpacity: 0.06, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
