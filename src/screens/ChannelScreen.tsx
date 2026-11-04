@@ -186,6 +186,7 @@ export function ChannelScreen() {
       setShowConfirmation(false);
     } catch (error) {
       const code = error instanceof Error ? error.message : '';
+      const diagnosticCode = /^[a-zA-Z0-9:_-]{1,80}$/.test(code) ? code : 'unknown_error';
       showAppError('ماقدرناش نحفظ كلمة المرور', code === 'password_already_set'
         ? 'الحساب متجهز بالفعل. اقفل النافذة وادخل بكلمة المرور الدائمة.'
         : code === 'invalid_password'
@@ -194,7 +195,7 @@ export function ChannelScreen() {
             ? 'حساب Firebase الحالي غير مسجل كمسؤول. ارجع للتهيئة باستخدام كلمة المرور المؤقتة.'
             : code === 'unauthorized'
               ? 'انتهت جلسة Firebase. أغلق القناة وافتحها من جديد ثم جرّب.'
-              : 'تعذر الاتصال بالخادم أو القناة غير مهيأة. تأكد من الإنترنت وحاول مرة أخرى.');
+              : `تعذر الاتصال بالخادم أو القناة غير مهيأة. تأكد من الإنترنت وحاول مرة أخرى. (رمز التشخيص: ${diagnosticCode})`);
     }
   };
 
