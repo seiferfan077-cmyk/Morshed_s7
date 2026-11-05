@@ -10,7 +10,7 @@ function getRemoteJwks() {
 }
 
 /** Verify a Firebase Authentication ID token and return only the trusted UID. */
-export async function verifyFirebaseIdToken(token, projectId, jwks = getRemoteJwks()) {
+export async function verifyFirebaseIdToken(token, projectId, jwks = getRemoteJwks(), options = {}) {
   if (typeof token !== 'string' || !token || typeof projectId !== 'string' || !projectId.trim()) return null;
 
   const { payload } = await jwtVerify(token, jwks, {
@@ -24,5 +24,13 @@ export async function verifyFirebaseIdToken(token, projectId, jwks = getRemoteJw
 
   if (typeof payload.sub !== 'string' || !payload.sub || payload.sub.length > 128) return null;
   if (typeof payload.auth_time !== 'number' || payload.auth_time > Math.floor(Date.now() / 1000) + MAX_AUTH_TIME_SKEW_SECONDS) return null;
+  if (options.requireSignedIn) {
+    const provider = payload.firebase?.sign_in_provider;
+    if (typeof provider !== 'string' || provider === 'anonymous') return null;
+  }
   return { uid: payload.sub };
+}
+
+export async function verifyFirebaseSignedInIdToken(token, projectId, jwks = getRemoteJwks()) {
+  return verifyFirebaseIdToken(token, projectId, jwks, { requireSignedIn: true });
 }

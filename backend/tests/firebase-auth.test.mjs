@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
-import { verifyFirebaseIdToken } from '../lib/firebase-auth.js';
+import { verifyFirebaseIdToken, verifyFirebaseSignedInIdToken } from '../lib/firebase-auth.js';
 
 const projectId = 'murshid-auth-test';
 const now = Math.floor(Date.now() / 1000);
@@ -30,6 +30,13 @@ async function signToken(overrides = {}, protectedHeader = {}) {
 test('accepts a valid Firebase ID token and returns only its verified UID', async () => {
   const token = await signToken();
   assert.deepEqual(await verifyFirebaseIdToken(token, projectId, localJwks), { uid: 'firebase-user-123' });
+});
+
+test('signed-in media identity verifier rejects anonymous Firebase tokens', async () => {
+  const anonymous = await signToken({ firebase: { sign_in_provider: 'anonymous' } });
+  const google = await signToken({ firebase: { sign_in_provider: 'google.com' } });
+  assert.equal(await verifyFirebaseSignedInIdToken(anonymous, projectId, localJwks), null);
+  assert.deepEqual(await verifyFirebaseSignedInIdToken(google, projectId, localJwks), { uid: 'firebase-user-123' });
 });
 
 test('rejects a token for a different Firebase project', async () => {
