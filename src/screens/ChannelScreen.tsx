@@ -44,6 +44,7 @@ export function ChannelScreen() {
   const [newPost, setNewPost] = useState('');
   const [composerHeight, setComposerHeight] = useState(44);
   const [notificationStatus, setNotificationStatus] = useState<ChannelNotificationRegistration | 'checking' | 'failed'>('checking');
+  const [notificationErrorCode, setNotificationErrorCode] = useState('');
   const [loggedIn, setLoggedIn] = useState(false);
   const [editingPost, setEditingPost] = useState<ChannelPost | null>(null);
   const [editDraft, setEditDraft] = useState('');
@@ -53,11 +54,15 @@ export function ChannelScreen() {
   const feedRef = useRef<ScrollView>(null);
 
   const refreshNotificationStatus = useCallback(async (requestPermission = true) => {
+    setNotificationErrorCode('');
     try {
       const registered = await registerForChannelNotifications({ requestPermission });
       setNotificationStatus(registered);
     } catch (error) {
-      console.warn('Channel notification registration failed', error instanceof Error ? error.message : 'unknown');
+      const raw = error instanceof Error ? error.message : 'unknown';
+      const safeCode = raw.replace(/[^a-zA-Z0-9_.:-]/g, '').slice(0, 42) || 'unknown';
+      console.warn('Channel notification registration failed', safeCode);
+      setNotificationErrorCode(safeCode);
       setNotificationStatus('failed');
     }
   }, []);
@@ -267,7 +272,7 @@ export function ChannelScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView
         ref={feedRef}
         style={styles.screen}
@@ -301,7 +306,7 @@ export function ChannelScreen() {
         >
           <Ionicons name={notificationStatus === 'registered' ? 'notifications' : 'notifications-off-outline'} size={16} color={notificationStatus === 'registered' ? colors.tealDark : colors.coral} />
           <Text style={[styles.notificationStatusText, notificationStatus !== 'registered' && notificationStatus !== 'checking' && styles.notificationStatusWarningText]}>
-            {notificationStatus === 'checking' ? 'جارٍ التحقق من إشعارات هذا الجهاز…' : notificationStatus === 'registered' ? 'إشعارات القناة مسجّلة على هذا الجهاز' : notificationStatus === 'permission-denied' ? 'اسمح بإشعارات القناة من إعدادات الهاتف — اضغط لفتحها' : 'تعذر تسجيل الإشعارات — اضغط لإعادة المحاولة'}
+            {notificationStatus === 'checking' ? 'جارٍ التحقق من إشعارات هذا الجهاز…' : notificationStatus === 'registered' ? 'إشعارات القناة مسجّلة على هذا الجهاز' : notificationStatus === 'permission-denied' ? 'اسمح بإشعارات القناة من إعدادات الهاتف — اضغط لفتحها' : `تعذر التسجيل (${notificationErrorCode || 'غير معروف'}) — اضغط لإعادة المحاولة`}
           </Text>
         </Pressable>
 
