@@ -2,7 +2,7 @@
   "expo": {
     "name": "مُرشد - S7",
     "slug": "murshid-s7",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -25,7 +25,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.murshid.s7",
-    "versionCode": 9,
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 10,
       "permissions": [
         "com.android.launcher.permission.INSTALL_SHORTCUT"
       ]

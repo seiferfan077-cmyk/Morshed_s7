@@ -42,5 +42,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate Firebase Android configuration
+        run: |
+          python3 - <<'PY'
+          import json
+          with open("google-services.json", encoding="utf-8") as source:
+              config = json.load(source)
+          client = config["client"][0]
+          if config["project_info"]["project_id"] != "chat-5e935":
+              raise SystemExit("Firebase project mismatch")
+          if client["client_info"]["android_client_info"]["package_name"] != "com.murshid.s7":
+              raise SystemExit("Android package mismatch")
+          print("Firebase Android configuration validated.")
+          PY
+
       - name: Build Android APK
         run: eas build --platform android --profile "${{ inputs.profile }}" --non-interactive
