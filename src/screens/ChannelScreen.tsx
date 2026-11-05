@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, AppState, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RuqaaText as Text } from '../components/RuqaaText';
 import { ActionButton } from '../components/ActionButton';
@@ -23,7 +23,7 @@ import {
   setChannelPostPinned,
 } from '../services/channel/channelService';
 import { cacheChannelPosts, getCachedChannelPosts, removeCachedChannelPosts } from '../services/channel/channelCache';
-import { registerForChannelNotifications } from '../services/channel/channelNotifications';
+import { registerForChannelNotifications, type ChannelNotificationRegistration } from '../services/channel/channelNotifications';
 
 const FEED_REFRESH_INTERVAL_MS = 30_000;
 const HIDDEN_ADMIN_TAPS = 30;
@@ -37,16 +37,30 @@ export function ChannelScreen() {
   const [nextCursor, setNextCursor] = useState<ChannelCursor | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [adminBusy, setAdminBusy] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [adminRole, setAdminRole] = useState<ChannelAdminRole | null>(null);
   const [adminPassword, setAdminPassword] = useState('');
   const [adminModalVisible, setAdminModalVisible] = useState(false);
   const [newPost, setNewPost] = useState('');
+  const [composerHeight, setComposerHeight] = useState(44);
+  const [notificationStatus, setNotificationStatus] = useState<ChannelNotificationRegistration | 'checking' | 'failed'>('checking');
   const [loggedIn, setLoggedIn] = useState(false);
   const [editingPost, setEditingPost] = useState<ChannelPost | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const [editBusy, setEditBusy] = useState(false);
   const hiddenTapCount = useRef(0);
   const loadBusy = useRef(false);
+  const feedRef = useRef<ScrollView>(null);
+
+  const refreshNotificationStatus = useCallback(async (requestPermission = true) => {
+    try {
+      const registered = await registerForChannelNotifications({ requestPermission });
+      setNotificationStatus(registered);
+    } catch (error) {
+      console.warn('Channel notification registration failed', error instanceof Error ? error.message : 'unknown');
+      setNotificationStatus('failed');
+    }
+  }, []);
 
   const load = useCallback(async (showLoading = true) => {
     if (loadBusy.current) return;
@@ -81,16 +95,24 @@ export function ChannelScreen() {
         setLoggedIn(hasAccess);
         if (!hasAccess) setAdminRole(null);
       }
-      void registerForChannelNotifications().catch(() => undefined);
+      void refreshNotificationStatus();
     })();
     return () => { active = false; };
-  }, []);
+  }, [refreshNotificationStatus]);
 
   useFocusEffect(useCallback(() => {
     void load();
+    void refreshNotificationStatus();
     const interval = setInterval(() => { void load(false); }, FEED_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [load]));
+  }, [load, refreshNotificationStatus]));
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refreshNotificationStatus(false);
+    });
+    return () => subscription.remove();
+  }, [refreshNotificationStatus]);
 
   const loadOlder = async () => {
     if (!nextCursor || loadingOlder) return;
@@ -138,17 +160,22 @@ export function ChannelScreen() {
 
   const publish = async () => {
     const body = newPost.trim();
-    if (!body) return;
+    if (!body || publishing) return;
+    setPublishing(true);
     try {
       await publishChannelPost(body);
       setNewPost('');
+      setComposerHeight(44);
       await load(false);
+      requestAnimationFrame(() => feedRef.current?.scrollTo({ y: 0, animated: true }));
     } catch (error) {
       const code = error instanceof Error ? error.message : '';
       await clearExpiredAdmin(code);
       showAppError('تعذر النشر', code === 'invalid_admin_password'
         ? 'انتهت صلاحية كلمة المرور على الخادم. أدخل كلمة المرور الحالية مرة أخرى.'
         : 'تحقق من اتصال الإنترنت وإعداد كلمة المرور على الخادم ثم حاول مجددًا.');
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -240,10 +267,13 @@ export function ChannelScreen() {
   };
 
   return (
-    <>
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
+        ref={feedRef}
         style={styles.screen}
         contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void load(); }} />}
       >
         <View style={styles.header}>
@@ -261,30 +291,19 @@ export function ChannelScreen() {
           <Text style={styles.syncText}>الرسائل محفوظة على الخادم، ونسخة منها متاحة على جهازك عند انقطاع النت.</Text>
         </View>
 
-        {loggedIn && (
-          <SurfaceCard accent={colors.teal}>
-            <View style={styles.adminHeader}>
-              <View>
-                <Text style={styles.cardTitle}>لوحة النشر</Text>
-                {adminRole && <Text style={styles.footerText}>{adminRole === 'owner' ? 'مسؤول القناة' : 'أدمن القناة'}</Text>}
-              </View>
-              <Pressable onPress={leaveAdmin} accessibilityRole="button" style={styles.logoutButton}>
-                <Text style={styles.logoutText}>خروج</Text>
-              </Pressable>
-            </View>
-            <TextInput
-              value={newPost}
-              onChangeText={setNewPost}
-              placeholder="اكتب رسالة رسمية للقناة..."
-              placeholderTextColor={colors.inkFaint}
-              multiline
-              maxLength={8_000}
-              textAlignVertical="top"
-              style={[styles.input, styles.composer]}
-            />
-            <ActionButton onPress={publish}>نشر الرسالة وإشعار المتابعين</ActionButton>
-          </SurfaceCard>
-        )}
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            if (notificationStatus === 'permission-denied') void Linking.openSettings();
+            else void refreshNotificationStatus();
+          }}
+          style={[styles.notificationStatus, notificationStatus !== 'registered' && notificationStatus !== 'checking' && styles.notificationStatusWarning]}
+        >
+          <Ionicons name={notificationStatus === 'registered' ? 'notifications' : 'notifications-off-outline'} size={16} color={notificationStatus === 'registered' ? colors.tealDark : colors.coral} />
+          <Text style={[styles.notificationStatusText, notificationStatus !== 'registered' && notificationStatus !== 'checking' && styles.notificationStatusWarningText]}>
+            {notificationStatus === 'checking' ? 'جارٍ التحقق من إشعارات هذا الجهاز…' : notificationStatus === 'registered' ? 'إشعارات القناة مسجّلة على هذا الجهاز' : notificationStatus === 'permission-denied' ? 'اسمح بإشعارات القناة من إعدادات الهاتف — اضغط لفتحها' : 'تعذر تسجيل الإشعارات — اضغط لإعادة المحاولة'}
+          </Text>
+        </Pressable>
 
         {posts.length === 0 ? (
           <SurfaceCard><Text style={styles.empty}>لا توجد منشورات منشورة بعد.</Text></SurfaceCard>
@@ -342,6 +361,44 @@ export function ChannelScreen() {
         </Pressable>
       </ScrollView>
 
+      {loggedIn && (
+        <View style={styles.composerDock}>
+          <View style={styles.composerHeader}>
+            <View style={styles.composerLabelGroup}>
+              <Ionicons name="chatbubble-ellipses-outline" size={17} color={colors.tealDark} />
+              <Text style={styles.composerLabel}>{adminRole === 'owner' ? 'مسؤول القناة' : 'إرسال رسالة'}</Text>
+            </View>
+            <Pressable onPress={leaveAdmin} accessibilityRole="button" style={styles.logoutButton}>
+              <Text style={styles.logoutText}>خروج</Text>
+            </Pressable>
+          </View>
+          <View style={styles.composerRow}>
+            <TextInput
+              value={newPost}
+              onChangeText={setNewPost}
+              onContentSizeChange={(event) => setComposerHeight(Math.max(44, Math.min(120, event.nativeEvent.contentSize.height + 16)))}
+              placeholder="اكتب رسالة للقناة..."
+              placeholderTextColor={colors.inkFaint}
+              multiline
+              maxLength={8_000}
+              textAlignVertical="center"
+              accessibilityLabel="رسالة القناة"
+              style={[styles.input, styles.composerInput, { height: composerHeight }]}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="إرسال رسالة وإشعار المتابعين"
+              disabled={!newPost.trim() || publishing}
+              onPress={() => { void publish(); }}
+              style={[styles.sendButton, (!newPost.trim() || publishing) && styles.sendButtonDisabled]}
+            >
+              <Ionicons name={publishing ? 'hourglass-outline' : 'send'} size={20} color="#FFFFFF" />
+            </Pressable>
+          </View>
+          <Text style={styles.composerHint}>{publishing ? 'جارٍ الإرسال…' : 'سيصل إشعار لمتابعي القناة عند النشر'}</Text>
+        </View>
+      )}
+
       <Modal visible={adminModalVisible} animationType="fade" transparent onRequestClose={() => setAdminModalVisible(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -392,7 +449,7 @@ export function ChannelScreen() {
           </View>
         </View>
       </Modal>
-    </>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -433,7 +490,19 @@ function createStyles(colors: ThemeColors) {
     logoutButton: { paddingHorizontal: spacing.sm, paddingVertical: 4 },
     logoutText: { ...typography.label, color: colors.coral },
     input: { borderWidth: 1, borderColor: colors.line, borderRadius: radii.md, color: colors.ink, padding: spacing.sm, minHeight: 48, textAlign: 'right', writingDirection: 'rtl', marginBottom: spacing.sm },
-    composer: { minHeight: 108 },
+    notificationStatus: { flexDirection: 'row-reverse', alignItems: 'center', gap: 7, alignSelf: 'flex-end', borderRadius: radii.pill, backgroundColor: colors.tealSoft, paddingHorizontal: spacing.sm, paddingVertical: 7 },
+    notificationStatusWarning: { backgroundColor: '#FFF1ED' },
+    notificationStatusText: { ...typography.body, color: colors.tealDark, fontSize: 11, textAlign: 'right' },
+    notificationStatusWarningText: { color: colors.coral },
+    composerDock: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xs, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.paper },
+    composerHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+    composerLabelGroup: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6 },
+    composerLabel: { ...typography.label, color: colors.ink, fontSize: 12 },
+    composerRow: { flexDirection: 'row-reverse', alignItems: 'flex-end', gap: spacing.sm },
+    composerInput: { flex: 1, minHeight: 44, maxHeight: 120, marginBottom: 0, borderRadius: radii.lg, backgroundColor: colors.surface, paddingHorizontal: spacing.md, paddingVertical: 8 },
+    sendButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.tealDark, alignItems: 'center', justifyContent: 'center' },
+    sendButtonDisabled: { opacity: 0.48 },
+    composerHint: { ...typography.body, color: colors.inkFaint, fontSize: 10, textAlign: 'right', marginTop: 5 },
     editComposer: { minHeight: 170 },
     messageRow: { width: '100%', alignItems: 'flex-end' },
     messageBubble: { maxWidth: '96%', minWidth: '72%', borderRadius: 19, borderBottomRightRadius: 5, backgroundColor: '#E6F4EE', borderWidth: 1, borderColor: '#D2E9DE', padding: spacing.md, shadowColor: '#0d2730', shadowOpacity: 0.06, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 1 },

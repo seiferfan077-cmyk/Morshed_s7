@@ -1,6 +1,8 @@
 import { GoogleAuthProvider, linkWithCredential, onAuthStateChanged, signInAnonymously, signInWithCredential, signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
 import { getFirebaseAuth } from './firebaseClient';
 
+let anonymousSignInInFlight: Promise<User> | null = null;
+
 export function subscribeToFirebaseUser(listener: (user: User | null) => void) {
   const auth = getFirebaseAuth();
   if (!auth) { listener(null); return () => undefined; }
@@ -12,7 +14,15 @@ export async function getFirebaseAIIdToken() {
   const auth = getFirebaseAuth();
   if (!auth) throw new Error('firebase_auth_not_configured');
   try {
-    const user = auth.currentUser ?? (await signInAnonymously(auth)).user;
+    let user = auth.currentUser;
+    if (!user) {
+      if (!anonymousSignInInFlight) {
+        anonymousSignInInFlight = signInAnonymously(auth).then((credential) => credential.user).finally(() => {
+          anonymousSignInInFlight = null;
+        });
+      }
+      user = await anonymousSignInInFlight;
+    }
     return await user.getIdToken();
   } catch (error) {
     const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';

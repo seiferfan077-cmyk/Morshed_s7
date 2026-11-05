@@ -41,7 +41,9 @@ export function AppNavigator() {
   const { tabOrder } = useTabPreferences();
   const pendingChannelOpen = useRef(false);
   useEffect(() => {
-    void registerForChannelNotifications().catch(() => undefined);
+    void registerForChannelNotifications().catch((error) => {
+      console.warn('Channel notification registration failed', error instanceof Error ? error.message : 'unknown');
+    });
     const openChannel = () => {
       if (navigationRef.isReady()) navigationRef.navigate('القناة الرسمية');
       else pendingChannelOpen.current = true;
