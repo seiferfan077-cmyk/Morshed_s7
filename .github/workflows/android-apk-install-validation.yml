@@ -1,0 +1,81 @@
+name: Validate EAS APK install on Android 16
+
+on:
+  push:
+    branches:
+      - test/apk-install-api36-uuj
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: API 36 ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - google_apis
+          - google_apis_ps16k
+
+    steps:
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Download and pin the exact EAS APK
+        env:
+          APK_URL: https://expo.dev/artifacts/eas/uUjWWlic2Xr21lMR42O9iqogOF5lzw7qH8Y1nhBSM7o.apk
+          EXPECTED_SHA256: 365281b3995221bc19f75b6ead6ab7f55600d0e4d39127de38ca2e99166aeeb0
+        run: |
+          set -euo pipefail
+          APK="$RUNNER_TEMP/murshid-s7-0.4.3.apk"
+          curl --fail --location --retry 3 --retry-all-errors --silent --show-error "$APK_URL" --output "$APK"
+          echo "$EXPECTED_SHA256  $APK" | sha256sum --check
+          printf 'APK_BYTES=%s\n' "$(stat -c %s "$APK")"
+
+      - name: Install exact APK on Android 16 emulator
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 36
+          target: ${{ matrix.target }}
+          arch: x86_64
+          profile: pixel_7_pro
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          emulator-boot-timeout: 600
+          script: |
+            set -euo pipefail
+            APK="$RUNNER_TEMP/murshid-s7-0.4.3.apk"
+            SDK_LEVEL="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
+            PAGE_SIZE="$(adb shell getconf PAGE_SIZE | tr -d '\r')"
+            echo "API_LEVEL=$SDK_LEVEL PAGE_SIZE=$PAGE_SIZE TARGET=${{ matrix.target }} ABI=$(adb shell getprop ro.product.cpu.abilist | tr -d '\r')"
+            test "$SDK_LEVEL" = "36"
+            if [ "${{ matrix.target }}" = "google_apis_ps16k" ]; then
+              test "$PAGE_SIZE" = "16384"
+            fi
+
+            ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
+            APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+            test -x "$ZIPALIGN"
+            test -x "$APKSIGNER"
+            "$ZIPALIGN" -c -P 16 -v 4 "$APK" > "$RUNNER_TEMP/zipalign.log" 2>&1
+            tail -n 5 "$RUNNER_TEMP/zipalign.log"
+            "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 24 --max-sdk-version 36 "$APK"
+
+            if adb install "$APK" > "$RUNNER_TEMP/adb-install.log" 2>&1; then
+              cat "$RUNNER_TEMP/adb-install.log"
+            else
+              STATUS=$?
+              cat "$RUNNER_TEMP/adb-install.log"
+              adb logcat -d -b all -v threadtime | grep -Ei 'PackageManager|PackageInstaller|INSTALL_FAILED|parse|signature' | tail -n 200 || true
+              exit "$STATUS"
+            fi
+            PACKAGE_PATH="$(adb shell pm path com.murshid.s7 | tr -d '\r')"
+            test -n "$PACKAGE_PATH"
+            echo "$PACKAGE_PATH"
+            adb shell dumpsys package com.murshid.s7 | grep -E 'versionCode=|versionName=|minSdk='
