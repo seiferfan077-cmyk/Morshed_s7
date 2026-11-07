@@ -2,7 +2,7 @@
   "expo": {
     "name": "مُرشد - S7",
     "slug": "murshid-s7",
-    "version": "0.4.2",
+    "version": "0.4.3",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -26,7 +26,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.murshid.s7",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 10,
+      "versionCode": 11,
       "permissions": [
         "com.android.launcher.permission.INSTALL_SHORTCUT"
       ]
@@ -58,6 +58,15 @@
       "./plugins/withMurshidDialer",
       "./plugins/withMurshidLargeHeap",
       "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "اسمح لمُرشد باختيار الصور والفيديوهات التي تريد استيرادها.",
+          "cameraPermission": "اسمح لمُرشد باستخدام الكاميرا لالتقاط صورة.",
+          "microphonePermission": false
+        }
+      ],
+      "react-native-nitro-google-signin",
       "expo-audio",
       "expo-asset",
       "expo-sqlite",

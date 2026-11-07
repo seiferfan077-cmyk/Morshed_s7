@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, NativeModules, Platform, Pressable, RefreshControl, StyleSheet, View, type ViewToken } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { Image as ExpoImage } from 'expo-image';
@@ -25,9 +26,11 @@ import {
   cancelNativeImport, createPickerImportJob, listPendingJobs, pauseNativeImport,
   runForegroundFallback, scanDeviceLibrary, scanSafFolder, ScanProgress, startNativeImport,
 } from '../services/storage/mediaImportService';
+import { CloudMediaItem, downloadCloudMedia, listCloudMedia, MAX_CLOUD_MEDIA_BYTES, uploadMediaToCloud } from '../services/storage/mediaCloudService';
 
 const PAGE_SIZE = 60;
 const VIEWER_WIDTH = Dimensions.get('window').width;
+const MAX_CLOUD_UPLOAD_BATCH_BYTES = 500_000_000;
 type Filter = 'all' | MediaType | 'private';
 type ScreenMode = 'library' | 'collections';
 type SortMode = 'newest' | 'oldest' | 'name' | 'size';
@@ -47,6 +50,20 @@ function mediaTypeFromName(name: string, mime?: string): MediaType {
   if (value.includes('video') || /\.(mp4|mov|m4v|webm|mkv|avi|3gp)$/i.test(name)) return 'video';
   if (value.includes('image') || /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|tif|tiff|dng|raw)$/i.test(name)) return 'image';
   return 'file';
+}
+
+function pickedMediaExtension(asset: ImagePicker.ImagePickerAsset) {
+  const extensions: Record<string, string> = {
+    'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif',
+    'image/heic': 'heic', 'image/heif': 'heif', 'image/avif': 'avif', 'image/bmp': 'bmp', 'image/tiff': 'tif', 'image/x-adobe-dng': 'dng',
+    'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm', 'video/3gpp': '3gp', 'video/x-m4v': 'm4v', 'video/x-matroska': 'mkv', 'video/x-msvideo': 'avi',
+  };
+  const mimeExtension = extensions[asset.mimeType?.split(';', 1)[0].trim().toLowerCase() ?? ''];
+  if (mimeExtension) return mimeExtension;
+  const uriPath = asset.uri.split(/[?#]/, 1)[0];
+  const lastSegment = uriPath.slice(uriPath.lastIndexOf('/') + 1);
+  const uriExtension = lastSegment.match(/\.([a-z0-9]{2,8})$/i)?.[1];
+  return uriExtension?.toLowerCase() ?? 'bin';
 }
 
 function VideoAsset({ uri, large = false }: { uri: string; large?: boolean }) {
@@ -141,6 +158,13 @@ export function MediaScreen() {
   const [activeJob, setActiveJob] = useState<MediaImportJob | null>(null);
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [cloudUploading, setCloudUploading] = useState(false);
+  const [cloudProgress, setCloudProgress] = useState('');
+  const [cloudItems, setCloudItems] = useState<CloudMediaItem[]>([]);
+  const [cloudModalOpen, setCloudModalOpen] = useState(false);
+  const [cloudLoading, setCloudLoading] = useState(false);
+  const [cloudDownloadingId, setCloudDownloadingId] = useState<string | null>(null);
+  const [cloudNextOffset, setCloudNextOffset] = useState<number | null>(null);
   const [fallbackRunning, setFallbackRunning] = useState(false);
   const scanCancelRef = useRef(false);
   const fallbackStopRef = useRef(false);
@@ -344,7 +368,7 @@ export function MediaScreen() {
 
   const chooseFiles = async (type: string | string[]) => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({ type, multiple: true, copyToCacheDirectory: false });
+      const result = await DocumentPicker.getDocumentAsync({ type, multiple: true, copyToCacheDirectory: true });
       if (result.canceled) return;
       const mediaOnly = result.assets.filter((asset) => mediaTypeFromName(asset.name, asset.mimeType) !== 'file' || type === '*/*');
       if (!mediaOnly.length) { setError('نوع غير مدعوم. اختر صورًا أو فيديوهات مدعومة.'); return; }
@@ -353,6 +377,45 @@ export function MediaScreen() {
       if (job) { setActiveJob(job); confirmImport(job); }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر فتح منتقي الملفات.');
+    }
+  };
+
+  const importPickedMedia = async (assets: ImagePicker.ImagePickerAsset[]) => {
+    if (!assets.length) return;
+    try {
+      const importedAssets = assets.map((asset, index) => ({
+        uri: asset.uri,
+        name: asset.fileName || `media-${Date.now()}-${index}.${pickedMediaExtension(asset)}`,
+        mediaType: asset.type === 'video' ? 'video' as const : 'image' as const,
+        mimeType: asset.mimeType,
+        size: asset.fileSize,
+        lastModified: Date.now(),
+      }));
+      const jobId = await createPickerImportJob(importedAssets, albumId);
+      const job = await (await import('../services/storage/mediaVaultService')).getImportJob(jobId);
+      if (job) { setActiveJob(job); confirmImport(job); }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'تعذر تجهيز الوسائط المختارة.');
+    }
+  };
+
+  const chooseFromGallery = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, quality: 1 });
+      if (!result.canceled) await importPickedMedia(result.assets);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'تعذر فتح معرض الصور.');
+    }
+  };
+
+  const takePhoto = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permissionResult.granted) { setError('اسمح لمُرشد باستخدام الكاميرا لالتقاط صورة.'); return; }
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 });
+      if (!result.canceled) await importPickedMedia(result.assets);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'تعذر فتح الكاميرا.');
     }
   };
 
@@ -497,7 +560,7 @@ export function MediaScreen() {
       { text: 'فتح الألبوم', onPress: () => openAlbum(album) },
       { text: 'إعادة تسمية', onPress: () => setEditor({ kind: 'album', mode: 'rename', id: album.id, value: album.name }) },
       { text: 'نقل إلى المجلد الحالي', onPress: () => { void setAlbumFolder(album.id, currentFolder?.id).then(loadNextCollectionList); } },
-      { text: 'تصدير إلى مجلد أو سحابة…', onPress: () => { void exportAlbumToFolder(album); } },
+      { text: 'تصدير إلى مجلد…', onPress: () => { void exportAlbumToFolder(album); } },
       { text: 'حفظ في صور الجهاز', onPress: () => { void exportAlbumToPhotos(album); } },
       { text: 'حذف الألبوم فقط', style: 'destructive', onPress: () => Alert.alert('حذف الألبوم؟', 'ستبقى الصور والفيديوهات المحفوظة في مكتبة مُرشد.', [
         { text: 'إلغاء', style: 'cancel' }, { text: 'حذف', style: 'destructive', onPress: () => { void deleteAlbum(album.id).then(loadNextCollectionList); } },
@@ -604,6 +667,95 @@ export function MediaScreen() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'تعذر حفظ العناصر المختارة.'); }
   };
 
+  const uploadSelectionToCloud = async () => {
+    const selectedItems = items.filter((item) => selectedIds.has(item.id) && (item.type === 'image' || item.type === 'video'));
+    const skipped = selectedIds.size - selectedItems.length;
+    if (!selectedItems.length) { setError('حدد صورة أو فيديو واحدًا على الأقل لرفعه.'); return; }
+    let sizes: number[] = [];
+    try {
+      sizes = await Promise.all(selectedItems.map(async (item) => {
+        const info = await FileSystem.getInfoAsync(item.uri);
+        return info.exists && !info.isDirectory && typeof info.size === 'number' && Number.isSafeInteger(info.size) ? info.size : 0;
+      }));
+    } catch { setError('تعذر حساب حجم العناصر المحددة.'); return; }
+    if (sizes.some((size) => size <= 0)) { setError('تعذر التحقق من حجم أحد العناصر المحددة. أعد استيراده ثم حاول مرة أخرى.'); return; }
+    if (sizes.some((size) => size > MAX_CLOUD_MEDIA_BYTES)) { setError('حجم العنصر الواحد يجب ألا يتجاوز 95 ميغابايت.'); return; }
+    const totalBytes = sizes.reduce((sum, size) => sum + size, 0);
+    if (totalBytes > MAX_CLOUD_UPLOAD_BATCH_BYTES) { setError(`قسّم الرفع إلى دفعات لا يتجاوز مجموع كل منها ${formatBytes(MAX_CLOUD_UPLOAD_BATCH_BYTES)}.`); return; }
+    Alert.alert('رفع النسخ المحددة إلى السحابة؟', `سيُرفع ${selectedItems.length} عنصر بإجمالي تقريبي ${formatBytes(totalBytes)} إلى مساحة خاصة مرتبطة بحساب Google المسجل. لن تُحذف النسخ المحلية أو الملفات الأصلية. قد تُحسب رسوم وفق خطة Cloudflare والاستخدام.${skipped ? ` وسيتم تجاوز ${skipped} ملف غير مدعوم.` : ''}`, [
+      { text: 'إلغاء', style: 'cancel' },
+      { text: 'رفع الآن', onPress: () => { void (async () => {
+        setCloudUploading(true);
+        let uploaded = 0;
+        let failed = 0;
+        let firstError = '';
+        for (let index = 0; index < selectedItems.length; index += 1) {
+          const item = selectedItems[index];
+          try {
+            setCloudProgress(`رفع ${index + 1}/${selectedItems.length} · ${item.filename}`);
+            await uploadMediaToCloud(item, (sent, total) => {
+              const percent = total > 0 ? ` · ${Math.floor((sent / total) * 100)}٪` : '';
+              setCloudProgress(`رفع ${index + 1}/${selectedItems.length} · ${item.filename}${percent}`);
+            });
+            uploaded += 1;
+          } catch (cause) {
+            failed += 1;
+            const code = cause instanceof Error ? cause.message : '';
+            if (!firstError) firstError = code;
+            if (['firebase_account_signin_required', 'media_storage_not_configured', 'unauthorized'].includes(code)) break;
+          }
+        }
+        setCloudUploading(false);
+        setCloudProgress('');
+        if (!failed) {
+          setSelectedIds(new Set());
+          setSelectionMode(false);
+          Alert.alert('اكتمل الرفع', `تم رفع ${uploaded} عنصر إلى المساحة الخاصة. بقيت النسخ الأصلية والمحلية كما هي.`);
+        } else {
+          const friendly = firstError === 'firebase_account_signin_required' ? 'سجّل الدخول بحساب Google أولًا حتى تبقى نسخك مرتبطة بحسابك ويمكن استعادتها.'
+            : firstError === 'media_storage_not_configured' ? 'خدمة التخزين السحابي لم تُجهز على الخادم بعد.'
+              : firstError === 'media_too_large' ? 'أحد العناصر يتجاوز الحد الحالي البالغ 95 ميغابايت.'
+                : firstError === 'unsupported_media_type' ? 'يوجد نوع صورة أو فيديو غير مدعوم.'
+                  : firstError === 'media_content_mismatch' ? 'محتوى الملف لا يطابق نوع الصورة أو الفيديو المعلن.'
+                    : firstError === 'content_length_mismatch' ? 'تغير حجم الملف أثناء الرفع؛ أعد المحاولة.'
+                      : 'تحقق من الاتصال ثم حاول مرة أخرى.';
+          Alert.alert('لم يكتمل الرفع', `نجح رفع ${uploaded} عنصر، وتعذر رفع ${failed}. ${friendly}`);
+        }
+      })(); } },
+    ]);
+  };
+
+  const refreshCloudMedia = async (offset = 0, append = false) => {
+    setCloudLoading(true);
+    try {
+      const page = await listCloudMedia(offset);
+      setCloudItems((current) => append ? [...current, ...page.media] : page.media);
+      setCloudNextOffset(page.nextOffset);
+    } catch (cause) {
+      const code = cause instanceof Error ? cause.message : '';
+      const message = code === 'firebase_account_signin_required' ? 'سجّل الدخول بحساب Google لعرض النسخ السحابية.'
+        : code === 'media_storage_not_configured' ? 'خدمة التخزين السحابي غير جاهزة على الخادم بعد.'
+          : 'تعذر تحميل النسخ السحابية. تحقق من الاتصال وحاول مرة أخرى.';
+      setError(message);
+    } finally { setCloudLoading(false); }
+  };
+
+  const openCloudLibrary = () => {
+    setCloudModalOpen(true);
+    void refreshCloudMedia();
+  };
+
+  const restoreCloudItem = async (item: CloudMediaItem) => {
+    setCloudDownloadingId(item.id);
+    try {
+      await downloadCloudMedia(item);
+      await loadFirstPage(true);
+      Alert.alert('تمت الاستعادة', `أُعيد «${item.filename}» إلى مكتبة مُرشد على هذا الجهاز.`);
+    } catch {
+      setError('تعذر تنزيل النسخة السحابية. تحقق من الاتصال ومساحة الجهاز وحاول مرة أخرى.');
+    } finally { setCloudDownloadingId(null); }
+  };
+
   const cancelJob = async () => {
     if (!activeJob) return;
     if (activeJob.state === 'scanning') { await cancelScan(); return; }
@@ -612,7 +764,9 @@ export function MediaScreen() {
     ]);
   };
 
-  const openImportMenu = () => Alert.alert('إضافة وسائط إلى مُرشد', 'اختر مصدر الاستيراد. يتم نسخ الملفات إلى تخزين التطبيق، ولا تُرفع إلى السحابة.', [
+  const openImportMenu = () => Alert.alert('إضافة وسائط إلى مُرشد', 'اختر مصدر الاستيراد. تُنسخ العناصر إلى مكتبة مُرشد على الجهاز.', [
+    { text: 'اختيار صور أو فيديوهات من المعرض', onPress: () => { void chooseFromGallery(); } },
+    { text: 'التقاط صورة بالكاميرا', onPress: () => { void takePhoto(); } },
     { text: 'استيراد كل الصور والفيديو المتاح', onPress: () => { void scanAllDeviceMedia(); } },
     { text: 'استيراد الصور فقط', onPress: () => { void scanAllDeviceMedia(['photo']); } },
     { text: 'استيراد الفيديوهات فقط', onPress: () => { void scanAllDeviceMedia(['video']); } },
@@ -636,7 +790,7 @@ export function MediaScreen() {
   const Header = (
     <View>
       <ScreenHeader eyebrow="LIVING GALLERY" title="المعرض" detail={`${stats.itemCount.toLocaleString()} محفوظ · ${formatBytes(stats.totalBytes)} مستخدم · ${formatBytes(stats.freeBytes)} متاح`} />
-      <View style={styles.notice}><Ionicons name="shield-checkmark-outline" size={18} color={colors.tealDark} /><Text style={styles.noticeText}>مكتبة مُرشد محلية على الجهاز. تُحفظ النسخ داخل التطبيق ولا تُرفع إلى السحابة. حذف نسخة من مُرشد لا يحذف الأصل.</Text></View>
+      <View style={styles.notice}><Ionicons name="shield-checkmark-outline" size={18} color={colors.tealDark} /><Text style={styles.noticeText}>تُحفظ الوسائط محليًا افتراضيًا. لا يحدث رفع تلقائي؛ ارفع العناصر التي تختارها يدويًا إلى مساحة خاصة مرتبطة بحسابك. حذف نسخة محلية لا يحذف الأصل.</Text></View>
       <View style={styles.storageCard}>
         <View style={styles.storageLine}><Text style={styles.storageLabel}>الصور {stats.imageCount.toLocaleString()}</Text><Text style={styles.storageLabel}>الفيديو {stats.videoCount.toLocaleString()}</Text><Text style={styles.storageLabel}>الملفات {stats.fileCount.toLocaleString()}</Text></View>
         <View style={[styles.storageLine, { marginTop: spacing.xs }]}><Text style={styles.storageLabel}>{formatBytes(stats.imageBytes)}</Text><Text style={styles.storageLabel}>{formatBytes(stats.videoBytes)}</Text><Text style={styles.storageLabel}>{formatBytes(stats.fileBytes)}</Text></View>
@@ -652,8 +806,9 @@ export function MediaScreen() {
         <View style={styles.filterRow}>{(['all', 'image', 'video', 'file', ...(privateUnlocked ? ['private'] : [])] as Filter[]).map((value) => <Pressable key={value} onPress={() => { void switchFilter(value); }} style={[styles.filterChip, filter === value && styles.filterActive]}><Ionicons name={value === 'all' ? 'apps-outline' : value === 'image' ? 'image-outline' : value === 'video' ? 'videocam-outline' : value === 'file' ? 'document-outline' : 'lock-closed-outline'} size={15} color={filter === value ? colors.paper : colors.inkMuted} /><Text style={[styles.filterText, filter === value && styles.filterTextActive]}>{value === 'all' ? 'الكل' : value === 'image' ? 'الصور' : value === 'video' ? 'الفيديو' : value === 'file' ? 'الملفات' : 'الخصوصية'}</Text></Pressable>)}</View>
         {permission?.accessPrivileges === 'limited' ? <Pressable onPress={() => { void MediaLibrary.presentPermissionsPickerAsync(['photo', 'video']).then(refreshStats).catch(() => setError('تعذر فتح إعداد الصور المحددة.')); }} style={styles.permissionBanner}><Ionicons name="options-outline" size={16} color={colors.tealDark} /><Text style={styles.permissionBannerText}>الوصول محدود إلى صور مختارة · تعديل الاختيار</Text></Pressable> : !permission?.granted ? <Pressable onPress={() => { void requestPermission().then(refreshStats); }} style={styles.permissionBanner}><Ionicons name="lock-open-outline" size={16} color={colors.tealDark} /><Text style={styles.permissionBannerText}>امنح إذنًا عند رغبتك في استيراد مكتبة الجهاز ({deviceCount})</Text></Pressable> : null}
         {albumId ? <Pressable onPress={() => { setAlbumId(undefined); void loadFirstPage(); }} style={styles.backToLibrary}><Ionicons name="arrow-back-outline" size={16} color={colors.tealDark} /><Text style={styles.permissionBannerText}>داخل ألبوم «{albums.find((album) => album.id === albumId)?.name ?? 'ألبوم'}» · عرض كل المكتبة</Text></Pressable> : null}
-        <View style={styles.actions}><Pressable onPress={openImportMenu} style={styles.actionButton}><Ionicons name="add-circle-outline" size={19} color={colors.paper} /><Text style={styles.actionText}>استيراد</Text></Pressable><Pressable onPress={() => { setSelectionMode((value) => !value); setSelectedIds(new Set()); }} style={[styles.actionButton, styles.fileButton]}><Ionicons name={selectionMode ? 'close-outline' : 'checkbox-outline'} size={18} color={colors.ink} /><Text style={[styles.actionText, styles.fileText]}>{selectionMode ? 'إلغاء التحديد' : 'تحديد عناصر'}</Text></Pressable></View>
-        {selectionMode ? <View style={styles.bulkBar}><Text style={styles.bulkCount}>محدد: {selectedIds.size}</Text><Pressable onPress={() => setAlbumPickerOpen(true)} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>إضافة إلى ألبوم</Text></Pressable><Pressable onPress={exportSelectionToPhotos} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>حفظ في الصور</Text></Pressable>{albumId ? <Pressable onPress={removeSelectionFromAlbum} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>إزالة من الألبوم</Text></Pressable> : null}{albumId && selectedIds.size === 1 ? <Pressable onPress={setCoverFromSelection} style={styles.bulkAction}><Text style={styles.bulkActionText}>تعيين الغلاف</Text></Pressable> : null}<Pressable onPress={deleteSelection} disabled={!selectedIds.size} style={styles.bulkDelete}><Ionicons name="trash-outline" size={16} color={colors.danger} /></Pressable></View> : null}
+        <View style={styles.actions}><Pressable onPress={openImportMenu} style={styles.actionButton}><Ionicons name="add-circle-outline" size={19} color={colors.paper} /><Text style={styles.actionText}>استيراد</Text></Pressable><Pressable onPress={openCloudLibrary} style={[styles.actionButton, styles.fileButton]}><Ionicons name="cloud-outline" size={18} color={colors.ink} /><Text style={[styles.actionText, styles.fileText]}>سحابتي</Text></Pressable><Pressable onPress={() => { setSelectionMode((value) => !value); setSelectedIds(new Set()); }} style={[styles.actionButton, styles.fileButton]}><Ionicons name={selectionMode ? 'close-outline' : 'checkbox-outline'} size={18} color={colors.ink} /><Text style={[styles.actionText, styles.fileText]}>{selectionMode ? 'إلغاء التحديد' : 'تحديد عناصر'}</Text></Pressable></View>
+        {selectionMode ? <View style={styles.bulkBar}><Text style={styles.bulkCount}>محدد: {selectedIds.size}</Text><Pressable onPress={uploadSelectionToCloud} disabled={!selectedIds.size || cloudUploading} style={styles.bulkAction}><Text style={styles.bulkActionText}>{cloudUploading ? 'جارٍ الرفع…' : 'رفع للسحابة'}</Text></Pressable><Pressable onPress={() => setAlbumPickerOpen(true)} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>إضافة إلى ألبوم</Text></Pressable><Pressable onPress={exportSelectionToPhotos} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>حفظ في الصور</Text></Pressable>{albumId ? <Pressable onPress={removeSelectionFromAlbum} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>إزالة من الألبوم</Text></Pressable> : null}{albumId && selectedIds.size === 1 ? <Pressable onPress={setCoverFromSelection} style={styles.bulkAction}><Text style={styles.bulkActionText}>تعيين الغلاف</Text></Pressable> : null}<Pressable onPress={deleteSelection} disabled={!selectedIds.size} style={styles.bulkDelete}><Ionicons name="trash-outline" size={16} color={colors.danger} /></Pressable></View> : null}
+        {cloudUploading ? <Text style={styles.cloudProgress}>{cloudProgress}</Text> : null}
         {activeJob ? <View style={styles.jobCard}><View style={styles.jobTitleRow}><Ionicons name={activeJob.state === 'completed' ? 'checkmark-circle-outline' : 'sync-outline'} size={20} color={colors.tealDark} /><Text style={styles.jobTitle}>{activeJob.state === 'scanning' ? `فحص المصدر · ${scanProgress?.scannedFiles ?? 0} عنصر` : activeJob.state === 'ready' ? 'المصدر جاهز للاستيراد' : activeJob.state === 'running' ? `نسخ ${activeJob.completedFiles}/${activeJob.totalFiles}` : activeJob.state === 'paused' ? 'الاستيراد متوقف مؤقتًا' : activeJob.state === 'completed' ? 'اكتمل الاستيراد' : activeJob.state === 'cancelled' ? 'أُوقف الاستيراد' : 'تعذر الاستيراد'}</Text></View>
           {activeJob.state === 'scanning' ? <Text style={styles.jobDetail}>تم فحص {scanProgress?.scannedFiles ?? 0} عنصر · تقدير {formatBytes(scanProgress?.estimatedBytes)}</Text> : <Text style={styles.jobDetail}>{activeJob.currentFilename ? `الملف الحالي: ${activeJob.currentFilename}` : `${activeJob.completedFiles} اكتمل · ${activeJob.failedFiles} تعذر · ${formatBytes(activeJob.copiedBytes)} من تقدير ${formatBytes(activeJob.totalBytes)}`}</Text>}
           {activeJob.state === 'running' ? <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${activeJob.totalFiles ? Math.min(100, (activeJob.completedFiles + activeJob.failedFiles) / activeJob.totalFiles * 100) : 0}%` }]} /></View> : null}
@@ -712,8 +867,11 @@ export function MediaScreen() {
 
     <Modal visible={folderPickerOpen} transparent animationType="fade" onRequestClose={() => setFolderPickerOpen(false)}><View style={styles.modalBackdrop}><View style={styles.actionCard}><Text style={styles.actionTitle}>نقل الألبوم إلى مجلد</Text><Pressable onPress={() => { if (selectedAlbumForActions) void setAlbumFolder(selectedAlbumForActions.id).then(loadNextCollectionList); setFolderPickerOpen(false); }} style={styles.pickerRow}><Ionicons name="albums-outline" size={18} color={colors.tealDark} /><Text style={styles.pickerText}>بدون مجلد</Text></Pressable>{folders.map((folder) => <Pressable key={folder.id} onPress={() => { if (selectedAlbumForActions) void setAlbumFolder(selectedAlbumForActions.id, folder.id).then(loadNextCollectionList); setFolderPickerOpen(false); }} style={styles.pickerRow}><Ionicons name="folder-outline" size={18} color={colors.tealDark} /><Text style={styles.pickerText}>{folder.name}</Text></Pressable>)}<Pressable onPress={() => setFolderPickerOpen(false)} style={styles.cancelAction}><Text style={styles.cancelText}>إلغاء</Text></Pressable></View></View></Modal>
 
+    <Modal visible={cloudModalOpen} transparent animationType="slide" onRequestClose={() => setCloudModalOpen(false)}><View style={styles.modalBackdrop}><View style={styles.actionCard}><View style={styles.cloudHeader}><View><Text style={styles.actionTitle}>سحابتي الخاصة</Text><Text style={styles.actionBody}>نسخ مرتبطة بحساب Google المسجل. التنزيل يحفظ نسخة جديدة داخل مكتبة مُرشد.</Text></View><Pressable accessibilityRole="button" accessibilityLabel="إغلاق السحابة" onPress={() => setCloudModalOpen(false)} style={styles.cloudClose}><Ionicons name="close" size={22} color={colors.inkMuted} /></Pressable></View><FlatList data={cloudItems} keyExtractor={(item) => item.id} style={styles.cloudList} onRefresh={() => { void refreshCloudMedia(); }} refreshing={cloudLoading} onEndReached={() => { if (cloudNextOffset !== null && !cloudLoading) void refreshCloudMedia(cloudNextOffset, true); }} onEndReachedThreshold={0.4} ListEmptyComponent={<View style={styles.cloudEmpty}>{cloudLoading ? <ActivityIndicator color={colors.tealDark} /> : <><Ionicons name="cloud-outline" size={32} color={colors.inkFaint} /><Text style={styles.emptyBody}>لا توجد نسخ سحابية بعد، أو لم تكتمل تهيئة التخزين.</Text></>}</View>} renderItem={({ item }) => <View style={styles.cloudRow}><Ionicons name={item.type === 'video' ? 'videocam-outline' : 'image-outline'} size={21} color={colors.tealDark} /><View style={styles.cloudItemText}><Text numberOfLines={1} style={styles.pickerText}>{item.filename}</Text><Text style={styles.collectionMeta}>{formatBytes(item.size)} · {new Date(item.createdAt).toLocaleDateString()}</Text></View><Pressable disabled={cloudDownloadingId === item.id} onPress={() => { void restoreCloudItem(item); }} style={styles.cloudDownload}>{cloudDownloadingId === item.id ? <ActivityIndicator size="small" color={colors.paper} /> : <Text style={styles.cloudDownloadText}>تنزيل</Text>}</Pressable></View>} /><Pressable onPress={() => { void refreshCloudMedia(); }} disabled={cloudLoading} style={styles.savePin}><Text style={styles.savePinText}>{cloudLoading ? 'جارٍ التحديث…' : 'تحديث القائمة'}</Text></Pressable><Pressable onPress={() => setCloudModalOpen(false)} style={styles.cancelAction}><Text style={styles.cancelText}>إغلاق</Text></Pressable></View></View></Modal>
+
     {viewerOpen ? <Viewer items={items} startIndex={viewerStart} onClose={() => setViewerOpen(false)} /> : null}
     {exporting ? <View pointerEvents="none" style={styles.exportOverlay}><ActivityIndicator color={colors.paper} /><Text style={styles.exportText}>جارٍ تصدير الوسائط…</Text></View> : null}
+    {cloudUploading ? <View style={styles.exportOverlay}><ActivityIndicator color={colors.paper} /><Text style={styles.exportText}>{cloudProgress || 'جارٍ رفع الوسائط إلى المساحة الخاصة…'}</Text></View> : null}
   </View>;
 }
 
@@ -738,13 +896,13 @@ function createStyles(colors: ThemeColors) { return StyleSheet.create({
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, borderRadius: radii.pill, paddingHorizontal: spacing.md, minHeight: 44 }, searchInput: { flex: 1, color: colors.ink, ...typography.body, paddingVertical: spacing.xs, textAlign: 'right' }, sortButton: { flexDirection: 'row', alignItems: 'center', gap: 3, padding: spacing.xs }, sortText: { ...typography.label, fontSize: 10, color: colors.tealDark },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.sm }, filterChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, borderRadius: radii.pill, paddingHorizontal: spacing.sm, paddingVertical: 6 }, filterActive: { backgroundColor: colors.ink, borderColor: colors.ink }, filterText: { ...typography.label, color: colors.inkMuted, fontSize: 10 }, filterTextActive: { color: colors.paper },
   permissionBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.sm, marginTop: spacing.xs }, permissionBannerText: { ...typography.label, color: colors.tealDark, fontSize: 10 }, backToLibrary: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xs }, actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }, actionButton: { flex: 1, minHeight: 42, borderRadius: radii.pill, backgroundColor: colors.tealDark, flexDirection: 'row', gap: spacing.xs, alignItems: 'center', justifyContent: 'center' }, actionText: { ...typography.label, color: colors.paper, fontSize: 11 }, fileButton: { backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line }, fileText: { color: colors.ink },
-  bulkBar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: spacing.sm, padding: spacing.sm, borderRadius: radii.md, backgroundColor: colors.tealSoft }, bulkCount: { ...typography.label, color: colors.ink, fontSize: 10 }, bulkAction: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: radii.pill, backgroundColor: colors.paper }, bulkActionText: { ...typography.label, color: colors.tealDark, fontSize: 9 }, bulkDelete: { padding: 6, marginStart: 'auto' },
+  bulkBar: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: spacing.sm, padding: spacing.sm, borderRadius: radii.md, backgroundColor: colors.tealSoft }, bulkCount: { ...typography.label, color: colors.ink, fontSize: 10 }, bulkAction: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: radii.pill, backgroundColor: colors.paper }, bulkActionText: { ...typography.label, color: colors.tealDark, fontSize: 9 }, bulkDelete: { padding: 6, marginStart: 'auto' }, cloudProgress: { ...typography.body, color: colors.tealDark, fontSize: 10, marginTop: spacing.xs },
   jobCard: { backgroundColor: colors.paper, borderColor: colors.line, borderWidth: 1, borderRadius: radii.md, padding: spacing.md, marginTop: spacing.sm }, jobTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs }, jobTitle: { ...typography.label, color: colors.ink, fontSize: 11 }, jobDetail: { ...typography.body, color: colors.inkMuted, fontSize: 10, marginTop: 5 }, jobButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }, jobButton: { paddingHorizontal: spacing.md, paddingVertical: 7, borderRadius: radii.pill, backgroundColor: colors.tealSoft }, jobButtonText: { ...typography.label, color: colors.tealDark, fontSize: 10 }, jobButtonSecondary: { paddingHorizontal: spacing.md, paddingVertical: 7, borderRadius: radii.pill, borderWidth: 1, borderColor: colors.line }, jobButtonSecondaryText: { ...typography.label, color: colors.inkMuted, fontSize: 10 }, jobError: { ...typography.body, color: colors.danger, fontSize: 10, marginTop: spacing.xs }, progressTrack: { height: 6, backgroundColor: colors.line, borderRadius: 5, marginTop: spacing.sm, overflow: 'hidden' }, progressFill: { height: 6, backgroundColor: colors.tealDark },
   errorNotice: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, padding: spacing.sm, marginTop: spacing.xs, borderRadius: radii.md, backgroundColor: colors.coralSoft },
   tile: { width: '31.7%', aspectRatio: 1, borderRadius: radii.md, overflow: 'hidden', backgroundColor: colors.paper, marginBottom: spacing.sm, borderWidth: 1, borderColor: colors.line, justifyContent: 'center', alignItems: 'center' }, tileSelected: { borderWidth: 3, borderColor: colors.tealDark }, image: { width: '100%', height: '100%' }, typeTile: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', padding: spacing.xs }, fileName: { ...typography.label, color: colors.inkMuted, fontSize: 9, textAlign: 'center', marginTop: 4 }, videoThumbnail: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.tealSoft }, videoThumbnailImage: { width: '100%', height: '100%' }, videoFallback: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', padding: spacing.sm }, videoDuration: { position: 'absolute', top: 6, left: 6, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4, backgroundColor: 'rgba(0,0,0,0.72)' }, videoDurationText: { ...typography.label, color: colors.paper, fontSize: 8 }, videoPlayBadge: { position: 'absolute', right: 7, bottom: 7, width: 26, height: 26, borderRadius: 13, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' }, selectedBadge: { position: 'absolute', top: 5, right: 5, width: 23, height: 23, borderRadius: 12, backgroundColor: colors.tealDark, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', paddingVertical: spacing.xl, paddingHorizontal: spacing.lg }, emptyTitle: { ...typography.h2, color: colors.ink, marginTop: spacing.sm }, emptyBody: { ...typography.body, color: colors.inkMuted, textAlign: 'center', marginTop: spacing.xs, lineHeight: 20, fontSize: 12 }, secretTile: { alignItems: 'center', padding: spacing.md, alignSelf: 'center' }, secretBlack: { width: 48, height: 48, backgroundColor: '#050607', borderRadius: 16, justifyContent: 'center', alignItems: 'center' }, secretText: { ...typography.label, color: colors.inkFaint, fontSize: 9, marginTop: 4 }, footerSpinner: { padding: spacing.md },
   collectionHeader: { marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, breadcrumbRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flex: 1 }, backButton: { flexDirection: 'row', alignItems: 'center', gap: 3 }, backText: { ...typography.label, color: colors.tealDark, fontSize: 10 }, collectionPath: { ...typography.label, color: colors.ink, fontSize: 11 }, collectionActions: { flexDirection: 'row', gap: 6 }, smallButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radii.pill, paddingHorizontal: spacing.sm, paddingVertical: 7, backgroundColor: colors.tealSoft }, smallButtonText: { ...typography.label, color: colors.tealDark, fontSize: 10 }, sectionTitle: { ...typography.h2, color: colors.ink, fontSize: 15, marginTop: spacing.md, marginBottom: spacing.sm }, collectionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }, folderTile: { width: '48%', backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, borderRadius: radii.md, padding: spacing.md, marginBottom: spacing.xs }, albumTile: { width: '48%', marginBottom: spacing.md, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, borderRadius: radii.md, padding: spacing.sm }, albumCover: { height: 92, borderRadius: radii.sm, backgroundColor: colors.tealSoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs }, albumCount: { position: 'absolute', bottom: 5, right: 5, borderRadius: radii.pill, backgroundColor: colors.paper, paddingHorizontal: 7, paddingVertical: 2 }, albumCountText: { ...typography.label, color: colors.tealDark, fontSize: 9 }, collectionName: { ...typography.label, color: colors.ink, fontSize: 11 }, collectionMeta: { ...typography.body, color: colors.inkFaint, fontSize: 9, marginTop: 2 },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(5,7,8,0.58)', alignItems: 'center', justifyContent: 'center', padding: spacing.lg }, actionCard: { width: '100%', maxWidth: 430, maxHeight: '86%', backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg }, actionTitle: { ...typography.h2, color: colors.ink }, actionBody: { ...typography.body, color: colors.inkMuted, fontSize: 12, marginTop: spacing.xs, lineHeight: 19 }, modalAction: { minHeight: 46, borderRadius: radii.md, backgroundColor: colors.tealSoft, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, marginTop: spacing.sm }, modalActionText: { ...typography.label, color: colors.tealDark, fontSize: 11 }, deleteAction: { backgroundColor: colors.coralSoft }, deleteText: { color: colors.danger }, cancelAction: { alignItems: 'center', padding: spacing.md, marginTop: spacing.xs }, cancelText: { ...typography.label, color: colors.inkMuted }, pinInput: { minHeight: 46, borderRadius: radii.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.paper, color: colors.ink, paddingHorizontal: spacing.md, marginTop: spacing.sm, ...typography.body }, savePin: { flex: 1, minHeight: 46, borderRadius: radii.md, backgroundColor: colors.tealDark, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md }, savePinText: { ...typography.label, color: colors.paper, fontSize: 11 }, pinError: { ...typography.body, color: colors.danger, fontSize: 11, marginTop: spacing.sm }, forgotButton: { alignItems: 'center', paddingVertical: spacing.sm }, forgotText: { ...typography.label, color: colors.tealDark, fontSize: 10 }, recoveryQuestion: { ...typography.body, color: colors.ink, backgroundColor: colors.tealSoft, borderRadius: radii.md, padding: spacing.md, marginTop: spacing.sm }, editorButtons: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm }, pickerRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line }, pickerText: { ...typography.label, color: colors.ink, fontSize: 11, flex: 1 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(5,7,8,0.58)', alignItems: 'center', justifyContent: 'center', padding: spacing.lg }, actionCard: { width: '100%', maxWidth: 430, maxHeight: '86%', backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg }, actionTitle: { ...typography.h2, color: colors.ink }, actionBody: { ...typography.body, color: colors.inkMuted, fontSize: 12, marginTop: spacing.xs, lineHeight: 19 }, modalAction: { minHeight: 46, borderRadius: radii.md, backgroundColor: colors.tealSoft, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, marginTop: spacing.sm }, modalActionText: { ...typography.label, color: colors.tealDark, fontSize: 11 }, deleteAction: { backgroundColor: colors.coralSoft }, deleteText: { color: colors.danger }, cancelAction: { alignItems: 'center', padding: spacing.md, marginTop: spacing.xs }, cancelText: { ...typography.label, color: colors.inkMuted }, pinInput: { minHeight: 46, borderRadius: radii.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.paper, color: colors.ink, paddingHorizontal: spacing.md, marginTop: spacing.sm, ...typography.body }, savePin: { flex: 1, minHeight: 46, borderRadius: radii.md, backgroundColor: colors.tealDark, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md }, savePinText: { ...typography.label, color: colors.paper, fontSize: 11 }, pinError: { ...typography.body, color: colors.danger, fontSize: 11, marginTop: spacing.sm }, forgotButton: { alignItems: 'center', paddingVertical: spacing.sm }, forgotText: { ...typography.label, color: colors.tealDark, fontSize: 10 }, recoveryQuestion: { ...typography.body, color: colors.ink, backgroundColor: colors.tealSoft, borderRadius: radii.md, padding: spacing.md, marginTop: spacing.sm }, editorButtons: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm }, pickerRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line }, pickerText: { ...typography.label, color: colors.ink, fontSize: 11, flex: 1 }, cloudHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }, cloudClose: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' }, cloudList: { maxHeight: 420, marginTop: spacing.sm }, cloudRow: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line }, cloudItemText: { flex: 1 }, cloudDownload: { minWidth: 58, minHeight: 34, borderRadius: radii.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.tealDark, alignItems: 'center', justifyContent: 'center' }, cloudDownloadText: { ...typography.label, color: colors.paper, fontSize: 10 }, cloudEmpty: { alignItems: 'center', justifyContent: 'center', minHeight: 140, gap: spacing.sm },
   viewer: { flex: 1, backgroundColor: '#050607', justifyContent: 'center' }, viewerClose: { position: 'absolute', zIndex: 2, top: 48, right: 20, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.48)', alignItems: 'center', justifyContent: 'center' }, viewerPage: { width: VIEWER_WIDTH, height: '100%', alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingBottom: 24 }, viewerImage: { width: '100%', height: '100%' }, viewerVideo: { width: '100%', height: '75%' }, videoPreview: { width: '100%', height: '100%' }, viewerVideoPlaceholder: { alignItems: 'center', gap: spacing.sm }, viewerHint: { ...typography.body, color: colors.paper, fontSize: 12 }, viewerVideoPoster: { alignItems: 'center', gap: spacing.md, width: '75%' }, playPrompt: { ...typography.label, color: colors.paper }, fileViewer: { alignItems: 'center', gap: spacing.md }, viewerFileName: { ...typography.h2, color: colors.paper, textAlign: 'center', paddingHorizontal: spacing.lg },
   exportOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', gap: spacing.sm }, exportText: { ...typography.label, color: colors.paper },
 }); }

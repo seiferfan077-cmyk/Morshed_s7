@@ -1,4 +1,3 @@
-import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { NativeModules } from 'react-native';
@@ -25,6 +24,15 @@ export interface ScanProgress {
   expectedFiles?: number;
   estimatedBytes: number;
   currentName?: string;
+}
+
+export interface PickerImportAsset {
+  uri: string;
+  name: string;
+  mediaType?: MediaType;
+  mimeType?: string | null;
+  size?: number | null;
+  lastModified?: number;
 }
 
 export interface NativeGalleryImportModule {
@@ -114,13 +122,13 @@ export async function scanDeviceLibrary(
   return { ...progress, scannedFiles: actual?.totalFiles ?? progress.scannedFiles, estimatedBytes: actual?.totalBytes ?? progress.estimatedBytes };
 }
 
-export async function createPickerImportJob(assets: DocumentPicker.DocumentPickerAsset[], targetAlbumId?: string) {
+export async function createPickerImportJob(assets: PickerImportAsset[], targetAlbumId?: string) {
   const jobId = await createImportJob('picker', targetAlbumId);
   const sources: ImportSource[] = assets.map((asset) => ({
     uri: asset.uri,
     filename: asset.name,
-    type: inferMediaType(asset.name, asset.mimeType),
-    mimeType: asset.mimeType,
+    type: asset.mediaType ?? inferMediaType(asset.name, asset.mimeType ?? undefined),
+    mimeType: asset.mimeType ?? undefined,
     size: asset.size ?? 0,
     sourceKey: `picker:${asset.uri}:${asset.size ?? 0}`,
     sourceModifiedAt: asset.lastModified,

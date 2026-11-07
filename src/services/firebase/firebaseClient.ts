@@ -30,7 +30,8 @@ export function getFirebaseAuth(): Auth | null {
       getReactNativePersistence?: (storage: typeof AsyncStorage) => Parameters<typeof initializeAuth>[1] extends { persistence?: infer T } ? T : never;
     };
     const persistence = nativeAuth.getReactNativePersistence?.(AsyncStorage);
-    auth = persistence ? initializeAuth(firebaseApp, { persistence }) : getAuth(firebaseApp);
+    if (!persistence) throw new Error('firebase_native_persistence_unavailable');
+    auth = initializeAuth(firebaseApp, { persistence });
   } catch (error) {
     const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
     if (code.includes('already-initialized')) auth = getAuth(firebaseApp);

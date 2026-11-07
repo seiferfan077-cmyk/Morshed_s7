@@ -89,7 +89,7 @@ function GoogleAccountCard() {
     try {
       let idToken: string | null | undefined;
       if (Platform.OS === 'android') {
-        GoogleOneTapSignIn.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
+        GoogleOneTapSignIn.configure({ webClientId: 'autoDetect' });
         await GoogleOneTapSignIn.checkPlayServices();
         let result = await GoogleOneTapSignIn.signIn();
         if (isNoSavedCredentialFoundResponse(result)) result = await GoogleOneTapSignIn.createAccount();
@@ -105,8 +105,11 @@ function GoogleAccountCard() {
       }
       if (!idToken) throw new Error('google_id_token_missing');
       await signInWithGoogleIdToken(idToken);
-    } catch {
-      showAppError('تعذر تسجيل الدخول', 'تأكد من تفعيل Google في Firebase ومن صحة إعداد OAuth لهذا التطبيق، ثم حاول مرة تانية.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      const code = message.match(/\b(?:auth\/[a-z-]+|DEVELOPER_ERROR|[0-9]{1,3})\b/i)?.[0];
+      const diagnostic = code ? ` رمز التشخيص: ${code}.` : '';
+      showAppError('تعذر تسجيل الدخول', `تأكد من تفعيل Google في Firebase ومن صحة OAuth Android لهذا التطبيق، ثم حاول مرة تانية.${diagnostic}`);
     } finally {
       setBusy(false);
     }

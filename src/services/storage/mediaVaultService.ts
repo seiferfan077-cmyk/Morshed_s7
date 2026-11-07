@@ -386,6 +386,7 @@ export async function importToVault(uri: string, filename: string, type: MediaTy
     );
     return item;
   } catch (error) {
+    await FileSystem.deleteAsync(target, { idempotent: true }).catch(() => undefined);
     await FileSystem.deleteAsync(partial, { idempotent: true }).catch(() => undefined);
     throw error;
   }
