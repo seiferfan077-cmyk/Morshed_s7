@@ -156,6 +156,8 @@ export function MediaScreen() {
   const [unlockPrivatePassword, setUnlockPrivatePassword] = useState('');
   const [unlockPrivateError, setUnlockPrivateError] = useState<string | null>(null);
   const [privateImporting, setPrivateImporting] = useState(false);
+  const [pendingGalleryAssets, setPendingGalleryAssets] = useState<ImagePicker.ImagePickerAsset[] | null>(null);
+  const [galleryDestinationOpen, setGalleryDestinationOpen] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
   const [pinMode, setPinMode] = useState<'create' | 'unlock' | 'recover' | 'reset'>('unlock');
   const [pin, setPin] = useState('');
@@ -341,11 +343,21 @@ export function MediaScreen() {
     if (privateFolderPassword !== privateFolderPasswordConfirm) { setError('كلمتا المرور غير متطابقتين.'); return; }
     setPrivateFolderSaving(true);
     try {
-      await createPrivateMediaFolder(privateFolderName, privateFolderPassword);
+      const folderId = await createPrivateMediaFolder(privateFolderName, privateFolderPassword);
+      const selectedGalleryAssets = pendingGalleryAssets;
+      if (selectedGalleryAssets?.length) setPendingGalleryAssets(null);
       setCreatePrivateFolderOpen(false);
       setPrivateFolderName(''); setPrivateFolderPassword(''); setPrivateFolderPasswordConfirm('');
-      await loadNextCollectionList();
-      Alert.alert('تم إنشاء المجلد المقفل', 'لن يمكن فتحه إذا نسيت كلمة المرور. الصور داخله مخفية من واجهة مُرشد، لكنها غير مشفرة على مستوى ملفات الجهاز.');
+      await loadCollections();
+      if (selectedGalleryAssets?.length) {
+        openPrivateFolderIdRef.current = folderId;
+        setOpenPrivateFolderId(folderId);
+        setAlbumId(undefined); setFilter('all'); setMode('library');
+        setGalleryDestinationOpen(false);
+        await importPickedMedia(selectedGalleryAssets, folderId);
+      } else {
+        Alert.alert('تم إنشاء المجلد المقفل', 'لن يمكن فتحه إذا نسيت كلمة المرور. الصور داخله مخفية من واجهة مُرشد، لكنها غير مشفرة على مستوى ملفات الجهاز.');
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر إنشاء المجلد المقفل.');
     } finally { setPrivateFolderSaving(false); }
@@ -493,28 +505,21 @@ export function MediaScreen() {
         ]);
         return;
       }
-      const importedAssets = assets.map((asset, index) => ({
-        uri: asset.uri,
-        name: asset.fileName || `media-${Date.now()}-${index}.${pickedMediaExtension(asset)}`,
-        mediaType: asset.type === 'video' ? 'video' as const : 'image' as const,
-        mimeType: asset.mimeType,
-        size: asset.fileSize,
-        lastModified: Date.now(),
-      }));
-      const jobId = await createPickerImportJob(importedAssets, albumId);
-      const job = await (await import('../services/storage/mediaVaultService')).getImportJob(jobId);
-      if (job) { setActiveJob(job); confirmImport(job); }
+      await createGalleryImportJob(assets, albumId);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر تجهيز الوسائط المختارة.');
     }
   };
 
-  const chooseFromGallery = async () => {
+  const chooseFromGallery = async (imagesOnly = false) => {
     const targetPrivateFolderId = openPrivateFolderIdRef.current;
     try {
       if (targetPrivateFolderId) privatePickerInProgressRef.current = true;
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: openPrivateFolderId ? ['images'] : ['images', 'videos'], allowsMultipleSelection: true, quality: 1 });
-      if (!result.canceled) await importPickedMedia(result.assets, targetPrivateFolderId);
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: targetPrivateFolderId || imagesOnly ? ['images'] : ['images', 'videos'], allowsMultipleSelection: true, quality: 1 });
+      if (!result.canceled) {
+        if (targetPrivateFolderId) await importPickedMedia(result.assets, targetPrivateFolderId);
+        else { setPendingGalleryAssets(result.assets); setGalleryDestinationOpen(true); }
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر فتح معرض الصور.');
     } finally { privatePickerInProgressRef.current = false; }
@@ -538,6 +543,35 @@ export function MediaScreen() {
       { text: 'إلغاء', style: 'cancel', onPress: () => { void (async () => { await (await import('../services/storage/mediaVaultService')).removeImportJob(job.id); setActiveJob(null); setScanProgress(null); })(); } },
       { text: 'بدء النسخ', onPress: () => { void beginImport(job); } },
     ]);
+  };
+
+  const createGalleryImportJob = async (assets: ImagePicker.ImagePickerAsset[], targetAlbumId?: string) => {
+    const importedAssets = assets.map((asset, index) => ({
+      uri: asset.uri,
+      name: asset.fileName || `media-${Date.now()}-${index}.${pickedMediaExtension(asset)}`,
+      mediaType: asset.type === 'video' || mediaTypeFromName(asset.fileName ?? '', asset.mimeType ?? undefined) === 'video' ? 'video' as const : 'image' as const,
+      mimeType: asset.mimeType,
+      size: asset.fileSize,
+      lastModified: Date.now(),
+    }));
+    const jobId = await createPickerImportJob(importedAssets, targetAlbumId);
+    const job = await (await import('../services/storage/mediaVaultService')).getImportJob(jobId);
+    if (!job) throw new Error('تعذر تجهيز الصور المختارة للاستيراد.');
+    setActiveJob(job);
+    confirmImport(job);
+  };
+
+  const importPendingGalleryAssets = async () => {
+    const assets = pendingGalleryAssets;
+    if (!assets?.length) return;
+    setGalleryDestinationOpen(false);
+    try {
+      await createGalleryImportJob(assets, albumId);
+      setPendingGalleryAssets(null);
+    } catch (cause) {
+      setGalleryDestinationOpen(true);
+      setError(cause instanceof Error ? cause.message : 'تعذر تجهيز الصور المختارة.');
+    }
   };
 
   const beginImport = async (job: MediaImportJob) => {
@@ -593,8 +627,16 @@ export function MediaScreen() {
     try {
       if (editor.kind === 'album') {
         if (editor.mode === 'create') {
-          const newAlbumId = await createAlbum(editor.value, currentFolder?.id);
-          if (selectedIds.size) await addMediaToAlbum(newAlbumId, [...selectedIds]);
+          const selectedGalleryAssets = pendingGalleryAssets;
+          const newAlbumId = await createAlbum(editor.value, selectedGalleryAssets?.length ? undefined : currentFolder?.id);
+          if (selectedIds.size && !selectedGalleryAssets?.length) await addMediaToAlbum(newAlbumId, [...selectedIds]);
+          if (selectedGalleryAssets?.length) {
+            setFolderStack([]);
+            setMode('library'); setAlbumId(newAlbumId); setFilter('all');
+            setSelectedIds(new Set()); setSelectionMode(false);
+            await createGalleryImportJob(selectedGalleryAssets, newAlbumId);
+            setPendingGalleryAssets(null); setGalleryDestinationOpen(false);
+          }
         } else if (editor.id) await renameAlbum(editor.id, editor.value);
         await loadNextCollectionList();
       } else if (editor.kind === 'folder') {
@@ -917,7 +959,8 @@ export function MediaScreen() {
         <View style={styles.searchRow}><Ionicons name="search-outline" size={18} color={colors.inkMuted} /><TextInput value={search} onChangeText={setSearch} placeholder="ابحث باسم الملف" placeholderTextColor={colors.inkFaint} style={styles.searchInput} /><Pressable onPress={() => setSort((value) => value === 'newest' ? 'name' : value === 'name' ? 'size' : value === 'size' ? 'oldest' : 'newest')} style={styles.sortButton}><Ionicons name="swap-vertical-outline" size={16} color={colors.tealDark} /><Text style={styles.sortText}>{sort === 'newest' ? 'الأحدث' : sort === 'oldest' ? 'الأقدم' : sort === 'name' ? 'الاسم' : 'الحجم'}</Text></Pressable></View>
         {!openPrivateFolderId ? <><View style={styles.filterRow}>{(['all', 'image', 'video', 'file', ...(privateUnlocked ? ['private'] : [])] as Filter[]).map((value) => <Pressable key={value} onPress={() => { void switchFilter(value); }} style={[styles.filterChip, filter === value && styles.filterActive]}><Ionicons name={value === 'all' ? 'apps-outline' : value === 'image' ? 'image-outline' : value === 'video' ? 'videocam-outline' : value === 'file' ? 'document-outline' : 'lock-closed-outline'} size={15} color={filter === value ? colors.paper : colors.inkMuted} /><Text style={[styles.filterText, filter === value && styles.filterTextActive]}>{value === 'all' ? 'الكل' : value === 'image' ? 'الصور' : value === 'video' ? 'الفيديو' : value === 'file' ? 'الملفات' : 'الخصوصية'}</Text></Pressable>)}</View>{permission?.accessPrivileges === 'limited' ? <Pressable onPress={() => { void MediaLibrary.presentPermissionsPickerAsync(['photo', 'video']).then(refreshStats).catch(() => setError('تعذر فتح إعداد الصور المحددة.')); }} style={styles.permissionBanner}><Ionicons name="options-outline" size={16} color={colors.tealDark} /><Text style={styles.permissionBannerText}>الوصول محدود إلى صور مختارة · تعديل الاختيار</Text></Pressable> : !permission?.granted ? <Pressable onPress={() => { void requestPermission().then(refreshStats); }} style={styles.permissionBanner}><Ionicons name="lock-open-outline" size={16} color={colors.tealDark} /><Text style={styles.permissionBannerText}>امنح إذنًا عند رغبتك في استيراد مكتبة الجهاز ({deviceCount})</Text></Pressable> : null}</> : null}
         {albumId ? <Pressable onPress={() => { setAlbumId(undefined); void loadFirstPage(); }} style={styles.backToLibrary}><Ionicons name="arrow-back-outline" size={16} color={colors.tealDark} /><Text style={styles.permissionBannerText}>داخل ألبوم «{albums.find((album) => album.id === albumId)?.name ?? 'ألبوم'}» · عرض كل المكتبة</Text></Pressable> : null}
-        <View style={styles.actions}>{openPrivateFolderId ? <><Pressable onPress={chooseFromGallery} disabled={privateImporting} style={styles.actionButton}><Ionicons name="add-circle-outline" size={19} color={colors.paper} /><Text style={styles.actionText}>{privateImporting ? 'جارٍ النسخ…' : 'إضافة صور'}</Text></Pressable><Pressable onPress={lockPrivateFolder} style={[styles.actionButton, styles.fileButton]}><Ionicons name="lock-closed-outline" size={18} color={colors.ink} /><Text style={[styles.actionText, styles.fileText]}>قفل المجلد</Text></Pressable></> : <><Pressable onPress={openImportMenu} style={styles.actionButton}><Ionicons name="add-circle-outline" size={19} color={colors.paper} /><Text style={styles.actionText}>استيراد</Text></Pressable><Pressable onPress={openCloudLibrary} style={[styles.actionButton, styles.fileButton]}><Ionicons name="cloud-outline" size={18} color={colors.ink} /><Text style={[styles.actionText, styles.fileText]}>سحابتي</Text></Pressable><Pressable onPress={() => { setSelectionMode((value) => !value); setSelectedIds(new Set()); }} style={[styles.actionButton, styles.fileButton]}><Ionicons name={selectionMode ? 'close-outline' : 'checkbox-outline'} size={18} color={colors.ink} /><Text style={[styles.actionText, styles.fileText]}>{selectionMode ? 'إلغاء التحديد' : 'تحديد عناصر'}</Text></Pressable></>}</View>
+        {!openPrivateFolderId ? <Pressable accessibilityRole="button" onPress={() => { void chooseFromGallery(true); }} style={[styles.actionButton, { flex: 0, width: '100%', minHeight: 50, borderRadius: radii.md, justifyContent: 'flex-start', paddingHorizontal: spacing.md, marginTop: spacing.sm }]}><Ionicons name="images-outline" size={21} color={colors.paper} /><View style={{ flex: 1 }}><Text style={styles.actionText}>اختيار صور من الجهاز</Text></View><Ionicons name="chevron-back" size={19} color={colors.paper} /></Pressable> : null}
+        <View style={styles.actions}>{openPrivateFolderId ? <><Pressable onPress={() => { void chooseFromGallery(); }} disabled={privateImporting} style={styles.actionButton}><Ionicons name="add-circle-outline" size={19} color={colors.paper} /><Text style={styles.actionText}>{privateImporting ? 'جارٍ النسخ…' : 'إضافة صور'}</Text></Pressable><Pressable onPress={lockPrivateFolder} style={[styles.actionButton, styles.fileButton]}><Ionicons name="lock-closed-outline" size={18} color={colors.ink} /><Text style={[styles.actionText, styles.fileText]}>قفل المجلد</Text></Pressable></> : <><Pressable onPress={openImportMenu} style={styles.actionButton}><Ionicons name="add-circle-outline" size={19} color={colors.paper} /><Text style={styles.actionText}>استيراد</Text></Pressable><Pressable onPress={openCloudLibrary} style={[styles.actionButton, styles.fileButton]}><Ionicons name="cloud-outline" size={18} color={colors.ink} /><Text style={[styles.actionText, styles.fileText]}>سحابتي</Text></Pressable><Pressable onPress={() => { setSelectionMode((value) => !value); setSelectedIds(new Set()); }} style={[styles.actionButton, styles.fileButton]}><Ionicons name={selectionMode ? 'close-outline' : 'checkbox-outline'} size={18} color={colors.ink} /><Text style={[styles.actionText, styles.fileText]}>{selectionMode ? 'إلغاء التحديد' : 'تحديد عناصر'}</Text></Pressable></>}</View>
         {selectionMode ? <View style={styles.bulkBar}><Text style={styles.bulkCount}>محدد: {selectedIds.size}</Text>{!openPrivateFolderId ? <><Pressable onPress={uploadSelectionToCloud} disabled={!selectedIds.size || cloudUploading} style={styles.bulkAction}><Text style={styles.bulkActionText}>{cloudUploading ? 'جارٍ الرفع…' : 'رفع للسحابة'}</Text></Pressable><Pressable onPress={() => setAlbumPickerOpen(true)} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>إضافة إلى ألبوم</Text></Pressable><Pressable onPress={exportSelectionToPhotos} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>حفظ في الصور</Text></Pressable></> : null}{albumId ? <Pressable onPress={removeSelectionFromAlbum} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>إزالة من الألبوم</Text></Pressable> : null}{albumId && selectedIds.size === 1 ? <Pressable onPress={setCoverFromSelection} style={styles.bulkAction}><Text style={styles.bulkActionText}>تعيين الغلاف</Text></Pressable> : null}<Pressable onPress={deleteSelection} disabled={!selectedIds.size} style={styles.bulkDelete}><Ionicons name="trash-outline" size={16} color={colors.danger} /></Pressable></View> : null}
         {cloudUploading ? <Text style={styles.cloudProgress}>{cloudProgress}</Text> : null}
         {activeJob ? <View style={styles.jobCard}><View style={styles.jobTitleRow}><Ionicons name={activeJob.state === 'completed' ? 'checkmark-circle-outline' : 'sync-outline'} size={20} color={colors.tealDark} /><Text style={styles.jobTitle}>{activeJob.state === 'scanning' ? `فحص المصدر · ${scanProgress?.scannedFiles ?? 0} عنصر` : activeJob.state === 'ready' ? 'المصدر جاهز للاستيراد' : activeJob.state === 'running' ? `نسخ ${activeJob.completedFiles}/${activeJob.totalFiles}` : activeJob.state === 'paused' ? 'الاستيراد متوقف مؤقتًا' : activeJob.state === 'completed' ? 'اكتمل الاستيراد' : activeJob.state === 'cancelled' ? 'أُوقف الاستيراد' : 'تعذر الاستيراد'}</Text></View>
@@ -941,6 +984,7 @@ export function MediaScreen() {
   if (loading && !items.length && mode === 'library') return <View style={styles.center}><ActivityIndicator color={colors.tealDark} /></View>;
 
   return <View style={styles.screen}>
+    <Modal visible={galleryDestinationOpen} transparent animationType="fade" onRequestClose={() => { setGalleryDestinationOpen(false); setPendingGalleryAssets(null); }}><View style={styles.modalBackdrop}><View style={styles.actionCard}><Text style={styles.actionTitle}>اختر مكان حفظ الصور</Text><Text style={styles.actionBody}>تم اختيار {(pendingGalleryAssets?.length ?? 0).toLocaleString()} عنصر. ستُنسخ نسخة إلى مُرشد، وستبقى الملفات الأصلية في الجهاز.</Text><Pressable onPress={() => { void importPendingGalleryAssets(); }} style={styles.modalAction}><Ionicons name="images-outline" size={19} color={colors.tealDark} /><View style={{ flex: 1 }}><Text style={styles.pickerText}>{albumId ? 'إضافة إلى الألبوم الحالي' : 'إضافة إلى مكتبة مُرشد'}</Text><Text style={styles.collectionMeta}>{albumId ? 'حفظ الصور داخل الألبوم المفتوح' : 'حفظ الصور دون وضعها في ألبوم'}</Text></View></Pressable><Pressable onPress={() => { setGalleryDestinationOpen(false); setEditor({ kind: 'album', mode: 'create', value: '' }); }} style={styles.modalAction}><Ionicons name="albums-outline" size={19} color={colors.tealDark} /><View style={{ flex: 1 }}><Text style={styles.pickerText}>إنشاء ألبوم عادي مفتوح</Text><Text style={styles.collectionMeta}>مكان مرتب للصور، دون كلمة مرور</Text></View></Pressable><Pressable onPress={() => { setGalleryDestinationOpen(false); setPrivateFolderName(''); setPrivateFolderPassword(''); setPrivateFolderPasswordConfirm(''); setCreatePrivateFolderOpen(true); }} style={styles.modalAction}><Ionicons name="lock-closed-outline" size={19} color={colors.tealDark} /><View style={{ flex: 1 }}><Text style={styles.pickerText}>إنشاء مجلد مقفل</Text><Text style={styles.collectionMeta}>يتطلب كلمة مرور؛ القفل ليس تشفيرًا للملفات</Text></View></Pressable><Pressable onPress={() => { setGalleryDestinationOpen(false); setPendingGalleryAssets(null); }} style={styles.cancelAction}><Text style={styles.cancelText}>إلغاء الاختيار</Text></Pressable></View></View></Modal>
     {mode === 'library' ? <FlatList
       data={items}
       numColumns={3}
@@ -974,7 +1018,7 @@ export function MediaScreen() {
 
     <Modal visible={pinOpen} transparent animationType="fade" onRequestClose={() => setPinOpen(false)}><View style={styles.modalBackdrop}><View style={styles.actionCard}><Text style={styles.actionTitle}>{pinMode === 'create' ? 'أنشئ رمز الصور الخصوصية' : pinMode === 'recover' ? 'استرجاع رمز الصور الخصوصية' : pinMode === 'reset' ? 'أنشئ رمزًا جديدًا' : 'أدخل رمز الصور الخصوصية'}</Text><Text style={styles.actionBody}>{pinMode === 'create' ? 'يُحفظ محليًا ولا يُرسل إلى أي خادم.' : pinMode === 'recover' ? 'أجب عن سؤال الاسترجاع الذي حددته سابقًا.' : 'الرمز لا يُرسل إلى أي خادم.'}</Text>{pinMode !== 'recover' ? <TextInput value={pin} onChangeText={setPin} maxLength={32} secureTextEntry placeholder="رمز من 4 إلى 32 حرفًا أو رقمًا" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /> : <><Text style={styles.recoveryQuestion}>{recoveryQuestion || 'لا يوجد سؤال استرجاع محفوظ.'}</Text><TextInput value={recoveryAnswer} onChangeText={setRecoveryAnswer} placeholder="إجابة سؤال الاسترجاع" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /></>}{pinMode === 'create' || pinMode === 'reset' ? <TextInput value={pinConfirm} onChangeText={setPinConfirm} maxLength={32} secureTextEntry placeholder="تأكيد الرمز" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /> : null}{pinMode === 'create' ? <><TextInput value={recoveryQuestion} onChangeText={setRecoveryQuestion} placeholder="سؤال الاسترجاع" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /><TextInput value={recoveryAnswer} onChangeText={setRecoveryAnswer} placeholder="إجابة سؤال الاسترجاع" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /></> : null}{pinError ? <Text style={styles.pinError}>{pinError}</Text> : null}{pinMode === 'unlock' ? <Pressable onPress={() => { void startRecovery(); }} style={styles.forgotButton}><Text style={styles.forgotText}>نسيت الرمز؟ استخدم سؤال الاسترجاع</Text></Pressable> : null}<Pressable onPress={() => { void submitPin(); }} style={styles.savePin}><Text style={styles.savePinText}>{pinMode === 'create' ? 'حفظ الرمز وسؤال الاسترجاع' : pinMode === 'recover' ? 'تحقق من الإجابة' : pinMode === 'reset' ? 'حفظ الرمز الجديد' : 'فتح القسم'}</Text></Pressable><Pressable onPress={() => setPinOpen(false)} style={styles.cancelAction}><Text style={styles.cancelText}>إلغاء</Text></Pressable></View></View></Modal>
 
-    <Modal visible={Boolean(editor)} transparent animationType="fade" onRequestClose={() => setEditor(null)}><View style={styles.modalBackdrop}><View style={styles.actionCard}><Text style={styles.actionTitle}>{editor?.mode === 'create' ? editor.kind === 'album' ? 'إنشاء ألبوم' : 'إنشاء مجلد' : editor?.kind === 'media' ? 'إعادة تسمية الملف' : 'إعادة تسمية'}</Text><TextInput autoFocus value={editor?.value ?? ''} onChangeText={(value) => setEditor((current) => current ? { ...current, value } : current)} placeholder="الاسم" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /><View style={styles.editorButtons}><Pressable onPress={() => setEditor(null)} style={styles.cancelAction}><Text style={styles.cancelText}>إلغاء</Text></Pressable><Pressable onPress={() => { void saveEditor(); }} style={styles.savePin}><Text style={styles.savePinText}>حفظ</Text></Pressable></View></View></View></Modal>
+    <Modal visible={Boolean(editor)} transparent animationType="fade" onRequestClose={() => { setEditor(null); if (pendingGalleryAssets?.length) setGalleryDestinationOpen(true); }}><View style={styles.modalBackdrop}><View style={styles.actionCard}><Text style={styles.actionTitle}>{pendingGalleryAssets?.length && editor?.kind === 'album' && editor.mode === 'create' ? 'إنشاء ألبوم عادي مفتوح' : editor?.mode === 'create' ? editor.kind === 'album' ? 'إنشاء ألبوم' : 'إنشاء مجلد' : editor?.kind === 'media' ? 'إعادة تسمية الملف' : 'إعادة تسمية'}</Text><TextInput autoFocus value={editor?.value ?? ''} onChangeText={(value) => setEditor((current) => current ? { ...current, value } : current)} placeholder="الاسم" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /><View style={styles.editorButtons}><Pressable onPress={() => { setEditor(null); if (pendingGalleryAssets?.length) setGalleryDestinationOpen(true); }} style={styles.cancelAction}><Text style={styles.cancelText}>إلغاء</Text></Pressable><Pressable onPress={() => { void saveEditor(); }} style={styles.savePin}><Text style={styles.savePinText}>حفظ</Text></Pressable></View></View></View></Modal>
 
     <Modal visible={albumPickerOpen} transparent animationType="fade" onRequestClose={() => setAlbumPickerOpen(false)}><View style={styles.modalBackdrop}><View style={styles.actionCard}><Text style={styles.actionTitle}>اختر ألبومًا</Text><FlatList data={[]} renderItem={() => null} ListHeaderComponent={<View>{albums.map((album) => <Pressable key={album.id} onPress={() => { void assignSelection(album.id); }} style={styles.pickerRow}><Ionicons name="albums-outline" size={18} color={colors.tealDark} /><Text style={styles.pickerText}>{album.name}</Text><Text style={styles.collectionMeta}>{album.itemCount}</Text></Pressable>)}<Pressable onPress={() => { setAlbumPickerOpen(false); setMode('collections'); setEditor({ kind: 'album', mode: 'create', value: '' }); }} style={styles.pickerRow}><Ionicons name="add-circle-outline" size={18} color={colors.tealDark} /><Text style={styles.pickerText}>إنشاء ألبوم جديد</Text></Pressable></View>} /></View></View></Modal>
 
@@ -987,7 +1031,7 @@ export function MediaScreen() {
     {cloudUploading ? <View style={styles.exportOverlay}><ActivityIndicator color={colors.paper} /><Text style={styles.exportText}>{cloudProgress || 'جارٍ رفع الوسائط إلى المساحة الخاصة…'}</Text></View> : null}
     {privateImporting ? <View style={styles.exportOverlay}><ActivityIndicator color={colors.paper} /><Text style={styles.exportText}>جارٍ نسخ الصور إلى المجلد المقفل…</Text></View> : null}
 
-    <Modal visible={createPrivateFolderOpen} transparent animationType="fade" onRequestClose={() => setCreatePrivateFolderOpen(false)}><View style={styles.modalBackdrop}><View style={styles.actionCard}><Text style={styles.actionTitle}>إنشاء مجلد مقفل</Text><Text style={styles.actionBody}>اختر كلمة مرور تحفظها جيدًا. لا يوجد سؤال استرجاع ولا إعادة تعيين؛ إذا نسيتها فلن تتمكن من فتح المجلد. هذا قفل داخل التطبيق وليس تشفيرًا للملفات على الجهاز.</Text><TextInput autoFocus value={privateFolderName} onChangeText={setPrivateFolderName} maxLength={80} placeholder="اسم المجلد" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /><TextInput value={privateFolderPassword} onChangeText={setPrivateFolderPassword} maxLength={64} secureTextEntry autoCapitalize="none" placeholder="كلمة مرور (8 أحرف على الأقل)" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /><TextInput value={privateFolderPasswordConfirm} onChangeText={setPrivateFolderPasswordConfirm} maxLength={64} secureTextEntry autoCapitalize="none" placeholder="تأكيد كلمة المرور" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /><Pressable disabled={privateFolderSaving} onPress={() => { void savePrivateFolder(); }} style={styles.savePin}><Text style={styles.savePinText}>{privateFolderSaving ? 'جارٍ الإنشاء…' : 'إنشاء المجلد'}</Text></Pressable><Pressable onPress={() => setCreatePrivateFolderOpen(false)} style={styles.cancelAction}><Text style={styles.cancelText}>إلغاء</Text></Pressable></View></View></Modal>
+    <Modal visible={createPrivateFolderOpen} transparent animationType="fade" onRequestClose={() => { setCreatePrivateFolderOpen(false); if (pendingGalleryAssets?.length) setGalleryDestinationOpen(true); }}><View style={styles.modalBackdrop}><View style={styles.actionCard}><Text style={styles.actionTitle}>إنشاء مجلد مقفل</Text><Text style={styles.actionBody}>اختر كلمة مرور تحفظها جيدًا. لا يوجد سؤال استرجاع ولا إعادة تعيين؛ إذا نسيتها فلن تتمكن من فتح المجلد. هذا قفل داخل التطبيق وليس تشفيرًا للملفات على الجهاز.</Text><TextInput autoFocus value={privateFolderName} onChangeText={setPrivateFolderName} maxLength={80} placeholder="اسم المجلد" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /><TextInput value={privateFolderPassword} onChangeText={setPrivateFolderPassword} maxLength={64} secureTextEntry autoCapitalize="none" placeholder="كلمة مرور (8 أحرف على الأقل)" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /><TextInput value={privateFolderPasswordConfirm} onChangeText={setPrivateFolderPasswordConfirm} maxLength={64} secureTextEntry autoCapitalize="none" placeholder="تأكيد كلمة المرور" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /><Pressable disabled={privateFolderSaving} onPress={() => { void savePrivateFolder(); }} style={styles.savePin}><Text style={styles.savePinText}>{privateFolderSaving ? 'جارٍ الإنشاء…' : 'إنشاء المجلد'}</Text></Pressable><Pressable onPress={() => { setCreatePrivateFolderOpen(false); if (pendingGalleryAssets?.length) setGalleryDestinationOpen(true); }} style={styles.cancelAction}><Text style={styles.cancelText}>إلغاء</Text></Pressable></View></View></Modal>
     <Modal visible={Boolean(unlockPrivateFolder)} transparent animationType="fade" onRequestClose={() => setUnlockPrivateFolder(null)}><View style={styles.modalBackdrop}><View style={styles.actionCard}><Text style={styles.actionTitle}>فتح «{unlockPrivateFolder?.name}»</Text><Text style={styles.actionBody}>أدخل كلمة المرور التي اخترتها عند إنشاء هذا المجلد. لا يمكن استعادتها إذا نسيتها.</Text><TextInput autoFocus value={unlockPrivatePassword} onChangeText={setUnlockPrivatePassword} maxLength={64} secureTextEntry autoCapitalize="none" onSubmitEditing={() => { void submitPrivateFolderPassword(); }} placeholder="كلمة المرور" placeholderTextColor={colors.inkFaint} style={styles.pinInput} />{unlockPrivateError ? <Text style={styles.pinError}>{unlockPrivateError}</Text> : null}<Pressable onPress={() => { void submitPrivateFolderPassword(); }} style={styles.savePin}><Text style={styles.savePinText}>فتح المجلد</Text></Pressable><Pressable onPress={() => setUnlockPrivateFolder(null)} style={styles.cancelAction}><Text style={styles.cancelText}>إلغاء</Text></Pressable></View></View></Modal>
 
   </View>;

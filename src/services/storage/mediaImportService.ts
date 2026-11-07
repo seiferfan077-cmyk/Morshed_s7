@@ -4,6 +4,7 @@ import { NativeModules } from 'react-native';
 import { MediaType } from '../../types/domain';
 import {
   createImportJob,
+  addMediaToAlbum,
   enqueueImportSources,
   getImportNativeConfig,
   getImportQueueCount,
@@ -213,6 +214,7 @@ export async function runForegroundFallback(jobId: string, shouldStop: () => boo
     await updateImportJob(jobId, { currentFilename: next.filename });
     try {
       const item = await importToVault(next.uri, next.filename, next.type, next.mimeType, next.size, undefined, next);
+      if (job.targetAlbumId) await addMediaToAlbum(job.targetAlbumId, [item.id]);
       await markImportSource(jobId, next.id, 'completed');
       await updateImportJob(jobId, { completedFiles: job.completedFiles + 1, copiedBytes: job.copiedBytes + (item.size ?? next.size ?? 0), currentFilename: undefined });
     } catch (error) {
