@@ -17,6 +17,7 @@ export interface StoredMediaItem {
   deviceAssetId?: string;
   sourceKey?: string;
   sourceModifiedAt?: number;
+  privateFolderId?: string;
   width?: number;
   height?: number;
   duration?: number;
@@ -37,6 +38,13 @@ export interface MediaFolder {
   id: string;
   name: string;
   parentId?: string;
+  createdAt: string;
+  itemCount: number;
+}
+
+export interface PrivateMediaFolder {
+  id: string;
+  name: string;
   createdAt: string;
   itemCount: number;
 }
@@ -67,6 +75,7 @@ export interface ImportSource {
   size?: number;
   sourceKey?: string;
   sourceModifiedAt?: number;
+  privateFolderId?: string;
   width?: number;
   height?: number;
   duration?: number;
@@ -78,6 +87,7 @@ export interface MediaPageOptions {
   type?: MediaType;
   hidden?: boolean;
   albumId?: string;
+  privateFolderId?: string;
   search?: string;
   sort?: 'newest' | 'oldest' | 'name' | 'size';
 }
@@ -99,13 +109,14 @@ const PIN_KEY = '@murshid/media-vault-pin';
 const PIN_LAST_CHAR_KEY = '@murshid/media-vault-pin-last-char';
 const RECOVERY_QUESTION_KEY = '@murshid/media-vault-recovery-question';
 const RECOVERY_ANSWER_KEY = '@murshid/media-vault-recovery-answer';
+const PRIVATE_FOLDER_PASSWORD_KEY = '@murshid/private-folder-password:';
 const DEVICE_HIDDEN_KEY = '@murshid/media-device-hidden';
 const DEVICE_REMOVED_KEY = '@murshid/media-device-removed';
 const DB_NAME = 'murshid-gallery.db';
 const VAULT_DIR = `${FileSystem.documentDirectory ?? ''}murshid-vault/`;
 const SELECT_MEDIA = `SELECT m.id, m.uri, m.filename, m.type, m.mime_type AS mimeType, m.size,
   m.created_at AS createdAt, m.hidden, m.source, m.device_asset_id AS deviceAssetId,
-  m.source_key AS sourceKey, m.source_modified_at AS sourceModifiedAt,
+  m.source_key AS sourceKey, m.source_modified_at AS sourceModifiedAt, m.private_folder_id AS privateFolderId,
   m.width, m.height, m.duration FROM media_items m`;
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -128,6 +139,7 @@ function toMediaItem(row: Record<string, unknown>): StoredMediaItem {
     deviceAssetId: typeof row.deviceAssetId === 'string' ? row.deviceAssetId : undefined,
     sourceKey: typeof row.sourceKey === 'string' ? row.sourceKey : undefined,
     sourceModifiedAt: typeof row.sourceModifiedAt === 'number' ? row.sourceModifiedAt : undefined,
+    privateFolderId: typeof row.privateFolderId === 'string' ? row.privateFolderId : undefined,
     width: typeof row.width === 'number' ? row.width : undefined,
     height: typeof row.height === 'number' ? row.height : undefined,
     duration: typeof row.duration === 'number' ? row.duration : undefined,
@@ -176,6 +188,11 @@ async function getDatabase() {
         PRAGMA foreign_keys = ON;
         PRAGMA busy_timeout = 5000;
         CREATE TABLE IF NOT EXISTS gallery_meta (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS private_folders (
+          id TEXT PRIMARY KEY NOT NULL,
+          name TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS media_items (
           id TEXT PRIMARY KEY NOT NULL,
           uri TEXT NOT NULL,
@@ -189,6 +206,7 @@ async function getDatabase() {
           device_asset_id TEXT,
           source_key TEXT,
           source_modified_at INTEGER,
+          private_folder_id TEXT REFERENCES private_folders(id),
           width INTEGER,
           height INTEGER,
           duration REAL,
@@ -259,6 +277,11 @@ async function getDatabase() {
         CREATE INDEX IF NOT EXISTS import_job_items_queue_idx ON import_job_items(job_id, status, position);
         CREATE INDEX IF NOT EXISTS import_jobs_state_idx ON import_jobs(state, updated_at DESC);
       `);
+      const mediaColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(media_items)');
+      if (!mediaColumns.some((column) => column.name === 'private_folder_id')) {
+        await db.execAsync('ALTER TABLE media_items ADD COLUMN private_folder_id TEXT REFERENCES private_folders(id)');
+      }
+      await db.execAsync('CREATE INDEX IF NOT EXISTS media_items_private_folder_idx ON media_items(private_folder_id, created_at DESC)');
       const importJobColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(import_jobs)');
       if (!importJobColumns.some((column) => column.name === 'target_album_id')) {
         await db.execAsync('ALTER TABLE import_jobs ADD COLUMN target_album_id TEXT REFERENCES albums(id) ON DELETE SET NULL');
@@ -303,7 +326,7 @@ const JOB_SELECT = `SELECT id, source, state, total_files AS totalFiles, complet
 
 export async function listStoredMedia(): Promise<StoredMediaItem[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<Record<string, unknown>>(`${SELECT_MEDIA} WHERE m.import_status = 'complete' ORDER BY m.created_at DESC`);
+  const rows = await db.getAllAsync<Record<string, unknown>>(`${SELECT_MEDIA} WHERE m.import_status = 'complete' AND m.private_folder_id IS NULL ORDER BY m.created_at DESC`);
   return rows.map(toMediaItem);
 }
 
@@ -311,6 +334,8 @@ export async function listStoredMediaPage(options: MediaPageOptions = {}): Promi
   const db = await getDatabase();
   const where = ["m.import_status = 'complete'"];
   const params: (string | number)[] = [];
+  if (options.privateFolderId) { where.push('m.private_folder_id = ?'); params.push(options.privateFolderId); }
+  else where.push('m.private_folder_id IS NULL');
   if (options.hidden !== undefined) { where.push('m.hidden = ?'); params.push(options.hidden ? 1 : 0); }
   if (options.type) { where.push('m.type = ?'); params.push(options.type); }
   if (options.search?.trim()) { where.push('m.filename LIKE ?'); params.push(`%${options.search.trim()}%`); }
@@ -329,6 +354,8 @@ export async function getStoredMediaCount(options: Omit<MediaPageOptions, 'offse
   const db = await getDatabase();
   const where = ["m.import_status = 'complete'"];
   const params: (string | number)[] = [];
+  if (options.privateFolderId) { where.push('m.private_folder_id = ?'); params.push(options.privateFolderId); }
+  else where.push('m.private_folder_id IS NULL');
   if (options.hidden !== undefined) { where.push('m.hidden = ?'); params.push(options.hidden ? 1 : 0); }
   if (options.type) { where.push('m.type = ?'); params.push(options.type); }
   if (options.search?.trim()) { where.push('m.filename LIKE ?'); params.push(`%${options.search.trim()}%`); }
@@ -346,7 +373,7 @@ export async function getMediaStats(): Promise<MediaStats> {
       SUM(CASE WHEN type='file' THEN 1 ELSE 0 END) AS fileCount,
       COALESCE(SUM(CASE WHEN type='image' THEN COALESCE(size, 0) ELSE 0 END),0) AS imageBytes,
       COALESCE(SUM(CASE WHEN type='video' THEN COALESCE(size, 0) ELSE 0 END),0) AS videoBytes,
-      COALESCE(SUM(CASE WHEN type='file' THEN COALESCE(size, 0) ELSE 0 END),0) AS fileBytes FROM media_items WHERE import_status='complete'`,
+      COALESCE(SUM(CASE WHEN type='file' THEN COALESCE(size, 0) ELSE 0 END),0) AS fileBytes FROM media_items WHERE import_status='complete' AND private_folder_id IS NULL`,
   );
   let freeBytes: number | undefined;
   try { freeBytes = await FileSystem.getFreeDiskStorageAsync(); } catch { /* platform may not expose capacity */ }
@@ -356,6 +383,10 @@ export async function getMediaStats(): Promise<MediaStats> {
 export async function importToVault(uri: string, filename: string, type: MediaType, mimeType?: string, size?: number, deviceAssetId?: string, metadata: Partial<ImportSource> = {}) {
   const db = await getDatabase();
   const sourceKey = metadata.sourceKey ?? (deviceAssetId ? `device:${deviceAssetId}` : `uri:${uri}`);
+  if (metadata.privateFolderId) {
+    const folder = await db.getFirstAsync<{ id: string }>('SELECT id FROM private_folders WHERE id=?', metadata.privateFolderId);
+    if (!folder) throw new Error('المجلد المقفل غير موجود. لم تُنسخ الصورة.');
+  }
   const existing = await db.getFirstAsync<Record<string, unknown>>(`${SELECT_MEDIA} WHERE m.source_key = ? AND m.import_status='complete' LIMIT 1`, sourceKey);
   if (existing) return toMediaItem(existing);
   await ensureVault();
@@ -376,13 +407,14 @@ export async function importToVault(uri: string, filename: string, type: MediaTy
       id, uri: target, filename, type, mimeType, size: copied.size ?? size,
       createdAt: new Date().toISOString(), hidden: false, source: 'imported',
       deviceAssetId, sourceKey, sourceModifiedAt: metadata.sourceModifiedAt,
+      privateFolderId: metadata.privateFolderId,
       width: metadata.width, height: metadata.height, duration: metadata.duration,
     };
     await db.runAsync(
-      `INSERT INTO media_items (id, uri, filename, type, mime_type, size, created_at, hidden, source, device_asset_id, source_key, source_modified_at, width, height, duration, import_status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'imported', ?, ?, ?, ?, ?, ?, 'complete')`,
+      `INSERT INTO media_items (id, uri, filename, type, mime_type, size, created_at, hidden, source, device_asset_id, source_key, source_modified_at, private_folder_id, width, height, duration, import_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'imported', ?, ?, ?, ?, ?, ?, ?, 'complete')`,
       item.id, item.uri, item.filename, item.type, item.mimeType ?? null, item.size ?? null, item.createdAt,
-      item.deviceAssetId ?? null, item.sourceKey ?? null, item.sourceModifiedAt ?? null, item.width ?? null, item.height ?? null, item.duration ?? null,
+      item.deviceAssetId ?? null, item.sourceKey ?? null, item.sourceModifiedAt ?? null, metadata.privateFolderId ?? null, item.width ?? null, item.height ?? null, item.duration ?? null,
     );
     return item;
   } catch (error) {
@@ -429,10 +461,11 @@ export async function listAlbums(folderId?: string | null, search?: string): Pro
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const rows = await db.getAllAsync<Record<string, unknown>>(
     `SELECT a.id, a.name, a.created_at AS createdAt, a.updated_at AS updatedAt, a.folder_id AS folderId,
-      a.cover_media_id AS coverMediaId, m.uri AS coverUri, COUNT(am.media_id) AS itemCount
-     FROM albums a LEFT JOIN album_media am ON am.album_id=a.id
-     LEFT JOIN media_items m ON m.id=a.cover_media_id ${where}
-     GROUP BY a.id, m.uri ORDER BY a.sort_order, a.name COLLATE NOCASE`, ...params,
+      a.cover_media_id AS coverMediaId,
+      (SELECT cm.uri FROM media_items cm WHERE cm.id=a.cover_media_id AND cm.private_folder_id IS NULL) AS coverUri,
+      (SELECT COUNT(*) FROM album_media am JOIN media_items im ON im.id=am.media_id
+       WHERE am.album_id=a.id AND im.private_folder_id IS NULL) AS itemCount
+     FROM albums a ${where} ORDER BY a.sort_order, a.name COLLATE NOCASE`, ...params,
   );
   return rows.map((row) => ({
     id: String(row.id), name: String(row.name), createdAt: String(row.createdAt), updatedAt: String(row.updatedAt),
@@ -468,6 +501,10 @@ export async function setAlbumFolder(id: string, folderId?: string) {
 
 export async function addMediaToAlbum(albumId: string, mediaIds: string[]) {
   const db = await getDatabase();
+  for (const mediaId of mediaIds) {
+    const privateItem = await db.getFirstAsync<{ id: string }>('SELECT id FROM media_items WHERE id=? AND private_folder_id IS NOT NULL', mediaId);
+    if (privateItem) throw new Error('لا يمكن إضافة صورة من مجلد مقفل إلى ألبوم عادي.');
+  }
   const now = new Date().toISOString();
   await db.withTransactionAsync(async () => {
     for (const mediaId of mediaIds) await db.runAsync('INSERT OR IGNORE INTO album_media (album_id, media_id, added_at) VALUES (?, ?, ?)', albumId, mediaId, now);
@@ -484,7 +521,58 @@ export async function removeMediaFromAlbum(albumId: string, mediaIds: string[]) 
 
 export async function setAlbumCover(albumId: string, mediaId?: string) {
   const db = await getDatabase();
+  if (mediaId) {
+    const privateItem = await db.getFirstAsync<{ id: string }>('SELECT id FROM media_items WHERE id=? AND private_folder_id IS NOT NULL', mediaId);
+    if (privateItem) throw new Error('لا يمكن استخدام صورة من مجلد مقفل كغلاف لألبوم عادي.');
+  }
   await db.runAsync('UPDATE albums SET cover_media_id=?, updated_at=? WHERE id=?', mediaId ?? null, new Date().toISOString(), albumId);
+}
+
+export function validatePrivateFolderPassword(password: string) {
+  if (password.trim().length < 8 || password.length > 64) return 'استخدم كلمة مرور من 8 إلى 64 حرفًا.';
+  return null;
+}
+
+export async function listPrivateMediaFolders(): Promise<PrivateMediaFolder[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT f.id, f.name, f.created_at AS createdAt,
+      (SELECT COUNT(*) FROM media_items m WHERE m.private_folder_id=f.id AND m.import_status='complete') AS itemCount
+     FROM private_folders f ORDER BY f.created_at DESC`,
+  );
+  return rows.map((row) => ({ id: String(row.id), name: String(row.name), createdAt: String(row.createdAt), itemCount: Number(row.itemCount ?? 0) }));
+}
+
+export async function createPrivateMediaFolder(name: string, password: string) {
+  const cleanName = name.trim();
+  if (!cleanName || cleanName.length > 80) throw new Error('اكتب اسمًا من حرف واحد إلى 80 حرفًا.');
+  const passwordError = validatePrivateFolderPassword(password);
+  if (passwordError) throw new Error(passwordError);
+  const db = await getDatabase();
+  const id = newId('private-folder');
+  await db.runAsync('INSERT INTO private_folders (id, name, created_at) VALUES (?, ?, ?)', id, cleanName, new Date().toISOString());
+  try {
+    await SecureStore.setItemAsync(`${PRIVATE_FOLDER_PASSWORD_KEY}${id}`, password, { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
+  } catch (error) {
+    await db.runAsync('DELETE FROM private_folders WHERE id=?', id).catch(() => undefined);
+    throw error;
+  }
+  return id;
+}
+
+export async function verifyPrivateMediaFolderPassword(folderId: string, password: string) {
+  const db = await getDatabase();
+  const folder = await db.getFirstAsync<{ id: string }>('SELECT id FROM private_folders WHERE id=?', folderId);
+  if (!folder) return false;
+  const saved = await SecureStore.getItemAsync(`${PRIVATE_FOLDER_PASSWORD_KEY}${folderId}`);
+  return Boolean(saved && saved === password);
+}
+
+export async function renamePrivateMediaFolder(folderId: string, name: string) {
+  const cleanName = name.trim();
+  if (!cleanName || cleanName.length > 80) throw new Error('اكتب اسمًا من حرف واحد إلى 80 حرفًا.');
+  const db = await getDatabase();
+  await db.runAsync('UPDATE private_folders SET name=? WHERE id=?', cleanName, folderId);
 }
 
 export async function listFolders(parentId?: string | null): Promise<MediaFolder[]> {

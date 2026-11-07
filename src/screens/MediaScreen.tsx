@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, FlatList, Image, Modal, NativeModules, Platform, Pressable, RefreshControl, StyleSheet, View, type ViewToken } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { ActivityIndicator, Alert, AppState, Dimensions, FlatList, Image, Modal, NativeModules, Platform, Pressable, RefreshControl, StyleSheet, View, type ViewToken } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -14,13 +15,13 @@ import { useAppTheme } from '../theme/ThemeProvider';
 import { radii, spacing, typography, ThemeColors } from '../theme';
 import { MediaType } from '../types/domain';
 import {
-  addMediaToAlbum, createAlbum, createFolder, deleteAlbum, deleteFolder, deleteStoredMedia,
-  getMediaStats, getPrivacyRecoveryQuestion, hasPrivacyPin,
-  listAlbums, listFolders, listStoredMediaPage, MediaAlbum, MediaFolder, MediaImportJob,
+  addMediaToAlbum, createAlbum, createFolder, createPrivateMediaFolder, deleteAlbum, deleteFolder, deleteStoredMedia,
+  getMediaStats, getPrivacyRecoveryQuestion, hasPrivacyPin, importToVault,
+  listAlbums, listFolders, listPrivateMediaFolders, listStoredMediaPage, MediaAlbum, MediaFolder, MediaImportJob, PrivateMediaFolder,
   MediaPageOptions, MediaStats, removeMediaFromAlbum, renameAlbum, renameFolder,
   renameStoredMedia, savePrivacyCredentials, setAlbumCover, setAlbumFolder,
   setStoredMediaHidden, updateImportJob, updatePrivacyPin, verifyPrivacyPin,
-  verifyPrivacyRecoveryAnswer, StoredMediaItem,
+  verifyPrivacyRecoveryAnswer, verifyPrivateMediaFolderPassword, validatePrivateFolderPassword, StoredMediaItem,
 } from '../services/storage/mediaVaultService';
 import {
   cancelNativeImport, createPickerImportJob, listPendingJobs, pauseNativeImport,
@@ -121,6 +122,7 @@ export function MediaScreen() {
   const [items, setItems] = useState<StoredMediaItem[]>([]);
   const [albums, setAlbums] = useState<MediaAlbum[]>([]);
   const [folders, setFolders] = useState<MediaFolder[]>([]);
+  const [privateFolders, setPrivateFolders] = useState<PrivateMediaFolder[]>([]);
   const [stats, setStats] = useState<MediaStats>({ itemCount: 0, totalBytes: 0, imageCount: 0, videoCount: 0, fileCount: 0, imageBytes: 0, videoBytes: 0, fileBytes: 0 });
   const [deviceCount, setDeviceCount] = useState(0);
   const [filter, setFilter] = useState<Filter>('all');
@@ -142,6 +144,18 @@ export function MediaScreen() {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerStart, setViewerStart] = useState(0);
   const [privateUnlocked, setPrivateUnlocked] = useState(false);
+  const [openPrivateFolderId, setOpenPrivateFolderId] = useState<string | null>(null);
+  const openPrivateFolderIdRef = useRef<string | null>(null);
+  const privatePickerInProgressRef = useRef(false);
+  const [createPrivateFolderOpen, setCreatePrivateFolderOpen] = useState(false);
+  const [privateFolderName, setPrivateFolderName] = useState('');
+  const [privateFolderPassword, setPrivateFolderPassword] = useState('');
+  const [privateFolderPasswordConfirm, setPrivateFolderPasswordConfirm] = useState('');
+  const [privateFolderSaving, setPrivateFolderSaving] = useState(false);
+  const [unlockPrivateFolder, setUnlockPrivateFolder] = useState<PrivateMediaFolder | null>(null);
+  const [unlockPrivatePassword, setUnlockPrivatePassword] = useState('');
+  const [unlockPrivateError, setUnlockPrivateError] = useState<string | null>(null);
+  const [privateImporting, setPrivateImporting] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
   const [pinMode, setPinMode] = useState<'create' | 'unlock' | 'recover' | 'reset'>('unlock');
   const [pin, setPin] = useState('');
@@ -180,14 +194,38 @@ export function MediaScreen() {
 
   const currentFolder = folderStack[folderStack.length - 1];
   const currentFolderId = currentFolder?.id;
+
+  useEffect(() => { openPrivateFolderIdRef.current = openPrivateFolderId; }, [openPrivateFolderId]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' && !privatePickerInProgressRef.current) {
+        openPrivateFolderIdRef.current = null;
+        setOpenPrivateFolderId(null);
+        setSelectedIds(new Set());
+        setSelectionMode(false);
+        setViewerOpen(false);
+        setUnlockPrivateFolder(null);
+        setUnlockPrivatePassword('');
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
+  useFocusEffect(useCallback(() => () => {
+    openPrivateFolderIdRef.current = null;
+    setOpenPrivateFolderId(null); setSelectedIds(new Set()); setSelectionMode(false); setViewerOpen(false);
+    setUnlockPrivateFolder(null); setUnlockPrivatePassword(''); setCreatePrivateFolderOpen(false);
+  }, []));
   const pageOptions = useMemo<MediaPageOptions>(() => ({
     limit: PAGE_SIZE,
     type: filter === 'all' || filter === 'private' ? undefined : filter,
-    hidden: filter === 'private',
+    hidden: openPrivateFolderId ? undefined : filter === 'private',
     albumId,
+    privateFolderId: openPrivateFolderId ?? undefined,
     search,
     sort,
-  }), [filter, albumId, search, sort]);
+  }), [filter, openPrivateFolderId, albumId, search, sort]);
 
   const refreshStats = useCallback(async () => {
     const [nextStats, count] = await Promise.all([
@@ -220,9 +258,12 @@ export function MediaScreen() {
 
   const loadCollections = useCallback(async () => {
     try {
-      const [nextFolders, nextAlbums] = await Promise.all([listFolders(currentFolderId ?? null), listAlbums(currentFolderId ?? null)]);
+      const [nextFolders, nextAlbums, nextPrivateFolders] = await Promise.all([
+        listFolders(currentFolderId ?? null), listAlbums(currentFolderId ?? null), listPrivateMediaFolders(),
+      ]);
       setFolders(nextFolders);
       setAlbums(nextAlbums);
+      setPrivateFolders(nextPrivateFolders);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر تحميل الألبومات والمجلدات.');
     }
@@ -292,6 +333,42 @@ export function MediaScreen() {
   const openPrivate = async () => {
     setPinMode((await hasPrivacyPin()) ? 'unlock' : 'create');
     setPin(''); setPinConfirm(''); setRecoveryQuestion(''); setRecoveryAnswer(''); setPinError(null); setPinOpen(true);
+  };
+
+  const savePrivateFolder = async () => {
+    const passwordError = validatePrivateFolderPassword(privateFolderPassword);
+    if (passwordError) { setError(passwordError); return; }
+    if (privateFolderPassword !== privateFolderPasswordConfirm) { setError('كلمتا المرور غير متطابقتين.'); return; }
+    setPrivateFolderSaving(true);
+    try {
+      await createPrivateMediaFolder(privateFolderName, privateFolderPassword);
+      setCreatePrivateFolderOpen(false);
+      setPrivateFolderName(''); setPrivateFolderPassword(''); setPrivateFolderPasswordConfirm('');
+      await loadNextCollectionList();
+      Alert.alert('تم إنشاء المجلد المقفل', 'لن يمكن فتحه إذا نسيت كلمة المرور. الصور داخله مخفية من واجهة مُرشد، لكنها غير مشفرة على مستوى ملفات الجهاز.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'تعذر إنشاء المجلد المقفل.');
+    } finally { setPrivateFolderSaving(false); }
+  };
+
+  const requestPrivateFolderUnlock = (folder: PrivateMediaFolder) => {
+    setUnlockPrivateFolder(folder); setUnlockPrivatePassword(''); setUnlockPrivateError(null);
+  };
+
+  const submitPrivateFolderPassword = async () => {
+    if (!unlockPrivateFolder) return;
+    const valid = await verifyPrivateMediaFolderPassword(unlockPrivateFolder.id, unlockPrivatePassword);
+    if (!valid) { setUnlockPrivateError('كلمة المرور غير صحيحة. لا يوجد خيار لاستعادتها أو إعادة تعيينها.'); return; }
+    openPrivateFolderIdRef.current = unlockPrivateFolder.id;
+    setOpenPrivateFolderId(unlockPrivateFolder.id);
+    setUnlockPrivateFolder(null); setUnlockPrivatePassword(''); setUnlockPrivateError(null);
+    setAlbumId(undefined); setFilter('all'); setMode('library'); setSelectedIds(new Set()); setSelectionMode(false);
+  };
+
+  const lockPrivateFolder = () => {
+    openPrivateFolderIdRef.current = null;
+    setOpenPrivateFolderId(null); setItems([]); setSelectedIds(new Set()); setSelectionMode(false); setViewerOpen(false);
+    setAlbumId(undefined); setFilter('all'); setMode('collections');
   };
 
   const switchFilter = async (value: Filter) => {
@@ -380,9 +457,42 @@ export function MediaScreen() {
     }
   };
 
-  const importPickedMedia = async (assets: ImagePicker.ImagePickerAsset[]) => {
+  const importPickedMedia = async (assets: ImagePicker.ImagePickerAsset[], expectedPrivateFolderId?: string | null) => {
     if (!assets.length) return;
     try {
+      if (expectedPrivateFolderId && openPrivateFolderIdRef.current !== expectedPrivateFolderId) {
+        setError('أُقفل المجلد أثناء اختيار الصور. افتحه مجددًا ثم اختر الصور لإضافتها إليه.');
+        return;
+      }
+      const targetPrivateFolderId = expectedPrivateFolderId ?? openPrivateFolderIdRef.current;
+      if (targetPrivateFolderId) {
+        const totalBytes = assets.reduce((sum, asset) => sum + (asset.fileSize ?? 0), 0);
+        Alert.alert('نسخ الصور إلى المجلد المقفل؟', `سيتم نسخ ${assets.length} صورة (${formatBytes(totalBytes)}) إلى «${privateFolders.find((folder) => folder.id === targetPrivateFolderId)?.name ?? 'المجلد المقفل'}». ستبقى النسخ الأصلية في معرض الجهاز.`, [
+          { text: 'إلغاء', style: 'cancel' },
+          { text: 'نسخ الصور', onPress: () => { void (async () => {
+            if (openPrivateFolderIdRef.current !== targetPrivateFolderId) { setError('أُقفل المجلد. افتحه مجددًا لإضافة الصور.'); return; }
+            setPrivateImporting(true);
+            let copied = 0;
+            const failures: string[] = [];
+            for (const [index, asset] of assets.entries()) {
+              if (openPrivateFolderIdRef.current !== targetPrivateFolderId) { failures.push('أُقفل المجلد قبل اكتمال النسخ.'); break; }
+              const filename = asset.fileName || `private-${Date.now()}-${index}.${pickedMediaExtension(asset)}`;
+              try {
+                await importToVault(asset.uri, filename, 'image', asset.mimeType, asset.fileSize, undefined, {
+                  privateFolderId: targetPrivateFolderId,
+                  sourceKey: `private:${targetPrivateFolderId}:${asset.assetId || asset.uri}`,
+                  width: asset.width, height: asset.height,
+                });
+                copied += 1;
+              } catch { failures.push(filename); }
+            }
+            setPrivateImporting(false);
+            await loadFirstPage(true);
+            Alert.alert(copied ? 'اكتمل نسخ الصور' : 'لم تُنسخ الصور', failures.length ? `نُسخ ${copied} من ${assets.length}. تعذر نسخ ${failures.length} عنصرًا.` : `أُضيفت ${copied} صورة إلى المجلد المقفل.`);
+          })(); } },
+        ]);
+        return;
+      }
       const importedAssets = assets.map((asset, index) => ({
         uri: asset.uri,
         name: asset.fileName || `media-${Date.now()}-${index}.${pickedMediaExtension(asset)}`,
@@ -400,12 +510,14 @@ export function MediaScreen() {
   };
 
   const chooseFromGallery = async () => {
+    const targetPrivateFolderId = openPrivateFolderIdRef.current;
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, quality: 1 });
-      if (!result.canceled) await importPickedMedia(result.assets);
+      if (targetPrivateFolderId) privatePickerInProgressRef.current = true;
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: openPrivateFolderId ? ['images'] : ['images', 'videos'], allowsMultipleSelection: true, quality: 1 });
+      if (!result.canceled) await importPickedMedia(result.assets, targetPrivateFolderId);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر فتح معرض الصور.');
-    }
+    } finally { privatePickerInProgressRef.current = false; }
   };
 
   const takePhoto = async () => {
@@ -789,8 +901,8 @@ export function MediaScreen() {
 
   const Header = (
     <View>
-      <ScreenHeader eyebrow="LIVING GALLERY" title="المعرض" detail={`${stats.itemCount.toLocaleString()} محفوظ · ${formatBytes(stats.totalBytes)} مستخدم · ${formatBytes(stats.freeBytes)} متاح`} />
-      <View style={styles.notice}><Ionicons name="shield-checkmark-outline" size={18} color={colors.tealDark} /><Text style={styles.noticeText}>تُحفظ الوسائط محليًا افتراضيًا. لا يحدث رفع تلقائي؛ ارفع العناصر التي تختارها يدويًا إلى مساحة خاصة مرتبطة بحسابك. حذف نسخة محلية لا يحذف الأصل.</Text></View>
+      <ScreenHeader eyebrow="LIVING GALLERY" title={openPrivateFolderId ? (privateFolders.find((folder) => folder.id === openPrivateFolderId)?.name ?? 'المجلد المقفل') : 'المعرض'} detail={openPrivateFolderId ? 'محتوى هذا المجلد لا يظهر في المكتبة العامة.' : `${stats.itemCount.toLocaleString()} محفوظ · ${formatBytes(stats.totalBytes)} مستخدم · ${formatBytes(stats.freeBytes)} متاح`} />
+      {!openPrivateFolderId ? <View style={styles.notice}><Ionicons name="shield-checkmark-outline" size={18} color={colors.tealDark} /><Text style={styles.noticeText}>تُحفظ الوسائط محليًا افتراضيًا. لا يحدث رفع تلقائي؛ ارفع العناصر التي تختارها يدويًا إلى مساحة خاصة مرتبطة بحسابك. حذف نسخة محلية لا يحذف الأصل.</Text></View> : <View style={styles.notice}><Ionicons name="lock-closed" size={18} color={colors.tealDark} /><Text style={styles.noticeText}>القفل يمنع فتح المجلد من واجهة مُرشد دون كلمة المرور؛ الملفات نفسها غير مشفرة على القرص. إذا نسيت كلمة المرور فلا يمكن استعادتها.</Text></View>}
       <View style={styles.storageCard}>
         <View style={styles.storageLine}><Text style={styles.storageLabel}>الصور {stats.imageCount.toLocaleString()}</Text><Text style={styles.storageLabel}>الفيديو {stats.videoCount.toLocaleString()}</Text><Text style={styles.storageLabel}>الملفات {stats.fileCount.toLocaleString()}</Text></View>
         <View style={[styles.storageLine, { marginTop: spacing.xs }]}><Text style={styles.storageLabel}>{formatBytes(stats.imageBytes)}</Text><Text style={styles.storageLabel}>{formatBytes(stats.videoBytes)}</Text><Text style={styles.storageLabel}>{formatBytes(stats.fileBytes)}</Text></View>
@@ -799,15 +911,14 @@ export function MediaScreen() {
       </View>
       <View style={styles.modeRow}>
         <Pressable onPress={() => { setMode('library'); setAlbumId(undefined); }} style={[styles.modeButton, mode === 'library' && styles.modeButtonActive]}><Ionicons name="images-outline" size={16} color={mode === 'library' ? colors.paper : colors.inkMuted} /><Text style={[styles.modeText, mode === 'library' && styles.modeTextActive]}>المكتبة</Text></Pressable>
-        <Pressable onPress={() => { setMode('collections'); setAlbumId(undefined); }} style={[styles.modeButton, mode === 'collections' && styles.modeButtonActive]}><Ionicons name="albums-outline" size={16} color={mode === 'collections' ? colors.paper : colors.inkMuted} /><Text style={[styles.modeText, mode === 'collections' && styles.modeTextActive]}>الألبومات والمجلدات</Text></Pressable>
+        <Pressable onPress={() => { if (openPrivateFolderId) lockPrivateFolder(); else { setMode('collections'); setAlbumId(undefined); } }} style={[styles.modeButton, mode === 'collections' && styles.modeButtonActive]}><Ionicons name="albums-outline" size={16} color={mode === 'collections' ? colors.paper : colors.inkMuted} /><Text style={[styles.modeText, mode === 'collections' && styles.modeTextActive]}>الألبومات والمجلدات</Text></Pressable>
       </View>
       {mode === 'library' ? <>
         <View style={styles.searchRow}><Ionicons name="search-outline" size={18} color={colors.inkMuted} /><TextInput value={search} onChangeText={setSearch} placeholder="ابحث باسم الملف" placeholderTextColor={colors.inkFaint} style={styles.searchInput} /><Pressable onPress={() => setSort((value) => value === 'newest' ? 'name' : value === 'name' ? 'size' : value === 'size' ? 'oldest' : 'newest')} style={styles.sortButton}><Ionicons name="swap-vertical-outline" size={16} color={colors.tealDark} /><Text style={styles.sortText}>{sort === 'newest' ? 'الأحدث' : sort === 'oldest' ? 'الأقدم' : sort === 'name' ? 'الاسم' : 'الحجم'}</Text></Pressable></View>
-        <View style={styles.filterRow}>{(['all', 'image', 'video', 'file', ...(privateUnlocked ? ['private'] : [])] as Filter[]).map((value) => <Pressable key={value} onPress={() => { void switchFilter(value); }} style={[styles.filterChip, filter === value && styles.filterActive]}><Ionicons name={value === 'all' ? 'apps-outline' : value === 'image' ? 'image-outline' : value === 'video' ? 'videocam-outline' : value === 'file' ? 'document-outline' : 'lock-closed-outline'} size={15} color={filter === value ? colors.paper : colors.inkMuted} /><Text style={[styles.filterText, filter === value && styles.filterTextActive]}>{value === 'all' ? 'الكل' : value === 'image' ? 'الصور' : value === 'video' ? 'الفيديو' : value === 'file' ? 'الملفات' : 'الخصوصية'}</Text></Pressable>)}</View>
-        {permission?.accessPrivileges === 'limited' ? <Pressable onPress={() => { void MediaLibrary.presentPermissionsPickerAsync(['photo', 'video']).then(refreshStats).catch(() => setError('تعذر فتح إعداد الصور المحددة.')); }} style={styles.permissionBanner}><Ionicons name="options-outline" size={16} color={colors.tealDark} /><Text style={styles.permissionBannerText}>الوصول محدود إلى صور مختارة · تعديل الاختيار</Text></Pressable> : !permission?.granted ? <Pressable onPress={() => { void requestPermission().then(refreshStats); }} style={styles.permissionBanner}><Ionicons name="lock-open-outline" size={16} color={colors.tealDark} /><Text style={styles.permissionBannerText}>امنح إذنًا عند رغبتك في استيراد مكتبة الجهاز ({deviceCount})</Text></Pressable> : null}
+        {!openPrivateFolderId ? <><View style={styles.filterRow}>{(['all', 'image', 'video', 'file', ...(privateUnlocked ? ['private'] : [])] as Filter[]).map((value) => <Pressable key={value} onPress={() => { void switchFilter(value); }} style={[styles.filterChip, filter === value && styles.filterActive]}><Ionicons name={value === 'all' ? 'apps-outline' : value === 'image' ? 'image-outline' : value === 'video' ? 'videocam-outline' : value === 'file' ? 'document-outline' : 'lock-closed-outline'} size={15} color={filter === value ? colors.paper : colors.inkMuted} /><Text style={[styles.filterText, filter === value && styles.filterTextActive]}>{value === 'all' ? 'الكل' : value === 'image' ? 'الصور' : value === 'video' ? 'الفيديو' : value === 'file' ? 'الملفات' : 'الخصوصية'}</Text></Pressable>)}</View>{permission?.accessPrivileges === 'limited' ? <Pressable onPress={() => { void MediaLibrary.presentPermissionsPickerAsync(['photo', 'video']).then(refreshStats).catch(() => setError('تعذر فتح إعداد الصور المحددة.')); }} style={styles.permissionBanner}><Ionicons name="options-outline" size={16} color={colors.tealDark} /><Text style={styles.permissionBannerText}>الوصول محدود إلى صور مختارة · تعديل الاختيار</Text></Pressable> : !permission?.granted ? <Pressable onPress={() => { void requestPermission().then(refreshStats); }} style={styles.permissionBanner}><Ionicons name="lock-open-outline" size={16} color={colors.tealDark} /><Text style={styles.permissionBannerText}>امنح إذنًا عند رغبتك في استيراد مكتبة الجهاز ({deviceCount})</Text></Pressable> : null}</> : null}
         {albumId ? <Pressable onPress={() => { setAlbumId(undefined); void loadFirstPage(); }} style={styles.backToLibrary}><Ionicons name="arrow-back-outline" size={16} color={colors.tealDark} /><Text style={styles.permissionBannerText}>داخل ألبوم «{albums.find((album) => album.id === albumId)?.name ?? 'ألبوم'}» · عرض كل المكتبة</Text></Pressable> : null}
-        <View style={styles.actions}><Pressable onPress={openImportMenu} style={styles.actionButton}><Ionicons name="add-circle-outline" size={19} color={colors.paper} /><Text style={styles.actionText}>استيراد</Text></Pressable><Pressable onPress={openCloudLibrary} style={[styles.actionButton, styles.fileButton]}><Ionicons name="cloud-outline" size={18} color={colors.ink} /><Text style={[styles.actionText, styles.fileText]}>سحابتي</Text></Pressable><Pressable onPress={() => { setSelectionMode((value) => !value); setSelectedIds(new Set()); }} style={[styles.actionButton, styles.fileButton]}><Ionicons name={selectionMode ? 'close-outline' : 'checkbox-outline'} size={18} color={colors.ink} /><Text style={[styles.actionText, styles.fileText]}>{selectionMode ? 'إلغاء التحديد' : 'تحديد عناصر'}</Text></Pressable></View>
-        {selectionMode ? <View style={styles.bulkBar}><Text style={styles.bulkCount}>محدد: {selectedIds.size}</Text><Pressable onPress={uploadSelectionToCloud} disabled={!selectedIds.size || cloudUploading} style={styles.bulkAction}><Text style={styles.bulkActionText}>{cloudUploading ? 'جارٍ الرفع…' : 'رفع للسحابة'}</Text></Pressable><Pressable onPress={() => setAlbumPickerOpen(true)} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>إضافة إلى ألبوم</Text></Pressable><Pressable onPress={exportSelectionToPhotos} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>حفظ في الصور</Text></Pressable>{albumId ? <Pressable onPress={removeSelectionFromAlbum} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>إزالة من الألبوم</Text></Pressable> : null}{albumId && selectedIds.size === 1 ? <Pressable onPress={setCoverFromSelection} style={styles.bulkAction}><Text style={styles.bulkActionText}>تعيين الغلاف</Text></Pressable> : null}<Pressable onPress={deleteSelection} disabled={!selectedIds.size} style={styles.bulkDelete}><Ionicons name="trash-outline" size={16} color={colors.danger} /></Pressable></View> : null}
+        <View style={styles.actions}>{openPrivateFolderId ? <><Pressable onPress={chooseFromGallery} disabled={privateImporting} style={styles.actionButton}><Ionicons name="add-circle-outline" size={19} color={colors.paper} /><Text style={styles.actionText}>{privateImporting ? 'جارٍ النسخ…' : 'إضافة صور'}</Text></Pressable><Pressable onPress={lockPrivateFolder} style={[styles.actionButton, styles.fileButton]}><Ionicons name="lock-closed-outline" size={18} color={colors.ink} /><Text style={[styles.actionText, styles.fileText]}>قفل المجلد</Text></Pressable></> : <><Pressable onPress={openImportMenu} style={styles.actionButton}><Ionicons name="add-circle-outline" size={19} color={colors.paper} /><Text style={styles.actionText}>استيراد</Text></Pressable><Pressable onPress={openCloudLibrary} style={[styles.actionButton, styles.fileButton]}><Ionicons name="cloud-outline" size={18} color={colors.ink} /><Text style={[styles.actionText, styles.fileText]}>سحابتي</Text></Pressable><Pressable onPress={() => { setSelectionMode((value) => !value); setSelectedIds(new Set()); }} style={[styles.actionButton, styles.fileButton]}><Ionicons name={selectionMode ? 'close-outline' : 'checkbox-outline'} size={18} color={colors.ink} /><Text style={[styles.actionText, styles.fileText]}>{selectionMode ? 'إلغاء التحديد' : 'تحديد عناصر'}</Text></Pressable></>}</View>
+        {selectionMode ? <View style={styles.bulkBar}><Text style={styles.bulkCount}>محدد: {selectedIds.size}</Text>{!openPrivateFolderId ? <><Pressable onPress={uploadSelectionToCloud} disabled={!selectedIds.size || cloudUploading} style={styles.bulkAction}><Text style={styles.bulkActionText}>{cloudUploading ? 'جارٍ الرفع…' : 'رفع للسحابة'}</Text></Pressable><Pressable onPress={() => setAlbumPickerOpen(true)} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>إضافة إلى ألبوم</Text></Pressable><Pressable onPress={exportSelectionToPhotos} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>حفظ في الصور</Text></Pressable></> : null}{albumId ? <Pressable onPress={removeSelectionFromAlbum} disabled={!selectedIds.size} style={styles.bulkAction}><Text style={styles.bulkActionText}>إزالة من الألبوم</Text></Pressable> : null}{albumId && selectedIds.size === 1 ? <Pressable onPress={setCoverFromSelection} style={styles.bulkAction}><Text style={styles.bulkActionText}>تعيين الغلاف</Text></Pressable> : null}<Pressable onPress={deleteSelection} disabled={!selectedIds.size} style={styles.bulkDelete}><Ionicons name="trash-outline" size={16} color={colors.danger} /></Pressable></View> : null}
         {cloudUploading ? <Text style={styles.cloudProgress}>{cloudProgress}</Text> : null}
         {activeJob ? <View style={styles.jobCard}><View style={styles.jobTitleRow}><Ionicons name={activeJob.state === 'completed' ? 'checkmark-circle-outline' : 'sync-outline'} size={20} color={colors.tealDark} /><Text style={styles.jobTitle}>{activeJob.state === 'scanning' ? `فحص المصدر · ${scanProgress?.scannedFiles ?? 0} عنصر` : activeJob.state === 'ready' ? 'المصدر جاهز للاستيراد' : activeJob.state === 'running' ? `نسخ ${activeJob.completedFiles}/${activeJob.totalFiles}` : activeJob.state === 'paused' ? 'الاستيراد متوقف مؤقتًا' : activeJob.state === 'completed' ? 'اكتمل الاستيراد' : activeJob.state === 'cancelled' ? 'أُوقف الاستيراد' : 'تعذر الاستيراد'}</Text></View>
           {activeJob.state === 'scanning' ? <Text style={styles.jobDetail}>تم فحص {scanProgress?.scannedFiles ?? 0} عنصر · تقدير {formatBytes(scanProgress?.estimatedBytes)}</Text> : <Text style={styles.jobDetail}>{activeJob.currentFilename ? `الملف الحالي: ${activeJob.currentFilename}` : `${activeJob.completedFiles} اكتمل · ${activeJob.failedFiles} تعذر · ${formatBytes(activeJob.copiedBytes)} من تقدير ${formatBytes(activeJob.totalBytes)}`}</Text>}
@@ -821,6 +932,8 @@ export function MediaScreen() {
   );
 
   const CollectionHeader = <View>
+    {!folderStack.length ? <Pressable onPress={() => { setPrivateFolderName(''); setPrivateFolderPassword(''); setPrivateFolderPasswordConfirm(''); setCreatePrivateFolderOpen(true); }} style={styles.smallButton}><Ionicons name="lock-closed-outline" size={18} color={colors.tealDark} /><Text style={styles.smallButtonText}>إنشاء مجلد مقفل بكلمة مرور</Text><Ionicons name="add" size={19} color={colors.tealDark} /></Pressable> : null}
+    {!folderStack.length && privateFolders.length ? <><Text style={styles.sectionTitle}>المجلدات المقفلة</Text><View style={styles.collectionGrid}>{privateFolders.map((folder) => <Pressable key={folder.id} onPress={() => requestPrivateFolderUnlock(folder)} style={styles.folderTile}><Ionicons name="lock-closed-outline" size={27} color={colors.tealDark} /><Text numberOfLines={1} style={styles.collectionName}>{folder.name}</Text><Text style={styles.collectionMeta}>مقفل بكلمة مرور</Text></Pressable>)}</View></> : null}
     {folders.length ? <><Text style={styles.sectionTitle}>المجلدات</Text><View style={styles.collectionGrid}>{folders.map((folder) => <Pressable key={folder.id} onPress={() => setFolderStack((stack) => [...stack, folder])} onLongPress={() => openFolderActions(folder)} style={styles.folderTile}><Ionicons name="folder-outline" size={27} color={colors.tealDark} /><Text numberOfLines={1} style={styles.collectionName}>{folder.name}</Text><Text style={styles.collectionMeta}>{folder.itemCount} ألبوم</Text></Pressable>)}</View></> : null}
     <Text style={styles.sectionTitle}>الألبومات</Text>
   </View>;
@@ -872,6 +985,11 @@ export function MediaScreen() {
     {viewerOpen ? <Viewer items={items} startIndex={viewerStart} onClose={() => setViewerOpen(false)} /> : null}
     {exporting ? <View pointerEvents="none" style={styles.exportOverlay}><ActivityIndicator color={colors.paper} /><Text style={styles.exportText}>جارٍ تصدير الوسائط…</Text></View> : null}
     {cloudUploading ? <View style={styles.exportOverlay}><ActivityIndicator color={colors.paper} /><Text style={styles.exportText}>{cloudProgress || 'جارٍ رفع الوسائط إلى المساحة الخاصة…'}</Text></View> : null}
+    {privateImporting ? <View style={styles.exportOverlay}><ActivityIndicator color={colors.paper} /><Text style={styles.exportText}>جارٍ نسخ الصور إلى المجلد المقفل…</Text></View> : null}
+
+    <Modal visible={createPrivateFolderOpen} transparent animationType="fade" onRequestClose={() => setCreatePrivateFolderOpen(false)}><View style={styles.modalBackdrop}><View style={styles.actionCard}><Text style={styles.actionTitle}>إنشاء مجلد مقفل</Text><Text style={styles.actionBody}>اختر كلمة مرور تحفظها جيدًا. لا يوجد سؤال استرجاع ولا إعادة تعيين؛ إذا نسيتها فلن تتمكن من فتح المجلد. هذا قفل داخل التطبيق وليس تشفيرًا للملفات على الجهاز.</Text><TextInput autoFocus value={privateFolderName} onChangeText={setPrivateFolderName} maxLength={80} placeholder="اسم المجلد" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /><TextInput value={privateFolderPassword} onChangeText={setPrivateFolderPassword} maxLength={64} secureTextEntry autoCapitalize="none" placeholder="كلمة مرور (8 أحرف على الأقل)" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /><TextInput value={privateFolderPasswordConfirm} onChangeText={setPrivateFolderPasswordConfirm} maxLength={64} secureTextEntry autoCapitalize="none" placeholder="تأكيد كلمة المرور" placeholderTextColor={colors.inkFaint} style={styles.pinInput} /><Pressable disabled={privateFolderSaving} onPress={() => { void savePrivateFolder(); }} style={styles.savePin}><Text style={styles.savePinText}>{privateFolderSaving ? 'جارٍ الإنشاء…' : 'إنشاء المجلد'}</Text></Pressable><Pressable onPress={() => setCreatePrivateFolderOpen(false)} style={styles.cancelAction}><Text style={styles.cancelText}>إلغاء</Text></Pressable></View></View></Modal>
+    <Modal visible={Boolean(unlockPrivateFolder)} transparent animationType="fade" onRequestClose={() => setUnlockPrivateFolder(null)}><View style={styles.modalBackdrop}><View style={styles.actionCard}><Text style={styles.actionTitle}>فتح «{unlockPrivateFolder?.name}»</Text><Text style={styles.actionBody}>أدخل كلمة المرور التي اخترتها عند إنشاء هذا المجلد. لا يمكن استعادتها إذا نسيتها.</Text><TextInput autoFocus value={unlockPrivatePassword} onChangeText={setUnlockPrivatePassword} maxLength={64} secureTextEntry autoCapitalize="none" onSubmitEditing={() => { void submitPrivateFolderPassword(); }} placeholder="كلمة المرور" placeholderTextColor={colors.inkFaint} style={styles.pinInput} />{unlockPrivateError ? <Text style={styles.pinError}>{unlockPrivateError}</Text> : null}<Pressable onPress={() => { void submitPrivateFolderPassword(); }} style={styles.savePin}><Text style={styles.savePinText}>فتح المجلد</Text></Pressable><Pressable onPress={() => setUnlockPrivateFolder(null)} style={styles.cancelAction}><Text style={styles.cancelText}>إلغاء</Text></Pressable></View></View></Modal>
+
   </View>;
 }
 
