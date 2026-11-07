@@ -11,7 +11,7 @@ permissions:
 jobs:
   install:
     name: API 36 ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     strategy:
       fail-fast: false
@@ -38,8 +38,66 @@ jobs:
           echo "$EXPECTED_SHA256  $APK" | sha256sum --check
           printf 'APK_BYTES=%s\n' "$(stat -c %s "$APK")"
 
+      - name: Prepare emulator verification script
+        run: |
+          cat > "$RUNNER_TEMP/validate-install.sh" <<'SCRIPT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          APK="$RUNNER_TEMP/murshid-s7-0.4.3.apk"
+          SDK_LEVEL=""
+          for attempt in $(seq 1 30); do
+            if [ "$(adb get-state 2>/dev/null || true)" = "device" ]; then
+              SDK_LEVEL="$(adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r\n' || true)"
+              if [ "$SDK_LEVEL" = "36" ]; then break; fi
+            fi
+            sleep 2
+          done
+          if [ "$SDK_LEVEL" != "36" ]; then
+            echo "Expected Android API 36; last observed SDK_LEVEL='$SDK_LEVEL'"
+            adb devices -l || true
+            exit 1
+          fi
+
+          PAGE_SIZE="$(adb shell getconf PAGE_SIZE 2>/dev/null | tr -d '\r\n' || true)"
+          ABI_LIST="$(adb shell getprop ro.product.cpu.abilist 2>/dev/null | tr -d '\r\n' || true)"
+          echo "API_LEVEL=$SDK_LEVEL PAGE_SIZE=$PAGE_SIZE TARGET=$EMULATOR_TARGET ABI=$ABI_LIST"
+          test -n "$PAGE_SIZE"
+          if [ "$EMULATOR_TARGET" = "google_apis_ps16k" ]; then
+            test "$PAGE_SIZE" = "16384"
+          fi
+
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [ -z "$SDK_ROOT" ]; then
+            echo 'ANDROID_HOME and ANDROID_SDK_ROOT are unset'
+            exit 1
+          fi
+          ZIPALIGN="$(find "$SDK_ROOT/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$ZIPALIGN"
+          test -x "$APKSIGNER"
+          "$ZIPALIGN" -c -P 16 -v 4 "$APK" > "$RUNNER_TEMP/zipalign.log" 2>&1
+          tail -n 5 "$RUNNER_TEMP/zipalign.log"
+          "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 24 --max-sdk-version 36 "$APK"
+
+          if adb install "$APK" > "$RUNNER_TEMP/adb-install.log" 2>&1; then
+            cat "$RUNNER_TEMP/adb-install.log"
+          else
+            STATUS=$?
+            cat "$RUNNER_TEMP/adb-install.log"
+            adb logcat -d -b all -v threadtime | grep -Ei 'PackageManager|PackageInstaller|INSTALL_FAILED|parse|signature' | tail -n 200 || true
+            exit "$STATUS"
+          fi
+          PACKAGE_PATH="$(adb shell pm path com.murshid.s7 | tr -d '\r')"
+          test -n "$PACKAGE_PATH"
+          echo "$PACKAGE_PATH"
+          adb shell dumpsys package com.murshid.s7 | grep -E 'versionCode=|versionName=|minSdk=' || true
+          SCRIPT
+          chmod +x "$RUNNER_TEMP/validate-install.sh"
+
       - name: Install exact APK on Android 16 emulator
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        env:
+          EMULATOR_TARGET: ${{ matrix.target }}
         with:
           api-level: 36
           target: ${{ matrix.target }}
@@ -48,34 +106,4 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           emulator-boot-timeout: 600
-          script: |
-            set -euo pipefail
-            APK="$RUNNER_TEMP/murshid-s7-0.4.3.apk"
-            SDK_LEVEL="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
-            PAGE_SIZE="$(adb shell getconf PAGE_SIZE | tr -d '\r')"
-            echo "API_LEVEL=$SDK_LEVEL PAGE_SIZE=$PAGE_SIZE TARGET=${{ matrix.target }} ABI=$(adb shell getprop ro.product.cpu.abilist | tr -d '\r')"
-            test "$SDK_LEVEL" = "36"
-            if [ "${{ matrix.target }}" = "google_apis_ps16k" ]; then
-              test "$PAGE_SIZE" = "16384"
-            fi
-
-            ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
-            APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-            test -x "$ZIPALIGN"
-            test -x "$APKSIGNER"
-            "$ZIPALIGN" -c -P 16 -v 4 "$APK" > "$RUNNER_TEMP/zipalign.log" 2>&1
-            tail -n 5 "$RUNNER_TEMP/zipalign.log"
-            "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 24 --max-sdk-version 36 "$APK"
-
-            if adb install "$APK" > "$RUNNER_TEMP/adb-install.log" 2>&1; then
-              cat "$RUNNER_TEMP/adb-install.log"
-            else
-              STATUS=$?
-              cat "$RUNNER_TEMP/adb-install.log"
-              adb logcat -d -b all -v threadtime | grep -Ei 'PackageManager|PackageInstaller|INSTALL_FAILED|parse|signature' | tail -n 200 || true
-              exit "$STATUS"
-            fi
-            PACKAGE_PATH="$(adb shell pm path com.murshid.s7 | tr -d '\r')"
-            test -n "$PACKAGE_PATH"
-            echo "$PACKAGE_PATH"
-            adb shell dumpsys package com.murshid.s7 | grep -E 'versionCode=|versionName=|minSdk='
+          script: bash "$RUNNER_TEMP/validate-install.sh"
