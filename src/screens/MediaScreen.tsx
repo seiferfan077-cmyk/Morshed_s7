@@ -250,8 +250,13 @@ export function MediaScreen() {
       setHasMore(page.length === PAGE_SIZE);
       setSelectedIds(new Set());
       setSelectionMode(false);
-      if (consumeGalleryDatabaseRecoveryNotice()) {
-        showAppError('تم إصلاح قاعدة المعرض', 'كان فيه تلف في قاعدة المعرض المحلية. أنشأ التطبيق قاعدة سليمة واحتفظ بنسخة من الملف التالف للاستعادة. ملفات الوسائط نفسها لم تُحذف، وقد تحتاج الألبومات والمجلدات لإعادة تنظيمها.');
+      const recoveryNotice = consumeGalleryDatabaseRecoveryNotice();
+      if (recoveryNotice) {
+        const partialRecovery = recoveryNotice.skippedTables.length > 0;
+        const message = partialRecovery
+          ? `استعاد التطبيق ${recoveryNotice.recoveredItems} عنصرًا وما أمكن قراءته من بيانات المعرض. احتفظ بنسخة من القاعدة القديمة لاسترجاع أي بيانات لم تُقرأ.`
+          : `تم استعادة بيانات المعرض، بما فيها ${recoveryNotice.recoveredItems} عنصرًا. احتفظ التطبيق بنسخة من القاعدة القديمة تحسبًا للحاجة إليها.`;
+        showAppError(partialRecovery ? 'تمت استعادة بيانات المعرض جزئيًا' : 'تم إصلاح قاعدة المعرض', message);
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر تحميل مكتبة مُرشد.');

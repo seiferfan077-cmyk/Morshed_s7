@@ -4,6 +4,10 @@ import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
 import { MediaType } from '../../types/domain';
 import { hasSQLiteIntegrityFailure, isSQLiteDatabaseCorruption } from './sqliteRecoveryPolicy';
+import {
+  GALLERY_RECOVERY_COLUMNS, GALLERY_RECOVERY_CORE_TABLES, GALLERY_RECOVERY_TABLES,
+  getUnrecoverableCoreTables, normalizeGalleryRecoverySnapshot, prepareGalleryRecoveryRows, type GalleryRecoverySnapshot,
+} from './sqliteRecoveryData';
 
 export interface StoredMediaItem {
   id: string;
@@ -116,13 +120,15 @@ const DEVICE_REMOVED_KEY = '@murshid/media-device-removed';
 const DB_NAME = 'murshid-gallery.db';
 const VAULT_DIR = `${FileSystem.documentDirectory ?? ''}murshid-vault/`;
 const DB_RECOVERY_DIR = `${FileSystem.documentDirectory ?? ''}murshid-database-recovery/`;
+const PENDING_RECOVERY_SNAPSHOT = `${DB_RECOVERY_DIR}pending-gallery-recovery.json`;
+const PREVIOUS_RECOVERY_SNAPSHOT = `${PENDING_RECOVERY_SNAPSHOT}.previous`;
 const SELECT_MEDIA = `SELECT m.id, m.uri, m.filename, m.type, m.mime_type AS mimeType, m.size,
   m.created_at AS createdAt, m.hidden, m.source, m.device_asset_id AS deviceAssetId,
   m.source_key AS sourceKey, m.source_modified_at AS sourceModifiedAt, m.private_folder_id AS privateFolderId,
   m.width, m.height, m.duration FROM media_items m`;
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
-let databaseRecoveryNoticePending = false;
+let databaseRecoveryNoticePending: { recoveredItems: number; skippedTables: string[] } | null = null;
 
 function newId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -182,20 +188,171 @@ async function migrateLegacyItems(db: SQLite.SQLiteDatabase) {
   }
 }
 
-async function preserveAndReplaceCorruptDatabase(db: SQLite.SQLiteDatabase) {
+async function ensureRecoveryDirectory() {
+  if (!FileSystem.documentDirectory) throw new Error('مساحة تخزين التطبيق غير متاحة لحفظ نسخة الاستعادة.');
+  if (!(await FileSystem.getInfoAsync(DB_RECOVERY_DIR)).exists) {
+    await FileSystem.makeDirectoryAsync(DB_RECOVERY_DIR, { intermediates: true });
+  }
+}
+
+async function collectGalleryRecoverySnapshot(db: SQLite.SQLiteDatabase): Promise<GalleryRecoverySnapshot> {
+  const rows: GalleryRecoverySnapshot['rows'] = {};
+  const skippedTables: GalleryRecoverySnapshot['skippedTables'] = [];
+  for (const table of GALLERY_RECOVERY_TABLES) {
+    try {
+      rows[table] = await db.getAllAsync<Record<string, unknown>>(`SELECT * FROM ${table} NOT INDEXED`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/no such table/i.test(message)) {
+        rows[table] = [];
+        if (GALLERY_RECOVERY_CORE_TABLES.includes(table)) skippedTables.push(table);
+      }
+      else {
+        rows[table] = [];
+        skippedTables.push(table);
+      }
+    }
+  }
+  return {
+    version: 1,
+    snapshotId: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
+    rows,
+    skippedTables,
+  };
+}
+
+async function savePendingGalleryRecoverySnapshot(snapshot: GalleryRecoverySnapshot) {
+  await ensureRecoveryDirectory();
+  const temporaryUri = `${PENDING_RECOVERY_SNAPSHOT}.tmp`;
+  const previousTemporaryUri = `${PREVIOUS_RECOVERY_SNAPSHOT}.tmp`;
+  const contents = JSON.stringify(snapshot);
+  await FileSystem.writeAsStringAsync(temporaryUri, contents);
+  const verifiedContents = await FileSystem.readAsStringAsync(temporaryUri);
+  if (verifiedContents !== contents) throw new Error('تعذر التحقق من اكتمال لقطة استعادة المعرض. لم يتم تغيير قاعدة البيانات الأصلية.');
+
+  const hasPending = (await FileSystem.getInfoAsync(PENDING_RECOVERY_SNAPSHOT)).exists;
+  const sourceToPreserve = hasPending ? PENDING_RECOVERY_SNAPSHOT : temporaryUri;
+  const currentContents = await FileSystem.readAsStringAsync(sourceToPreserve);
+  await FileSystem.writeAsStringAsync(previousTemporaryUri, currentContents);
+  if ((await FileSystem.readAsStringAsync(previousTemporaryUri)) !== currentContents) {
+    throw new Error('تعذر حفظ نسخة الرجوع. لم يتم تغيير لقطة الاستعادة الحالية.');
+  }
+  await FileSystem.deleteAsync(PREVIOUS_RECOVERY_SNAPSHOT, { idempotent: true });
+  await FileSystem.moveAsync({ from: previousTemporaryUri, to: PREVIOUS_RECOVERY_SNAPSHOT });
+  if (hasPending) await FileSystem.deleteAsync(PENDING_RECOVERY_SNAPSHOT, { idempotent: true });
+
+  try {
+    await FileSystem.moveAsync({ from: temporaryUri, to: PENDING_RECOVERY_SNAPSHOT });
+    if ((await FileSystem.readAsStringAsync(PENDING_RECOVERY_SNAPSHOT)) !== contents) {
+      throw new Error('تعذر التحقق من حفظ لقطة الاستعادة الجديدة.');
+    }
+  } catch (error) {
+    try {
+      const previousExists = (await FileSystem.getInfoAsync(PREVIOUS_RECOVERY_SNAPSHOT)).exists;
+      const pendingExists = (await FileSystem.getInfoAsync(PENDING_RECOVERY_SNAPSHOT)).exists;
+      const temporaryExists = (await FileSystem.getInfoAsync(temporaryUri)).exists;
+      if (previousExists) {
+        await FileSystem.deleteAsync(PENDING_RECOVERY_SNAPSHOT, { idempotent: true });
+        await FileSystem.copyAsync({ from: PREVIOUS_RECOVERY_SNAPSHOT, to: PENDING_RECOVERY_SNAPSHOT });
+      } else if (!pendingExists && temporaryExists) {
+        const temporarySnapshot = normalizeGalleryRecoverySnapshot(JSON.parse(await FileSystem.readAsStringAsync(temporaryUri)) as unknown);
+        if (temporarySnapshot) await FileSystem.copyAsync({ from: temporaryUri, to: PENDING_RECOVERY_SNAPSHOT });
+      }
+    } catch (restoreError) {
+      console.warn('تعذر استعادة لقطة رجوع؛ لم تُحذف ملفات الاستعادة المتاحة.', restoreError instanceof Error ? restoreError.message : String(restoreError));
+    }
+    console.warn('تعذر حفظ لقطة الاستعادة الجديدة.', error instanceof Error ? error.message : String(error));
+    throw new Error('تعذر إكمال حفظ لقطة الاستعادة؛ أبقى التطبيق ملفات الاستعادة المتاحة دون تغيير قاعدة المعرض.');
+  }
+  await FileSystem.deleteAsync(PREVIOUS_RECOVERY_SNAPSHOT, { idempotent: true });
+}
+
+async function readPendingGalleryRecoverySnapshot() {
+  const temporaryUri = `${PENDING_RECOVERY_SNAPSHOT}.tmp`;
+  const candidates = [PENDING_RECOVERY_SNAPSHOT, PREVIOUS_RECOVERY_SNAPSHOT, temporaryUri];
+  let hasCandidate = false;
+  const readSnapshot = async (uri: string) => {
+    const parsed = JSON.parse(await FileSystem.readAsStringAsync(uri)) as unknown;
+    return normalizeGalleryRecoverySnapshot(parsed);
+  };
+  for (const uri of candidates) {
+    if (!(await FileSystem.getInfoAsync(uri)).exists) continue;
+    hasCandidate = true;
+    try {
+      const snapshot = await readSnapshot(uri);
+      if (snapshot) return snapshot;
+    } catch (error) {
+      console.warn('لقطة استعادة غير قابلة للقراءة؛ ستتم تجربة النسخة التالية دون حذفها.', error instanceof Error ? error.message : String(error));
+    }
+  }
+  if (!hasCandidate) return null;
+  throw new Error('توجد نسخة استعادة غير مكتملة. لم يتم تغيير قاعدة المعرض حفاظًا على بياناتك.');
+}
+
+async function findArchivedGalleryRecoverySnapshot(db: SQLite.SQLiteDatabase): Promise<GalleryRecoverySnapshot | null> {
+  const directoryInfo = await FileSystem.getInfoAsync(DB_RECOVERY_DIR);
+  if (!directoryInfo.exists) return null;
+  const archivedNames = (await FileSystem.readDirectoryAsync(DB_RECOVERY_DIR))
+    .filter((name) => /^murshid-gallery\.db\.\d+\.corrupt$/.test(name))
+    .sort((left, right) => Number(right.match(/\.(\d+)\.corrupt$/)?.[1] ?? 0) - Number(left.match(/\.(\d+)\.corrupt$/)?.[1] ?? 0));
+  const newestArchive = archivedNames[0];
+  if (!newestArchive) return null;
+  const scanMarker = await db.getFirstAsync<{ value: string }>("SELECT value FROM gallery_meta WHERE key='gallery-recovery-archive-scan'");
+  if (scanMarker?.value === newestArchive) return null;
+
+  for (const archivedName of archivedNames) {
+    const snapshotId = `archive:${archivedName}`;
+    const marker = await db.getFirstAsync<{ value: string }>("SELECT value FROM gallery_meta WHERE key='gallery-recovery-applied'");
+    if (marker?.value === snapshotId || marker?.value.startsWith(`partial:${snapshotId}:`)) return null;
+
+    const temporaryName = `gallery-salvage-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`;
+    const suffixes = ['', '-wal', '-journal'];
+    let salvageDb: SQLite.SQLiteDatabase | null = null;
+    try {
+      for (const suffix of suffixes) {
+        const source = `${DB_RECOVERY_DIR}${archivedName}${suffix}`;
+        if (!(await FileSystem.getInfoAsync(source)).exists) continue;
+        await FileSystem.copyAsync({ from: source, to: `${DB_RECOVERY_DIR}${temporaryName}${suffix}` });
+      }
+      if (!(await FileSystem.getInfoAsync(`${DB_RECOVERY_DIR}${temporaryName}`)).exists) continue;
+      salvageDb = await SQLite.openDatabaseAsync(temporaryName, { useNewConnection: true }, DB_RECOVERY_DIR);
+      const snapshot = await collectGalleryRecoverySnapshot(salvageDb);
+      snapshot.snapshotId = snapshotId;
+      const unavailableCoreTables = GALLERY_RECOVERY_CORE_TABLES.some((table) => snapshot.skippedTables.includes(table));
+      const hasGalleryData = ['media_items', 'private_folders', 'folders', 'albums', 'album_media']
+        .some((table) => (snapshot.rows[table as keyof typeof snapshot.rows]?.length ?? 0) > 0);
+      await salvageDb.closeAsync();
+      salvageDb = null;
+      if (!unavailableCoreTables && hasGalleryData) return snapshot;
+    } catch (error) {
+      console.warn('تعذرت قراءة نسخة مؤرشفة من قاعدة المعرض؛ ستبقى محفوظة كما هي.', error instanceof Error ? error.message : String(error));
+    } finally {
+      if (salvageDb) {
+        try { await salvageDb.closeAsync(); } catch (error) { console.warn('تعذر إغلاق نسخة الاستعادة المؤقتة.', error); }
+      }
+      for (const suffix of ['', '-wal', '-shm', '-journal']) {
+        try { await FileSystem.deleteAsync(`${DB_RECOVERY_DIR}${temporaryName}${suffix}`, { idempotent: true }); }
+        catch (error) { console.warn('تعذر حذف ملف الاستعادة المؤقت.', error); }
+      }
+    }
+  }
+  await db.runAsync("INSERT OR REPLACE INTO gallery_meta (key, value) VALUES ('gallery-recovery-archive-scan', ?)", newestArchive);
+  return null;
+}
+
+async function preserveAndReplaceCorruptDatabase(db: SQLite.SQLiteDatabase, snapshot?: GalleryRecoverySnapshot, replaceDatabase = true) {
   const databaseDirectory = SQLite.defaultDatabaseDirectory;
   if (typeof databaseDirectory !== 'string' || !databaseDirectory) {
     throw new Error('تعذر تحديد مكان قاعدة المعرض لحفظ نسخة الاستعادة.');
   }
-  if (!FileSystem.documentDirectory) throw new Error('مساحة تخزين التطبيق غير متاحة لحفظ نسخة الاستعادة.');
+  await ensureRecoveryDirectory();
+  if (snapshot) await savePendingGalleryRecoverySnapshot(snapshot);
 
-  await db.closeAsync();
-  if (!(await FileSystem.getInfoAsync(DB_RECOVERY_DIR)).exists) {
-    await FileSystem.makeDirectoryAsync(DB_RECOVERY_DIR, { intermediates: true });
-  }
+  let closeError: unknown = null;
+  try { await db.closeAsync(); } catch (error) { closeError = error; }
 
   const backupStem = `${DB_NAME}.${Date.now()}.corrupt`;
-  const databaseFiles = [DB_NAME, `${DB_NAME}-wal`, `${DB_NAME}-shm`];
+  const databaseFiles = [DB_NAME, `${DB_NAME}-wal`, `${DB_NAME}-shm`, `${DB_NAME}-journal`];
   const toFileUri = (path: string) => path.startsWith('file://') ? path : `file://${path.startsWith('/') ? '' : '/'}${path}`;
   const databaseBase = `${databaseDirectory.replace(/\/$/, '')}/${DB_NAME}`;
   let backedUpMainDatabase = false;
@@ -212,17 +369,98 @@ async function preserveAndReplaceCorruptDatabase(db: SQLite.SQLiteDatabase) {
     if (filename === DB_NAME) backedUpMainDatabase = true;
   }
   if (!backedUpMainDatabase) throw new Error('لم يتم العثور على ملف قاعدة المعرض لحفظ نسخة الاستعادة.');
+  if (closeError) throw new Error('تم حفظ نسخة من قاعدة المعرض القديمة، لكن تعذر إغلاقها بأمان؛ لم يتم استبدالها حفاظًا على بياناتك.');
+  if (!replaceDatabase) return;
 
   await SQLite.deleteDatabaseAsync(DB_NAME);
-  for (const suffix of ['-wal', '-shm']) {
+  for (const suffix of ['-wal', '-shm', '-journal']) {
     await FileSystem.deleteAsync(toFileUri(`${databaseBase}${suffix}`), { idempotent: true });
   }
+}
+
+const GALLERY_RECOVERY_PRIMARY_KEYS: Record<keyof typeof GALLERY_RECOVERY_COLUMNS, string[]> = {
+  gallery_meta: ['key'], private_folders: ['id'], media_items: ['id'], folders: ['id'], albums: ['id'],
+  album_media: ['album_id', 'media_id'], import_jobs: ['id'], import_job_items: ['id'],
+};
+
+function sameSQLiteValue(left: unknown, right: unknown) {
+  const normalize = (value: unknown) => value === undefined ? null : typeof value === 'boolean' ? Number(value) : value;
+  const normalizedLeft = normalize(left);
+  const normalizedRight = normalize(right);
+  if (normalizedLeft instanceof Uint8Array && normalizedRight instanceof Uint8Array) {
+    return normalizedLeft.length === normalizedRight.length && normalizedLeft.every((byte, index) => byte === normalizedRight[index]);
+  }
+  return normalizedLeft === normalizedRight;
+}
+
+async function restoreGalleryRecoverySnapshot(db: SQLite.SQLiteDatabase, snapshot: GalleryRecoverySnapshot) {
+  const existingMarker = await db.getFirstAsync<{ value: string }>("SELECT value FROM gallery_meta WHERE key='gallery-recovery-applied'");
+  if (existingMarker?.value === snapshot.snapshotId) {
+    await FileSystem.deleteAsync(PENDING_RECOVERY_SNAPSHOT, { idempotent: true });
+    await FileSystem.deleteAsync(PREVIOUS_RECOVERY_SNAPSHOT, { idempotent: true });
+    return null;
+  }
+  const partialPrefix = `partial:${snapshot.snapshotId}:`;
+  if (existingMarker?.value.startsWith(partialPrefix)) {
+    const failedTables = existingMarker.value.slice(partialPrefix.length).split(',').filter(Boolean);
+    return {
+      recoveredItems: snapshot.rows.media_items?.length ?? 0,
+      skippedTables: [...new Set([...snapshot.skippedTables, ...failedTables])],
+    };
+  }
+  const rows = prepareGalleryRecoveryRows(snapshot);
+  const skippedTables = new Set(snapshot.skippedTables);
+  await db.execAsync('PRAGMA foreign_keys = OFF');
+  try {
+    await db.withTransactionAsync(async () => {
+      for (const table of GALLERY_RECOVERY_TABLES) {
+        for (const row of rows[table]) {
+          const columns = GALLERY_RECOVERY_COLUMNS[table].filter((column) => column in row);
+          if (!columns.length) continue;
+          const values = columns.map((column) => (row[column] === undefined ? null : row[column])) as (string | number | boolean | null)[];
+          const sql = `INSERT OR IGNORE INTO ${table} (${columns.join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`;
+          try {
+            const inserted = await db.runAsync(sql, ...values);
+            if (inserted.changes === 0) {
+              const primaryKeys = GALLERY_RECOVERY_PRIMARY_KEYS[table];
+              const primaryValues = primaryKeys.map((column) => row[column]);
+              if (primaryValues.some((value) => value === undefined)) {
+                skippedTables.add(table);
+                continue;
+              }
+              const where = primaryKeys.map((column) => `${column}=?`).join(' AND ');
+              const existing = await db.getFirstAsync<Record<string, unknown>>(`SELECT ${columns.join(', ')} FROM ${table} WHERE ${where}`, ...primaryValues as (string | number | boolean | null)[]);
+              if (!existing || columns.some((column) => !sameSQLiteValue(existing[column], row[column]))) skippedTables.add(table);
+            }
+          } catch {
+            skippedTables.add(table);
+          }
+        }
+      }
+    });
+  } finally {
+    await db.execAsync('PRAGMA foreign_keys = ON');
+  }
+
+  const integrity = await db.getFirstAsync<Record<string, string>>('PRAGMA quick_check(1)');
+  if (integrity && Object.values(integrity)[0] !== 'ok') throw new Error('فشل فحص قاعدة المعرض بعد استعادة البيانات.');
+  const foreignKeyErrors = await db.getAllAsync('PRAGMA foreign_key_check');
+  if (foreignKeyErrors.length) throw new Error('تعذر التحقق من روابط بيانات المعرض بعد الاستعادة.');
+
+  const failedTables = [...skippedTables];
+  const markerValue = failedTables.length ? `partial:${snapshot.snapshotId}:${failedTables.join(',')}` : snapshot.snapshotId;
+  await db.runAsync("INSERT OR REPLACE INTO gallery_meta (key, value) VALUES ('gallery-recovery-applied', ?)", markerValue);
+  if (!failedTables.length) {
+    await FileSystem.deleteAsync(PENDING_RECOVERY_SNAPSHOT, { idempotent: true });
+    await FileSystem.deleteAsync(PREVIOUS_RECOVERY_SNAPSHOT, { idempotent: true });
+  }
+  return { recoveredItems: rows.media_items.length, skippedTables: failedTables };
 }
 
 async function getDatabase() {
   if (!databasePromise) {
     databasePromise = (async () => {
-      let recoveredDatabase = false;
+      let recoverySnapshot = await readPendingGalleryRecoverySnapshot();
       let db = await SQLite.openDatabaseAsync(DB_NAME);
       let integrityFailure = false;
       try {
@@ -234,9 +472,14 @@ async function getDatabase() {
         integrityFailure = true;
       }
       if (integrityFailure) {
-        await preserveAndReplaceCorruptDatabase(db);
+        recoverySnapshot = await collectGalleryRecoverySnapshot(db);
+        const unavailableCoreTables = getUnrecoverableCoreTables(recoverySnapshot);
+        if (unavailableCoreTables.length) {
+          await preserveAndReplaceCorruptDatabase(db, undefined, false);
+          throw new Error('تعذر قراءة البيانات الأساسية للمعرض. احتفظ التطبيق بالقاعدة الأصلية ونسخة منها، ولم يستبدلها حفاظًا على بياناتك.');
+        }
+        await preserveAndReplaceCorruptDatabase(db, recoverySnapshot);
         db = await SQLite.openDatabaseAsync(DB_NAME);
-        recoveredDatabase = true;
       }
       await db.execAsync(`
         PRAGMA journal_mode = WAL;
@@ -341,8 +584,16 @@ async function getDatabase() {
       if (!importJobColumns.some((column) => column.name === 'target_album_id')) {
         await db.execAsync('ALTER TABLE import_jobs ADD COLUMN target_album_id TEXT REFERENCES albums(id) ON DELETE SET NULL');
       }
+      if (!recoverySnapshot) {
+        recoverySnapshot = await findArchivedGalleryRecoverySnapshot(db);
+        if (recoverySnapshot) {
+          await savePendingGalleryRecoverySnapshot(recoverySnapshot);
+        }
+      }
+      if (recoverySnapshot) {
+        databaseRecoveryNoticePending = await restoreGalleryRecoverySnapshot(db, recoverySnapshot);
+      }
       await migrateLegacyItems(db);
-      if (recoveredDatabase) databaseRecoveryNoticePending = true;
       return db;
     })().catch((error) => {
       databasePromise = null;
@@ -353,9 +604,9 @@ async function getDatabase() {
 }
 
 export function consumeGalleryDatabaseRecoveryNotice() {
-  const wasRecovered = databaseRecoveryNoticePending;
-  databaseRecoveryNoticePending = false;
-  return wasRecovered;
+  const recoveryNotice = databaseRecoveryNoticePending;
+  databaseRecoveryNoticePending = null;
+  return recoveryNotice;
 }
 
 async function ensureVault() {
