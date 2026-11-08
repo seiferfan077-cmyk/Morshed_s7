@@ -53,8 +53,11 @@ public final class MurshidGalleryImportWorker extends Worker {
     try {
       database = SQLiteDatabase.openDatabase(databasePath, null, SQLiteDatabase.OPEN_READWRITE);
       database.setForeignKeyConstraintsEnabled(true);
+      // This PRAGMA returns a row; execSQL rejects row-returning statements.
       try (Cursor busyTimeout = database.rawQuery("PRAGMA busy_timeout=5000", null)) {
-        busyTimeout.moveToFirst();
+        if (!busyTimeout.moveToFirst() || busyTimeout.getInt(0) != 5000) {
+          throw new IllegalStateException("تعذر تهيئة مهلة انتظار قاعدة بيانات استيراد الوسائط.");
+        }
       }
       try {
         database.enableWriteAheadLogging();

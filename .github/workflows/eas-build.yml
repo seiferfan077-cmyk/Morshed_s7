@@ -42,6 +42,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run media and SQLite regression checks
+        run: |
+          npm run typecheck
+          npm run media:vault:test
+          npm run media:worker:test
+          npm run sqlite:recovery:test
+
       - name: Validate Firebase Android configuration
         run: |
           python3 - <<'PY'
