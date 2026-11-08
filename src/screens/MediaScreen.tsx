@@ -17,7 +17,7 @@ import { MediaType } from '../types/domain';
 import {
   addMediaToAlbum, createAlbum, createFolder, createPrivateMediaFolder, deleteAlbum, deleteFolder, deleteStoredMedia,
   getMediaStats, getPrivacyRecoveryQuestion, hasPrivacyPin, importToVault,
-  listAlbums, listFolders, listPrivateMediaFolders, listStoredMediaPage, MediaAlbum, MediaFolder, MediaImportJob, PrivateMediaFolder,
+  consumeGalleryDatabaseRecoveryNotice, listAlbums, listFolders, listPrivateMediaFolders, listStoredMediaPage, MediaAlbum, MediaFolder, MediaImportJob, PrivateMediaFolder,
   MediaPageOptions, MediaStats, removeMediaFromAlbum, renameAlbum, renameFolder,
   renameStoredMedia, savePrivacyCredentials, setAlbumCover, setAlbumFolder,
   setStoredMediaHidden, updateImportJob, updatePrivacyPin, verifyPrivacyPin,
@@ -250,6 +250,9 @@ export function MediaScreen() {
       setHasMore(page.length === PAGE_SIZE);
       setSelectedIds(new Set());
       setSelectionMode(false);
+      if (consumeGalleryDatabaseRecoveryNotice()) {
+        showAppError('تم إصلاح قاعدة المعرض', 'كان فيه تلف في قاعدة المعرض المحلية. أنشأ التطبيق قاعدة سليمة واحتفظ بنسخة من الملف التالف للاستعادة. ملفات الوسائط نفسها لم تُحذف، وقد تحتاج الألبومات والمجلدات لإعادة تنظيمها.');
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر تحميل مكتبة مُرشد.');
     } finally {

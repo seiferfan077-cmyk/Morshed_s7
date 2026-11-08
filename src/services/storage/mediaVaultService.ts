@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
 import { MediaType } from '../../types/domain';
+import { isSQLiteDatabaseCorruption } from './sqliteRecoveryPolicy';
 
 export interface StoredMediaItem {
   id: string;
@@ -114,12 +115,14 @@ const DEVICE_HIDDEN_KEY = '@murshid/media-device-hidden';
 const DEVICE_REMOVED_KEY = '@murshid/media-device-removed';
 const DB_NAME = 'murshid-gallery.db';
 const VAULT_DIR = `${FileSystem.documentDirectory ?? ''}murshid-vault/`;
+const DB_RECOVERY_DIR = `${FileSystem.documentDirectory ?? ''}murshid-database-recovery/`;
 const SELECT_MEDIA = `SELECT m.id, m.uri, m.filename, m.type, m.mime_type AS mimeType, m.size,
   m.created_at AS createdAt, m.hidden, m.source, m.device_asset_id AS deviceAssetId,
   m.source_key AS sourceKey, m.source_modified_at AS sourceModifiedAt, m.private_folder_id AS privateFolderId,
   m.width, m.height, m.duration FROM media_items m`;
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let databaseRecoveryNoticePending = false;
 
 function newId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -179,10 +182,58 @@ async function migrateLegacyItems(db: SQLite.SQLiteDatabase) {
   }
 }
 
+async function preserveAndReplaceCorruptDatabase(db: SQLite.SQLiteDatabase) {
+  const databaseDirectory = SQLite.defaultDatabaseDirectory;
+  if (typeof databaseDirectory !== 'string' || !databaseDirectory) {
+    throw new Error('تعذر تحديد مكان قاعدة المعرض لحفظ نسخة الاستعادة.');
+  }
+  if (!FileSystem.documentDirectory) throw new Error('مساحة تخزين التطبيق غير متاحة لحفظ نسخة الاستعادة.');
+
+  await db.closeAsync();
+  if (!(await FileSystem.getInfoAsync(DB_RECOVERY_DIR)).exists) {
+    await FileSystem.makeDirectoryAsync(DB_RECOVERY_DIR, { intermediates: true });
+  }
+
+  const backupStem = `${DB_NAME}.${Date.now()}.corrupt`;
+  const databaseFiles = [DB_NAME, `${DB_NAME}-wal`, `${DB_NAME}-shm`];
+  const toFileUri = (path: string) => path.startsWith('file://') ? path : `file://${path.startsWith('/') ? '' : '/'}${path}`;
+  const databaseBase = `${databaseDirectory.replace(/\/$/, '')}/${DB_NAME}`;
+  let backedUpMainDatabase = false;
+  for (const filename of databaseFiles) {
+    const source = toFileUri(filename === DB_NAME ? databaseBase : `${databaseBase}${filename.slice(DB_NAME.length)}`);
+    const sourceInfo = await FileSystem.getInfoAsync(source);
+    if (!sourceInfo.exists) continue;
+    const destination = `${DB_RECOVERY_DIR}${filename === DB_NAME ? backupStem : `${backupStem}${filename.slice(DB_NAME.length)}`}`;
+    await FileSystem.copyAsync({ from: source, to: destination });
+    const copiedInfo = await FileSystem.getInfoAsync(destination);
+    if (!copiedInfo.exists || (sourceInfo.size !== undefined && copiedInfo.size !== sourceInfo.size)) {
+      throw new Error('تعذر التحقق من اكتمال نسخة قاعدة المعرض. لم يتم استبدال الملف الأصلي.');
+    }
+    if (filename === DB_NAME) backedUpMainDatabase = true;
+  }
+  if (!backedUpMainDatabase) throw new Error('لم يتم العثور على ملف قاعدة المعرض لحفظ نسخة الاستعادة.');
+
+  await SQLite.deleteDatabaseAsync(DB_NAME);
+  for (const suffix of ['-wal', '-shm']) {
+    await FileSystem.deleteAsync(toFileUri(`${databaseBase}${suffix}`), { idempotent: true });
+  }
+}
+
 async function getDatabase() {
   if (!databasePromise) {
     databasePromise = (async () => {
-      const db = await SQLite.openDatabaseAsync(DB_NAME);
+      let recoveredDatabase = false;
+      let db = await SQLite.openDatabaseAsync(DB_NAME);
+      try {
+        const integrity = await db.getFirstAsync<Record<string, string>>('PRAGMA quick_check(1)');
+        const result = integrity ? Object.values(integrity)[0] : undefined;
+        if (result !== 'ok') throw new Error(`SQLite integrity check failed: ${String(result ?? 'no result')}`);
+      } catch (error) {
+        if (!isSQLiteDatabaseCorruption(error)) throw error;
+        await preserveAndReplaceCorruptDatabase(db);
+        db = await SQLite.openDatabaseAsync(DB_NAME);
+        recoveredDatabase = true;
+      }
       await db.execAsync(`
         PRAGMA journal_mode = WAL;
         PRAGMA foreign_keys = ON;
@@ -287,6 +338,7 @@ async function getDatabase() {
         await db.execAsync('ALTER TABLE import_jobs ADD COLUMN target_album_id TEXT REFERENCES albums(id) ON DELETE SET NULL');
       }
       await migrateLegacyItems(db);
+      if (recoveredDatabase) databaseRecoveryNoticePending = true;
       return db;
     })().catch((error) => {
       databasePromise = null;
@@ -294,6 +346,12 @@ async function getDatabase() {
     });
   }
   return databasePromise;
+}
+
+export function consumeGalleryDatabaseRecoveryNotice() {
+  const wasRecovered = databaseRecoveryNoticePending;
+  databaseRecoveryNoticePending = false;
+  return wasRecovered;
 }
 
 async function ensureVault() {

@@ -59,6 +59,7 @@
     "ai:test": "rm -rf .tmp-byok-test && ./node_modules/.bin/tsc --ignoreConfig --outDir .tmp-byok-test --module commonjs --target es2022 --skipLibCheck src/types/memory.ts src/services/ai/aiService.ts src/services/ai/byokAIService.ts && node tests/byok.test.js && rm -rf .tmp-byok-test",
     "ota:test": "rm -rf .tmp-ota-test && ./node_modules/.bin/tsc --ignoreConfig --types node --outDir .tmp-ota-test --module commonjs --target es2022 --skipLibCheck src/services/releases/updatePolicy.ts src/services/monitoring/updateMonitor.ts && node tests/ota-policy.test.js && rm -rf .tmp-ota-test",
     "media:vault:test": "python3 tests/private-media-folders.test.py",
+    "sqlite:recovery:test": "rm -rf .tmp-sqlite-recovery-test && ./node_modules/.bin/tsc --ignoreConfig --types node --rootDir src/services/storage --outDir .tmp-sqlite-recovery-test --module commonjs --target es2022 --skipLibCheck src/services/storage/sqliteRecoveryPolicy.ts && node tests/sqlite-recovery-policy.test.js && rm -rf .tmp-sqlite-recovery-test",
     "notifications:test": "rm -rf .tmp-notification-test && ./node_modules/.bin/tsc --ignoreConfig --types node --outDir .tmp-notification-test --rootDir src/services/notifications --module commonjs --target es2022 --skipLibCheck src/services/notifications/dailyNotificationPolicy.ts && node tests/daily-notification-policy.test.js && rm -rf .tmp-notification-test",
     "dua:test": "rm -rf .tmp-dua-test && ./node_modules/.bin/tsc --ignoreConfig --types node --outDir .tmp-dua-test --rootDir src/services/notifications --module commonjs --target es2022 --skipLibCheck src/services/notifications/dailyDuaPolicy.ts && node tests/daily-dua-policy.test.js && rm -rf .tmp-dua-test",
     "tasbih:test": "rm -rf .tmp-tasbih-test && ./node_modules/.bin/tsc --ignoreConfig --types node --outDir .tmp-tasbih-test --rootDir src/services/tasbih --module commonjs --target es2022 --skipLibCheck src/services/tasbih/tasbihPolicy.ts && node tests/tasbih-policy.test.js && rm -rf .tmp-tasbih-test",
@@ -68,7 +69,7 @@
     "backend:test": "npm --prefix backend test",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "check": "npm run lint && npm run typecheck && npm run media:vault:test && npm run notifications:test && npm run dua:test && npm run tasbih:test && npm run tasbih:data:test && npm run quran:test && npm run nawawi:test",
+    "check": "npm run lint && npm run typecheck && npm run media:vault:test && npm run sqlite:recovery:test && npm run notifications:test && npm run dua:test && npm run tasbih:test && npm run tasbih:data:test && npm run quran:test && npm run nawawi:test",
     "pomodoro:test": "rm -rf .tmp-pomodoro-test && ./node_modules/.bin/tsc --ignoreConfig --types node --rootDir src/services --outDir .tmp-pomodoro-test --module commonjs --target es2022 --skipLibCheck src/services/pomodoro/pomodoroPolicy.ts src/services/ai/chatHistoryStorage.ts && node tests/pomodoro-policy.test.js && node tests/chat-history-storage.test.js && rm -rf .tmp-pomodoro-test"
   },
   "private": true
