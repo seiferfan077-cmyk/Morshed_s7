@@ -585,7 +585,9 @@ export function MediaScreen() {
   const beginImport = async (job: MediaImportJob) => {
     setError(null); setScanProgress(null); fallbackStopRef.current = false;
     try {
-      if (NativeModules.MurshidGallery) {
+      // Picker results are temporary cache files; copy them while the app is
+      // foregrounded so a background worker cannot lose access to the source.
+      if (NativeModules.MurshidGallery && job.source !== 'picker') {
         await startNativeImport(job.id);
         const latest = await (await import('../services/storage/mediaVaultService')).getImportJob(job.id);
         setActiveJob(latest ?? job);
