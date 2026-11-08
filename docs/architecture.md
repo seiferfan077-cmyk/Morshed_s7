@@ -10,7 +10,7 @@
 - `components/`: عناصر UI مشتركة مع accessibility labels وحالات الضغط.
 - `theme/`: مصدر واحد للهوية؛ تغيير اللون أو spacing يتم من tokens لا من شاشات منفردة.
 - `services/storage/`: abstraction تمنع انتشار FileSystem داخل الشاشات.
-- قاعدة المعرض `murshid-gallery.db` تُفحص بـ `PRAGMA quick_check(1)` عند فتحها؛ عند اكتشاف تلف SQLite، تُحفظ القاعدة وملفات WAL/SHM في `murshid-database-recovery/` قبل إنشاء قاعدة جديدة، ولا تُحذف ملفات الوسائط في `murshid-vault/`.
+- قاعدة المعرض `murshid-gallery.db` تُفحص بـ `PRAGMA quick_check(1)` عند فتحها؛ أي نتيجة غير `ok` أو خطأ تلف SQLite يؤدي لحفظ القاعدة وملفات WAL/SHM في `murshid-database-recovery/` قبل إنشاء قاعدة جديدة، ولا تُحذف ملفات الوسائط في `murshid-vault/`.
 - `services/ai/`: `AIProvider` يضع حدودًا واضحة بين التطبيق وBackend.
 - `services/auth/`: `AuthProvider` يسمح بتركيب Supabase/Firebase لاحقًا.
 - `types/`: domain contracts لتقليل coupling مع مزود خارجي.

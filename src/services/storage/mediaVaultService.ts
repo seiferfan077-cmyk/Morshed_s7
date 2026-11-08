@@ -3,7 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
 import { MediaType } from '../../types/domain';
-import { isSQLiteDatabaseCorruption } from './sqliteRecoveryPolicy';
+import { hasSQLiteIntegrityFailure, isSQLiteDatabaseCorruption } from './sqliteRecoveryPolicy';
 
 export interface StoredMediaItem {
   id: string;
@@ -224,12 +224,16 @@ async function getDatabase() {
     databasePromise = (async () => {
       let recoveredDatabase = false;
       let db = await SQLite.openDatabaseAsync(DB_NAME);
+      let integrityFailure = false;
       try {
         const integrity = await db.getFirstAsync<Record<string, string>>('PRAGMA quick_check(1)');
         const result = integrity ? Object.values(integrity)[0] : undefined;
-        if (result !== 'ok') throw new Error(`SQLite integrity check failed: ${String(result ?? 'no result')}`);
+        integrityFailure = hasSQLiteIntegrityFailure(result);
       } catch (error) {
         if (!isSQLiteDatabaseCorruption(error)) throw error;
+        integrityFailure = true;
+      }
+      if (integrityFailure) {
         await preserveAndReplaceCorruptDatabase(db);
         db = await SQLite.openDatabaseAsync(DB_NAME);
         recoveredDatabase = true;
