@@ -220,6 +220,7 @@ module.exports = function withMurshidDialer(config) {
       'android.permission.SEND_SMS',
       'android.permission.FOREGROUND_SERVICE',
       'android.permission.FOREGROUND_SERVICE_DATA_SYNC',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
     ].forEach((permission) => ensurePermission(manifest, permission));
     ensureSmsPackageVisibilityQuery(manifest);
     manifest.manifest['uses-feature'] ??= [];
@@ -329,6 +330,7 @@ module.exports = function withMurshidDialer(config) {
       'MurshidSmsPackage.java',
       'MurshidShortcutModule.java',
       'MurshidThemeModule.java',
+      'MurshidMediaStore.java',
       'MurshidSmsReceiver.java',
       'MurshidWapPushReceiver.java',
       'MurshidRespondViaMessageService.java',

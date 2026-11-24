@@ -132,6 +132,7 @@ export function MediaScreen() {
   const [albumId, setAlbumId] = useState<string | undefined>();
   const [folderStack, setFolderStack] = useState<MediaFolder[]>([]);
   const [loading, setLoading] = useState(true);
+  const permissionRequestedRef = useRef(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -180,6 +181,12 @@ export function MediaScreen() {
   const [cloudModalOpen, setCloudModalOpen] = useState(false);
   const [cloudLoading, setCloudLoading] = useState(false);
   const [cloudDownloadingId, setCloudDownloadingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || permissionRequestedRef.current || permission?.granted || permission?.canAskAgain === false) return;
+    permissionRequestedRef.current = true;
+    void requestPermission();
+  }, [permission?.granted, permission?.canAskAgain, requestPermission]);
   const [cloudNextOffset, setCloudNextOffset] = useState<number | null>(null);
   const [fallbackRunning, setFallbackRunning] = useState(false);
   const scanCancelRef = useRef(false);
@@ -547,7 +554,7 @@ export function MediaScreen() {
   const confirmImport = (job: MediaImportJob) => {
     const sizeWarning = stats.freeBytes !== undefined && job.totalBytes > stats.freeBytes
       ? `\n\nتنبيه: الحجم التقديري أكبر من المساحة الحرة (${formatBytes(stats.freeBytes)}). قد يتوقف النسخ عند امتلاء التخزين.` : '';
-    Alert.alert('معاينة الاستيراد', `سيتم نسخ ${job.totalFiles.toLocaleString()} عنصرًا، بحجم تقديري ${formatBytes(job.totalBytes)} إلى مساحة مُرشد الخاصة. لن يُحذف أي ملف أصلي.${sizeWarning}`, [
+    Alert.alert('معاينة الاستيراد', `سيتم نسخ ${job.totalFiles.toLocaleString()} عنصرًا، بحجم تقديري ${formatBytes(job.totalBytes)} إلى مكتبة مُرشد. ستظهر الصور والفيديوهات العادية في معرض Android أيضًا، بينما تبقى العناصر الموجهة إلى مجلد مقفل داخل تخزين التطبيق. لن يُحذف أي ملف أصلي.${sizeWarning}`, [
       { text: 'إلغاء', style: 'cancel', onPress: () => { void (async () => { await (await import('../services/storage/mediaVaultService')).removeImportJob(job.id); setActiveJob(null); setScanProgress(null); })(); } },
       { text: 'بدء النسخ', onPress: () => { void beginImport(job); } },
     ]);

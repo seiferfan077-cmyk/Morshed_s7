@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
+import { NativeModules } from 'react-native';
 import { MediaType } from '../../types/domain';
 import { hasSQLiteIntegrityFailure, isSQLiteDatabaseCorruption } from './sqliteRecoveryPolicy';
 import {
@@ -22,6 +23,7 @@ export interface StoredMediaItem {
   deviceAssetId?: string;
   sourceKey?: string;
   sourceModifiedAt?: number;
+  sourceRelativePath?: string;
   privateFolderId?: string;
   width?: number;
   height?: number;
@@ -80,6 +82,7 @@ export interface ImportSource {
   size?: number;
   sourceKey?: string;
   sourceModifiedAt?: number;
+  sourceRelativePath?: string;
   privateFolderId?: string;
   width?: number;
   height?: number;
@@ -124,7 +127,7 @@ const PENDING_RECOVERY_SNAPSHOT = `${DB_RECOVERY_DIR}pending-gallery-recovery.js
 const PREVIOUS_RECOVERY_SNAPSHOT = `${PENDING_RECOVERY_SNAPSHOT}.previous`;
 const SELECT_MEDIA = `SELECT m.id, m.uri, m.filename, m.type, m.mime_type AS mimeType, m.size,
   m.created_at AS createdAt, m.hidden, m.source, m.device_asset_id AS deviceAssetId,
-  m.source_key AS sourceKey, m.source_modified_at AS sourceModifiedAt, m.private_folder_id AS privateFolderId,
+  m.source_key AS sourceKey, m.source_modified_at AS sourceModifiedAt, m.source_relative_path AS sourceRelativePath, m.private_folder_id AS privateFolderId,
   m.width, m.height, m.duration FROM media_items m`;
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -148,6 +151,7 @@ function toMediaItem(row: Record<string, unknown>): StoredMediaItem {
     deviceAssetId: typeof row.deviceAssetId === 'string' ? row.deviceAssetId : undefined,
     sourceKey: typeof row.sourceKey === 'string' ? row.sourceKey : undefined,
     sourceModifiedAt: typeof row.sourceModifiedAt === 'number' ? row.sourceModifiedAt : undefined,
+    sourceRelativePath: typeof row.sourceRelativePath === 'string' ? row.sourceRelativePath : undefined,
     privateFolderId: typeof row.privateFolderId === 'string' ? row.privateFolderId : undefined,
     width: typeof row.width === 'number' ? row.width : undefined,
     height: typeof row.height === 'number' ? row.height : undefined,
@@ -168,12 +172,12 @@ async function migrateLegacyItems(db: SQLite.SQLiteDatabase) {
             if (!old || typeof old.id !== 'string' || typeof old.uri !== 'string' || typeof old.filename !== 'string') continue;
             const type: MediaType = old.type === 'video' || old.type === 'file' ? old.type : 'image';
             await db.runAsync(
-              `INSERT OR IGNORE INTO media_items (id, uri, filename, type, mime_type, size, created_at, hidden, source, device_asset_id, source_key, source_modified_at, width, height, duration, import_status)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'imported', ?, ?, ?, ?, ?, ?, 'complete')`,
+              `INSERT OR IGNORE INTO media_items (id, uri, filename, type, mime_type, size, created_at, hidden, source, device_asset_id, source_key, source_modified_at, source_relative_path, width, height, duration, import_status)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'imported', ?, ?, ?, ?, ?, ?, ?, 'complete')`,
               old.id, old.uri, old.filename, type, old.mimeType ?? null, old.size ?? null,
               old.createdAt ?? new Date().toISOString(), old.hidden ? 1 : 0, old.deviceAssetId ?? null,
               old.deviceAssetId ? `device:${old.deviceAssetId}` : (old.sourceKey ?? null),
-              old.sourceModifiedAt ?? null, old.width ?? null, old.height ?? null, old.duration ?? null,
+              old.sourceModifiedAt ?? null, old.sourceRelativePath ?? null, old.width ?? null, old.height ?? null, old.duration ?? null,
             );
           }
           await db.runAsync("INSERT OR REPLACE INTO gallery_meta (key, value) VALUES ('asyncstorage-items-migrated', '1')");
@@ -504,6 +508,7 @@ async function getDatabase() {
           device_asset_id TEXT,
           source_key TEXT,
           source_modified_at INTEGER,
+          source_relative_path TEXT,
           private_folder_id TEXT REFERENCES private_folders(id),
           width INTEGER,
           height INTEGER,
@@ -563,6 +568,7 @@ async function getDatabase() {
           size INTEGER NOT NULL DEFAULT 0,
           source_key TEXT,
           source_modified_at INTEGER,
+          source_relative_path TEXT,
           width INTEGER,
           height INTEGER,
           duration REAL,
@@ -576,6 +582,9 @@ async function getDatabase() {
         CREATE INDEX IF NOT EXISTS import_jobs_state_idx ON import_jobs(state, updated_at DESC);
       `);
       const mediaColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(media_items)');
+      if (!mediaColumns.some((column) => column.name === 'source_relative_path')) {
+        await db.execAsync('ALTER TABLE media_items ADD COLUMN source_relative_path TEXT');
+      }
       if (!mediaColumns.some((column) => column.name === 'private_folder_id')) {
         await db.execAsync('ALTER TABLE media_items ADD COLUMN private_folder_id TEXT REFERENCES private_folders(id)');
       }
@@ -583,6 +592,10 @@ async function getDatabase() {
       const importJobColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(import_jobs)');
       if (!importJobColumns.some((column) => column.name === 'target_album_id')) {
         await db.execAsync('ALTER TABLE import_jobs ADD COLUMN target_album_id TEXT REFERENCES albums(id) ON DELETE SET NULL');
+      }
+      const importItemColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(import_job_items)');
+      if (!importItemColumns.some((column) => column.name === 'source_relative_path')) {
+        await db.execAsync('ALTER TABLE import_job_items ADD COLUMN source_relative_path TEXT');
       }
       if (!recoverySnapshot) {
         recoverySnapshot = await findArchivedGalleryRecoverySnapshot(db);
@@ -693,6 +706,16 @@ export async function getMediaStats(): Promise<MediaStats> {
   return { itemCount: Number(row?.itemCount ?? 0), totalBytes: Number(row?.totalBytes ?? 0), imageCount: Number(row?.imageCount ?? 0), videoCount: Number(row?.videoCount ?? 0), fileCount: Number(row?.fileCount ?? 0), imageBytes: Number(row?.imageBytes ?? 0), videoBytes: Number(row?.videoBytes ?? 0), fileBytes: Number(row?.fileBytes ?? 0), freeBytes };
 }
 
+type NativeMediaStoreModule = {
+  importToMediaStore(sourceUri: string, filename: string, type: 'image' | 'video', mimeType: string | null | undefined, expectedSize: number, sourceRelativePath?: string | null): Promise<{ uri: string; size: number }>;
+  deleteMedia(uri: string): Promise<boolean>;
+  renameMedia(uri: string, filename: string): Promise<string>;
+};
+
+function nativeMediaStore() {
+  return NativeModules.MurshidGallery as NativeMediaStoreModule | undefined;
+}
+
 export async function importToVault(uri: string, filename: string, type: MediaType, mimeType?: string, size?: number, deviceAssetId?: string, metadata: Partial<ImportSource> = {}) {
   const db = await getDatabase();
   const sourceKey = metadata.sourceKey ?? (deviceAssetId ? `device:${deviceAssetId}` : `uri:${uri}`);
@@ -702,12 +725,27 @@ export async function importToVault(uri: string, filename: string, type: MediaTy
   }
   const existing = await db.getFirstAsync<Record<string, unknown>>(`${SELECT_MEDIA} WHERE m.source_key = ? AND m.import_status='complete' LIMIT 1`, sourceKey);
   if (existing) return toMediaItem(existing);
+  const id = newId('vault');
+  const publicModule = !metadata.privateFolderId && (type === 'image' || type === 'video') ? nativeMediaStore() : undefined;
+  if (publicModule) {
+    const imported = await publicModule.importToMediaStore(uri, filename, type as 'image' | 'video', mimeType, Math.max(0, size ?? 0), metadata.sourceRelativePath ?? null);
+    const item: StoredMediaItem = {
+      id, uri: imported.uri, filename, type, mimeType, size: imported.size,
+      createdAt: new Date().toISOString(), hidden: false, source: 'imported', deviceAssetId,
+      sourceKey, sourceModifiedAt: metadata.sourceModifiedAt, sourceRelativePath: metadata.sourceRelativePath,
+      width: metadata.width, height: metadata.height, duration: metadata.duration,
+    };
+    await db.runAsync(`INSERT INTO media_items (id, uri, filename, type, mime_type, size, created_at, hidden, source, device_asset_id, source_key, source_modified_at, source_relative_path, width, height, duration, import_status) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'imported', ?, ?, ?, ?, ?, ?, ?, 'complete')`,
+      item.id, item.uri, item.filename, item.type, item.mimeType ?? null, item.size ?? null, item.createdAt,
+      item.deviceAssetId ?? null, item.sourceKey ?? null, item.sourceModifiedAt ?? null, item.sourceRelativePath ?? null,
+      item.width ?? null, item.height ?? null, item.duration ?? null);
+    return item;
+  }
   await ensureVault();
   const freeBytes = await FileSystem.getFreeDiskStorageAsync().catch(() => undefined);
   if (typeof size === 'number' && typeof freeBytes === 'number' && size > freeBytes) {
     throw new Error(`المساحة غير كافية لنسخ ${filename}. المتاح ${freeBytes} بايت، والمطلوب نحو ${size} بايت.`);
   }
-  const id = newId('vault');
   const target = `${VAULT_DIR}${id}-${safeFilename(filename)}`;
   const partial = `${target}.partial`;
   try {
@@ -720,14 +758,15 @@ export async function importToVault(uri: string, filename: string, type: MediaTy
       id, uri: target, filename, type, mimeType, size: copied.size ?? size,
       createdAt: new Date().toISOString(), hidden: false, source: 'imported',
       deviceAssetId, sourceKey, sourceModifiedAt: metadata.sourceModifiedAt,
+      sourceRelativePath: metadata.sourceRelativePath,
       privateFolderId: metadata.privateFolderId,
       width: metadata.width, height: metadata.height, duration: metadata.duration,
     };
     await db.runAsync(
-      `INSERT INTO media_items (id, uri, filename, type, mime_type, size, created_at, hidden, source, device_asset_id, source_key, source_modified_at, private_folder_id, width, height, duration, import_status)
+      `INSERT INTO media_items (id, uri, filename, type, mime_type, size, created_at, hidden, source, device_asset_id, source_key, source_modified_at, source_relative_path, private_folder_id, width, height, duration, import_status)
        VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'imported', ?, ?, ?, ?, ?, ?, ?, 'complete')`,
       item.id, item.uri, item.filename, item.type, item.mimeType ?? null, item.size ?? null, item.createdAt,
-      item.deviceAssetId ?? null, item.sourceKey ?? null, item.sourceModifiedAt ?? null, metadata.privateFolderId ?? null, item.width ?? null, item.height ?? null, item.duration ?? null,
+      item.deviceAssetId ?? null, item.sourceKey ?? null, item.sourceModifiedAt ?? null, item.sourceRelativePath ?? null, metadata.privateFolderId ?? null, item.width ?? null, item.height ?? null, item.duration ?? null,
     );
     return item;
   } catch (error) {
@@ -746,7 +785,10 @@ export async function deleteStoredMedia(id: string) {
   const db = await getDatabase();
   const item = await db.getFirstAsync<{ uri: string }>('SELECT uri FROM media_items WHERE id = ?', id);
   if (!item) return;
-  await FileSystem.deleteAsync(item.uri, { idempotent: true });
+  if (item.uri.startsWith('content://')) {
+    const module = nativeMediaStore();
+    if (!module || !(await module.deleteMedia(item.uri))) throw new Error('تعذر حذف النسخة العامة من الجهاز.');
+  } else await FileSystem.deleteAsync(item.uri, { idempotent: true });
   await db.runAsync('DELETE FROM media_items WHERE id = ?', id);
 }
 
@@ -755,6 +797,13 @@ export async function renameStoredMedia(id: string, filename: string) {
   const current = await db.getFirstAsync<{ uri: string }>('SELECT uri FROM media_items WHERE id=?', id);
   if (!current) throw new Error('العنصر غير موجود.');
   const cleanName = safeFilename(filename);
+  if (current.uri.startsWith('content://')) {
+    const module = nativeMediaStore();
+    if (!module) throw new Error('إعادة تسمية النسخة العامة تحتاج إصدار Android محدثًا.');
+    const target = await module.renameMedia(current.uri, filename.trim());
+    await db.runAsync('UPDATE media_items SET uri=?, filename=? WHERE id=?', target, filename.trim(), id);
+    return;
+  }
   const extension = current.uri.includes('.') ? current.uri.slice(current.uri.lastIndexOf('.')) : '';
   const target = `${VAULT_DIR}${id}-${cleanName}${extension && !cleanName.toLowerCase().endsWith(extension.toLowerCase()) ? extension : ''}`;
   if (target !== current.uri) {
@@ -939,10 +988,10 @@ export async function enqueueImportSources(jobId: string, sources: ImportSource[
       const mediaId = newId('vault');
       const targetUri = `${VAULT_DIR}${mediaId}-${safeFilename(source.filename)}`;
       await db.runAsync(
-        `INSERT OR IGNORE INTO import_job_items (id, job_id, source_uri, filename, type, mime_type, size, source_key, source_modified_at, width, height, duration, media_id, target_uri, position)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR IGNORE INTO import_job_items (id, job_id, source_uri, filename, type, mime_type, size, source_key, source_modified_at, source_relative_path, width, height, duration, media_id, target_uri, position)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         sourceId, jobId, source.uri, source.filename, source.type, source.mimeType ?? null,
-        Math.max(0, source.size ?? 0), source.sourceKey ?? null, source.sourceModifiedAt ?? null,
+        Math.max(0, source.size ?? 0), source.sourceKey ?? null, source.sourceModifiedAt ?? null, source.sourceRelativePath ?? null,
         source.width ?? null, source.height ?? null, source.duration ?? null, mediaId, targetUri, position++,
       );
     }
@@ -984,7 +1033,7 @@ export async function getNextImportSource(jobId: string): Promise<ImportSource &
   const db = await getDatabase();
   const row = await db.getFirstAsync<Record<string, unknown>>(
     `SELECT id, source_uri AS uri, filename, type, mime_type AS mimeType, size, source_key AS sourceKey,
-      source_modified_at AS sourceModifiedAt, width, height, duration FROM import_job_items
+      source_modified_at AS sourceModifiedAt, source_relative_path AS sourceRelativePath, width, height, duration FROM import_job_items
      WHERE job_id=? AND status='pending' ORDER BY position LIMIT 1`, jobId,
   );
   if (!row) return null;
@@ -992,6 +1041,7 @@ export async function getNextImportSource(jobId: string): Promise<ImportSource &
     mimeType: typeof row.mimeType === 'string' ? row.mimeType : undefined, size: Number(row.size ?? 0),
     sourceKey: typeof row.sourceKey === 'string' ? row.sourceKey : undefined,
     sourceModifiedAt: typeof row.sourceModifiedAt === 'number' ? row.sourceModifiedAt : undefined,
+    sourceRelativePath: typeof row.sourceRelativePath === 'string' ? row.sourceRelativePath : undefined,
     width: typeof row.width === 'number' ? row.width : undefined, height: typeof row.height === 'number' ? row.height : undefined,
     duration: typeof row.duration === 'number' ? row.duration : undefined };
 }

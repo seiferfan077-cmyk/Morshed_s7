@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library/legacy';
-import { NativeModules } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import { MediaType } from '../../types/domain';
 import {
   createImportJob,
@@ -37,6 +37,8 @@ export interface PickerImportAsset {
 }
 
 export interface NativeGalleryImportModule {
+  queryMediaStoreAssets?(): Promise<Array<{ id: string; uri: string; filename: string; type: MediaType; mimeType?: string; size: number; modifiedAt: number; width?: number; height?: number; duration?: number; relativePath?: string; screenshot: boolean }>>;
+  importToMediaStore?(sourceUri: string, filename: string, type: 'image' | 'video', mimeType: string | null | undefined, expectedSize: number, sourceRelativePath?: string | null): Promise<{ uri: string; size: number }>;
   startImport(jobId: string, databasePath: string, vaultDirectory: string): Promise<string>;
   pauseImport(jobId: string): Promise<boolean>;
   cancelImport(jobId: string): Promise<boolean>;
@@ -76,6 +78,25 @@ export async function scanDeviceLibrary(
   shouldStop?: () => boolean,
   kinds: readonly ('photo' | 'video')[] = ['photo', 'video'],
 ) {
+  const nativeModule = getNativeImportModule();
+  if (Platform.OS === 'android' && nativeModule?.queryMediaStoreAssets) {
+    const assets = (await nativeModule.queryMediaStoreAssets()).filter((asset) => kinds.includes(asset.type === 'video' ? 'video' : 'photo'));
+    const progress: ScanProgress = { scannedFiles: 0, expectedFiles: assets.length, estimatedBytes: 0 };
+    const batch: ImportSource[] = [];
+    for (const asset of assets) {
+      if (shouldStop?.()) throw new Error('تم إلغاء الفحص.');
+      const size = Math.max(0, asset.size ?? 0);
+      batch.push({ uri: asset.uri, filename: asset.filename, type: asset.type, mimeType: asset.mimeType, size,
+        sourceKey: `device:${asset.id}`, sourceModifiedAt: asset.modifiedAt, sourceRelativePath: asset.relativePath,
+        width: asset.width, height: asset.height, duration: asset.duration });
+      progress.scannedFiles += 1; progress.estimatedBytes += size; progress.currentName = asset.filename;
+      if (batch.length >= BATCH_SIZE) await queueBatches(jobId, batch, progress, onProgress);
+      else if (progress.scannedFiles % 10 === 0) onProgress?.({ ...progress });
+    }
+    await queueBatches(jobId, batch, progress, onProgress);
+    await updateImportJob(jobId, { state: 'ready', totalFiles: progress.scannedFiles, totalBytes: progress.estimatedBytes, error: undefined });
+    return progress;
+  }
   const totals = await Promise.all(kinds.map(async (mediaType) => {
     try { return (await MediaLibrary.getAssetsAsync({ first: 1, mediaType })).totalCount; } catch { return 0; }
   }));
@@ -133,6 +154,7 @@ export async function createPickerImportJob(assets: PickerImportAsset[], targetA
     size: asset.size ?? 0,
     sourceKey: `picker:${asset.uri}:${asset.size ?? 0}`,
     sourceModifiedAt: asset.lastModified,
+    sourceRelativePath: undefined,
   }));
   await enqueueImportSources(jobId, sources);
   const job = await getImportJob(jobId);

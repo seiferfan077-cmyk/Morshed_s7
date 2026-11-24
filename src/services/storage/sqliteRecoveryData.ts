@@ -1,12 +1,12 @@
 export const GALLERY_RECOVERY_COLUMNS = {
   gallery_meta: ['key', 'value'],
   private_folders: ['id', 'name', 'created_at'],
-  media_items: ['id', 'uri', 'filename', 'type', 'mime_type', 'size', 'created_at', 'hidden', 'source', 'device_asset_id', 'source_key', 'source_modified_at', 'private_folder_id', 'width', 'height', 'duration', 'import_status'],
+  media_items: ['id', 'uri', 'filename', 'type', 'mime_type', 'size', 'created_at', 'hidden', 'source', 'device_asset_id', 'source_key', 'source_modified_at', 'source_relative_path', 'private_folder_id', 'width', 'height', 'duration', 'import_status'],
   folders: ['id', 'name', 'parent_id', 'created_at', 'sort_order'],
   albums: ['id', 'name', 'folder_id', 'cover_media_id', 'created_at', 'updated_at', 'sort_order'],
   album_media: ['album_id', 'media_id', 'added_at'],
   import_jobs: ['id', 'source', 'target_album_id', 'state', 'total_files', 'completed_files', 'failed_files', 'total_bytes', 'copied_bytes', 'current_bytes', 'current_filename', 'error', 'created_at', 'updated_at'],
-  import_job_items: ['id', 'job_id', 'source_uri', 'filename', 'type', 'mime_type', 'size', 'source_key', 'source_modified_at', 'width', 'height', 'duration', 'media_id', 'target_uri', 'status', 'error', 'position'],
+  import_job_items: ['id', 'job_id', 'source_uri', 'filename', 'type', 'mime_type', 'size', 'source_key', 'source_modified_at', 'source_relative_path', 'width', 'height', 'duration', 'media_id', 'target_uri', 'status', 'error', 'position'],
 } as const;
 
 export type GalleryRecoveryTable = keyof typeof GALLERY_RECOVERY_COLUMNS;
@@ -70,10 +70,7 @@ export function prepareGalleryRecoveryRows(snapshot: GalleryRecoverySnapshot): R
     const visited = new Set([folder.id]);
     let parentId: string | undefined = folder.parent_id;
     while (parentId) {
-      if (visited.has(parentId)) {
-        folder.parent_id = null;
-        break;
-      }
+      if (visited.has(parentId)) { folder.parent_id = null; break; }
       visited.add(parentId);
       parentId = parentById.get(parentId);
     }

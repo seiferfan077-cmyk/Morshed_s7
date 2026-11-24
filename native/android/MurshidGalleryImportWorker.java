@@ -93,6 +93,9 @@ public final class MurshidGalleryImportWorker extends Worker {
 
         try {
           if (!copyOneItem(database, jobId, item, vaultDirectory)) return Result.success();
+        } catch (MurshidMediaStore.CopyCancelledException cancelled) {
+          resetPending(database, jobId, item);
+          return Result.success();
         } catch (Exception itemError) {
           markFailed(database, jobId, item, itemError);
         }
@@ -147,6 +150,14 @@ public final class MurshidGalleryImportWorker extends Worker {
   }
 
   private boolean copyOneItem(SQLiteDatabase database, String jobId, QueueItem item, File vaultDirectory) throws Exception {
+    if ("image".equals(item.type) || "video".equals(item.type)) {
+      MurshidMediaStore.ImportedMedia imported = MurshidMediaStore.copyToPublic(
+          getApplicationContext(), item.sourceUri, item.filename, item.type, item.mimeType, item.size,
+          item.sourceRelativePath, () -> isStopped() || !"running".equals(readJobState(database, jobId)));
+      markCompleted(database, jobId, item, imported.size, imported.uri);
+      return true;
+    }
+
     File target = fileFromUri(item.targetUri);
     String targetPath = target.getCanonicalPath();
     String vaultPath = vaultDirectory.getCanonicalPath() + File.separator;
@@ -187,15 +198,13 @@ public final class MurshidGalleryImportWorker extends Worker {
     }
     if (interrupted) {
       if (partial.exists()) partial.delete();
-      database.execSQL("UPDATE import_job_items SET status='pending' WHERE id=? AND job_id=?", new Object[]{item.id, jobId});
-      database.execSQL("UPDATE import_jobs SET current_bytes=0 WHERE id=?", new Object[]{jobId});
-      clearCurrentFilename(database, jobId);
+      resetPending(database, jobId, item);
       return false;
     }
     if (!partial.exists()) throw new IllegalStateException("لم يُنشأ ملف الاستيراد.");
     if (target.exists() && !target.delete()) throw new IllegalStateException("تعذر استبدال ملف مؤقت.");
     if (!partial.renameTo(target)) throw new IllegalStateException("تعذر تثبيت الملف بعد اكتمال نسخه.");
-    markCompleted(database, jobId, item, copied, target.getAbsolutePath());
+    markCompleted(database, jobId, item, copied, Uri.fromFile(target).toString());
     return true;
   }
 
@@ -211,12 +220,6 @@ public final class MurshidGalleryImportWorker extends Worker {
     }
   }
 
-  private static long readCopiedBytes(SQLiteDatabase db, String jobId) {
-    try (Cursor cursor = db.rawQuery("SELECT copied_bytes FROM import_jobs WHERE id=?", new String[]{jobId})) {
-      return cursor.moveToFirst() ? cursor.getLong(0) : 0L;
-    }
-  }
-
   private static int countPending(SQLiteDatabase db, String jobId) {
     try (Cursor cursor = db.rawQuery("SELECT COUNT(*) FROM import_job_items WHERE job_id=? AND status='pending'", new String[]{jobId})) {
       return cursor.moveToFirst() ? cursor.getInt(0) : 0;
@@ -225,15 +228,16 @@ public final class MurshidGalleryImportWorker extends Worker {
 
   private static QueueItem nextPendingItem(SQLiteDatabase db, String jobId) {
     try (Cursor cursor = db.rawQuery(
-        "SELECT id, media_id, source_uri, target_uri, filename, type, mime_type, size, source_key, source_modified_at, width, height, duration " +
+        "SELECT id, media_id, source_uri, target_uri, filename, type, mime_type, size, source_key, source_modified_at, source_relative_path, width, height, duration " +
             "FROM import_job_items WHERE job_id=? AND status='pending' ORDER BY position LIMIT 1",
         new String[]{jobId})) {
       if (!cursor.moveToFirst()) return null;
       return new QueueItem(
           cursor.getString(0), cursor.getString(1), cursor.getString(2), cursor.getString(3), cursor.getString(4), cursor.getString(5),
           cursor.isNull(6) ? null : cursor.getString(6), cursor.getLong(7), cursor.isNull(8) ? null : cursor.getString(8),
-          cursor.isNull(9) ? null : cursor.getLong(9), cursor.isNull(10) ? null : cursor.getInt(10),
-          cursor.isNull(11) ? null : cursor.getInt(11), cursor.isNull(12) ? null : cursor.getDouble(12));
+          cursor.isNull(9) ? null : cursor.getLong(9), cursor.isNull(10) ? null : cursor.getString(10),
+          cursor.isNull(11) ? null : cursor.getInt(11), cursor.isNull(12) ? null : cursor.getInt(12),
+          cursor.isNull(13) ? null : cursor.getDouble(13));
     }
   }
 
@@ -250,13 +254,18 @@ public final class MurshidGalleryImportWorker extends Worker {
     }
   }
 
-  private void markCompleted(SQLiteDatabase db, String jobId, QueueItem item, long bytes, String targetPath) {
+  private static void resetPending(SQLiteDatabase db, String jobId, QueueItem item) {
+    db.execSQL("UPDATE import_job_items SET status='pending' WHERE id=? AND job_id=?", new Object[]{item.id, jobId});
+    clearCurrentFilename(db, jobId);
+  }
+
+  private void markCompleted(SQLiteDatabase db, String jobId, QueueItem item, long bytes, String targetUri) {
     db.beginTransaction();
     try {
-      if (targetPath != null) {
+      if (targetUri != null) {
         ContentValues media = new ContentValues();
         media.put("id", item.mediaId);
-        media.put("uri", Uri.fromFile(new File(targetPath)).toString());
+        media.put("uri", targetUri);
         media.put("filename", item.filename);
         media.put("type", item.type);
         if (item.mimeType != null) media.put("mime_type", item.mimeType);
@@ -266,6 +275,7 @@ public final class MurshidGalleryImportWorker extends Worker {
         media.put("source", "imported");
         if (item.sourceKey != null) media.put("source_key", item.sourceKey);
         if (item.sourceModifiedAt != null) media.put("source_modified_at", item.sourceModifiedAt);
+        if (item.sourceRelativePath != null) media.put("source_relative_path", item.sourceRelativePath);
         if (item.width != null) media.put("width", item.width);
         if (item.height != null) media.put("height", item.height);
         if (item.duration != null) media.put("duration", item.duration);
@@ -365,12 +375,14 @@ public final class MurshidGalleryImportWorker extends Worker {
     final long size;
     final String sourceKey;
     final Long sourceModifiedAt;
+    final String sourceRelativePath;
     final Integer width;
     final Integer height;
     final Double duration;
 
     QueueItem(String id, String mediaId, String sourceUri, String targetUri, String filename, String type, String mimeType,
-              long size, String sourceKey, Long sourceModifiedAt, Integer width, Integer height, Double duration) {
+              long size, String sourceKey, Long sourceModifiedAt, String sourceRelativePath,
+              Integer width, Integer height, Double duration) {
       this.id = id;
       this.mediaId = mediaId;
       this.sourceUri = sourceUri;
@@ -381,6 +393,7 @@ public final class MurshidGalleryImportWorker extends Worker {
       this.size = size;
       this.sourceKey = sourceKey;
       this.sourceModifiedAt = sourceModifiedAt;
+      this.sourceRelativePath = sourceRelativePath;
       this.width = width;
       this.height = height;
       this.duration = duration;
