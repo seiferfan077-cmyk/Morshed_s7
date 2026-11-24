@@ -6,6 +6,7 @@ import * as Updates from 'expo-updates';
 import './src/services/channel/channelNotifications';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { AppDialogProvider } from './src/components/AppDialogProvider';
 import { showDailyUpdateNotificationIfDue } from './src/services/notifications/dailyUpdateNotification';
@@ -15,6 +16,10 @@ import { ThemeProvider, useAppTheme } from './src/theme/ThemeProvider';
 import { TabPreferencesProvider } from './src/navigation/TabPreferences';
 
 export default function App() {
+  return <SafeAreaProvider><AppContent /></SafeAreaProvider>;
+}
+
+function AppContent() {
   const [fontsLoaded, fontError] = useFonts({
     'ArefRuqaa-Regular': require('./assets/fonts/ArefRuqaa-Regular.ttf'),
     'ArefRuqaa-Bold': require('./assets/fonts/ArefRuqaa-Bold.ttf'),
@@ -105,5 +110,5 @@ function ThemedApp({ websiteGateRequired, onWebsiteGateComplete }: { websiteGate
   const { colors, mode, ready } = useAppTheme();
   useEffect(() => { void SystemUI.setBackgroundColorAsync(colors.surface).catch(() => undefined); }, [colors.surface]);
   if (!ready) return null;
-  return <TabPreferencesProvider><View style={{ flex: 1, backgroundColor: colors.surface }}><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{websiteGateRequired ? <WebsiteLaunchGate onComplete={onWebsiteGateComplete} /> : <AppNavigator />}</View></TabPreferencesProvider>;
+  return <TabPreferencesProvider><View style={{ flex: 1, backgroundColor: colors.surface }}><StatusBar style={mode === 'dark' ? 'light' : 'dark'} />{websiteGateRequired ? <WebsiteLaunchGate onComplete={onWebsiteGateComplete} /> : <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.surface }}><AppNavigator /></SafeAreaView>}</View></TabPreferencesProvider>;
 }
